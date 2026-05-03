@@ -1,0 +1,26 @@
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:lilia_admin/features/clients/data/user_repository.dart';
+import 'package:lilia_admin/features/auth/user_sync_provider.dart';
+import 'package:lilia_admin/models/order.dart';
+
+part 'user_orders_provider.g.dart';
+
+// Provider pour l'instance du UserRepository
+@riverpod
+UserRepository userRepository(Ref ref) {
+  return UserRepository();
+}
+
+// Provider pour récupérer la liste des commandes d'un utilisateur
+@riverpod
+Future<List<Order>> userOrders(Ref ref, String userId) async {
+  final userRepository = ref.watch(userRepositoryProvider);
+  final currentUser = ref.watch(currentUserProfileProvider);
+
+  final restaurantId = currentUser?.restaurantId;
+  if (restaurantId == null) {
+    throw Exception('Restaurant non trouvé pour l\'utilisateur connecté');
+  }
+
+  return userRepository.fetchUserOrders(restaurantId, userId);
+}
