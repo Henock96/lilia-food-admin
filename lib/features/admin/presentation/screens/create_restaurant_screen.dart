@@ -308,7 +308,7 @@ class _CreateRestaurantScreenState extends State<CreateRestaurantScreen> {
                                     _restaurantImageUrlController.text,
                                     fit: BoxFit.cover,
                                     width: double.infinity,
-                                    errorBuilder: (_, __, ___) =>
+                                    errorBuilder: (_, _, _) =>
                                         _buildImagePlaceholder(),
                                   ),
                                 )
@@ -362,7 +362,7 @@ class _CreateRestaurantScreenState extends State<CreateRestaurantScreen> {
               height: 100,
               width: double.infinity,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),
           ),
         ],
