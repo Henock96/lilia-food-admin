@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_admin/routing/app_router.dart';
 import 'package:lilia_admin/services/notification_service.dart';
+import 'package:lilia_admin/theme/app_theme.dart';
 
 import 'features/auth/user_sync_provider.dart';
 import 'firebase_options.dart';
@@ -33,9 +34,7 @@ class MyApp extends ConsumerWidget {
       routerConfig: router,
       debugShowCheckedModeBanner: false,
       title: 'Lilia Food Admin',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
+      theme: AppTheme.light,
     );
   }
 }
