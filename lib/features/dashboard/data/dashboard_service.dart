@@ -125,7 +125,7 @@ class DashboardService {
   /// Récupère le classement des restaurants (ADMIN uniquement)
   Future<List<RestaurantRanking>> getRestaurantRanking({String? period}) async {
     final token = await _getAuthToken();
-    var url = '$_baseUrl/dashboard/restaurants';
+    var url = '$_baseUrl/dashboard/restaurant-ranking';
     if (period != null) url += '?period=$period';
 
     final response = await http.get(
