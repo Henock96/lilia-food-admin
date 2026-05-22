@@ -16,6 +16,10 @@ import 'package:lilia_admin/features/admin/presentation/screens/create_restauran
 import 'package:lilia_admin/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:lilia_admin/features/settings/presentation/screens/settings_screen.dart';
 import 'package:lilia_admin/features/zones/presentation/screens/zones_screen.dart';
+import 'package:lilia_admin/features/admin/presentation/screens/payments_screen.dart';
+import 'package:lilia_admin/features/admin/presentation/screens/deliverers_screen.dart';
+import 'package:lilia_admin/features/admin/presentation/screens/quartiers_screen.dart';
+import 'package:lilia_admin/features/admin/presentation/screens/platform_settings_screen.dart';
 import 'package:lilia_admin/features/restaurant/presentation/providers/restaurant_provider.dart';
 import 'package:lilia_admin/features/auth/user_sync_provider.dart';
 import 'package:lilia_admin/models/role.dart';
@@ -147,6 +151,30 @@ GoRouter router(Ref ref) {
                     name: 'delivery-zones',
                     pageBuilder: (context, state) =>
                     const MaterialPage(child: ZonesScreen()),
+                  ),
+                  GoRoute(
+                    path: 'paiements',
+                    name: 'admin-payments',
+                    pageBuilder: (context, state) =>
+                        const MaterialPage(child: PaymentsScreen()),
+                  ),
+                  GoRoute(
+                    path: 'livreurs',
+                    name: 'admin-deliverers',
+                    pageBuilder: (context, state) =>
+                        const MaterialPage(child: DeliverersScreen()),
+                  ),
+                  GoRoute(
+                    path: 'quartiers',
+                    name: 'admin-quartiers',
+                    pageBuilder: (context, state) =>
+                        const MaterialPage(child: QuartiersScreen()),
+                  ),
+                  GoRoute(
+                    path: 'parametres-plateforme',
+                    name: 'platform-settings',
+                    pageBuilder: (context, state) =>
+                        const MaterialPage(child: PlatformSettingsScreen()),
                   ),
                 ],
               ),

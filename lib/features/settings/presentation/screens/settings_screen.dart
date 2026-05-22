@@ -108,34 +108,74 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             const SizedBox(width: 8),
           ],
         ),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.admin_panel_settings, size: 80, color: _AppColors.primary),
-                SizedBox(height: 24),
-                Text(
-                  'Espace Administrateur',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: _AppColors.textPrimary,
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: _AppColors.primaryLight,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: const [
+                  Icon(Icons.admin_panel_settings,
+                      size: 36, color: _AppColors.primary),
+                  SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Espace Administrateur',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: _AppColors.textPrimary,
+                            )),
+                        SizedBox(height: 4),
+                        Text(
+                          'Gestion transverse de la plateforme.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: _AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                SizedBox(height: 12),
-                Text(
-                  'Les parametres de restaurant sont accessibles depuis le profil de chaque restaurateur. Utilisez le tableau de bord pour voir les statistiques globales.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: _AppColors.textSecondary,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+            _AdminMenuTile(
+              icon: Icons.payments_outlined,
+              iconColor: _AppColors.success,
+              title: 'Paiements',
+              subtitle: 'Superviser et confirmer les paiements',
+              onTap: () => context.goNamed('admin-payments'),
+            ),
+            _AdminMenuTile(
+              icon: Icons.delivery_dining_outlined,
+              iconColor: _AppColors.primary,
+              title: 'Livreurs',
+              subtitle: 'Liste des livreurs et de leurs livraisons',
+              onTap: () => context.goNamed('admin-deliverers'),
+            ),
+            _AdminMenuTile(
+              icon: Icons.map_outlined,
+              iconColor: _AppColors.warning,
+              title: 'Zones',
+              subtitle: 'Référentiel des quartiers couverts',
+              onTap: () => context.goNamed('admin-quartiers'),
+            ),
+            _AdminMenuTile(
+              icon: Icons.tune,
+              iconColor: _AppColors.textSecondary,
+              title: 'Paramètres plateforme',
+              subtitle: 'Frais de service, fidélité, maintenance',
+              onTap: () => context.goNamed('platform-settings'),
+            ),
+          ],
         ),
       );
     }
@@ -1688,6 +1728,85 @@ class _SpecialtiesTabState extends ConsumerState<_SpecialtiesTab> {
                 ),
         ),
       ],
+    );
+  }
+}
+
+/// Tuile de navigation du menu d'administration.
+class _AdminMenuTile extends StatelessWidget {
+  const _AdminMenuTile({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: _AppColors.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: _AppColors.textPrimary,
+                          )),
+                      const SizedBox(height: 2),
+                      Text(subtitle,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: _AppColors.textSecondary,
+                          )),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right,
+                    color: _AppColors.textSecondary),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
