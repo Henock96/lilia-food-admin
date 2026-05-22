@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../models/order.dart';
+import '../../../../models/app_deliverer.dart';
+import '../../../deliveries/data/delivery_service.dart';
 import '../../data/order_controller.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
@@ -16,7 +18,8 @@ class OrderDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Écouter les mises à jour de la commande en temps réel
     final ordersState = ref.watch(restaurantOrdersProvider);
-    final currentOrder = ordersState.whenOrNull(
+    final currentOrder =
+        ordersState.whenOrNull(
           data: (orders) {
             try {
               return orders.firstWhere((o) => o.id == order.id);
@@ -31,7 +34,9 @@ class OrderDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Commande #${currentOrder.id.substring(0, 8).toUpperCase()}'),
+        title: Text(
+          'Commande #${currentOrder.id.substring(0, 8).toUpperCase()}',
+        ),
         centerTitle: true,
         actions: [
           IconButton(
@@ -80,6 +85,14 @@ class OrderDetailScreen extends ConsumerWidget {
             _buildPaymentInfo(context, currentOrder),
             const SizedBox(height: 24),
 
+            // Assignation livreur (commande PRET en livraison)
+            if (currentOrder.status == OrderStatus.pret &&
+                currentOrder.isDelivery)
+              _buildAssignDelivererSection(context, ref, currentOrder),
+            if (currentOrder.status == OrderStatus.pret &&
+                currentOrder.isDelivery)
+              const SizedBox(height: 16),
+
             // Actions statut
             _buildStatusActions(context, ref, currentOrder),
             const SizedBox(height: 16),
@@ -89,7 +102,11 @@ class OrderDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatusBanner(BuildContext context, Order order, _StatusInfo info) {
+  Widget _buildStatusBanner(
+    BuildContext context,
+    Order order,
+    _StatusInfo info,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -124,7 +141,11 @@ class OrderDetailScreen extends ConsumerWidget {
           ),
           if (order.restaurantName != null)
             Chip(
-              avatar: Icon(Icons.restaurant, size: 16, color: Colors.purple[700]),
+              avatar: Icon(
+                Icons.restaurant,
+                size: 16,
+                color: Colors.purple[700],
+              ),
               label: Text(
                 order.restaurantName!,
                 style: TextStyle(fontSize: 12, color: Colors.purple[700]),
@@ -139,7 +160,8 @@ class OrderDetailScreen extends ConsumerWidget {
 
   Widget _buildCustomerSection(BuildContext context, Order order) {
     final theme = Theme.of(context);
-    final hasCustomerInfo = order.customerName != null || order.customerPhone != null;
+    final hasCustomerInfo =
+        order.customerName != null || order.customerPhone != null;
 
     return Card(
       elevation: 1,
@@ -167,7 +189,10 @@ class OrderDetailScreen extends ConsumerWidget {
             if (!hasCustomerInfo)
               Text(
                 'Informations client non disponibles',
-                style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic),
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontStyle: FontStyle.italic,
+                ),
               )
             else ...[
               Row(
@@ -204,7 +229,10 @@ class OrderDetailScreen extends ConsumerWidget {
                           const SizedBox(height: 2),
                           Text(
                             order.customerEmail!,
-                            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ],
@@ -220,7 +248,10 @@ class OrderDetailScreen extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Text(
                       order.customerPhone!,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     const Spacer(),
                     // Bouton appeler
@@ -234,7 +265,9 @@ class OrderDetailScreen extends ConsumerWidget {
                       icon: Icon(Icons.copy, color: Colors.grey[600]),
                       tooltip: 'Copier le numéro',
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: order.customerPhone!));
+                        Clipboard.setData(
+                          ClipboardData(text: order.customerPhone!),
+                        );
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Numéro copié'),
@@ -296,7 +329,9 @@ class OrderDetailScreen extends ConsumerWidget {
                   icon: Icon(Icons.copy, size: 18, color: Colors.grey[500]),
                   tooltip: 'Copier l\'adresse',
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(text: order.deliveryAddress));
+                    Clipboard.setData(
+                      ClipboardData(text: order.deliveryAddress),
+                    );
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Adresse copiée'),
@@ -364,7 +399,11 @@ class OrderDetailScreen extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.shopping_bag, color: theme.colorScheme.primary, size: 20),
+                Icon(
+                  Icons.shopping_bag,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Articles (${order.items.length})',
@@ -408,10 +447,14 @@ class OrderDetailScreen extends ConsumerWidget {
                             item.productName,
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
-                          if (item.variant != null && item.variant != 'Standard')
+                          if (item.variant != null &&
+                              item.variant != 'Standard')
                             Text(
                               item.variant!,
-                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
                             ),
                         ],
                       ),
@@ -442,7 +485,10 @@ class OrderDetailScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _priceRow('Sous-total', '${order.subTotal.toStringAsFixed(0)} FCFA'),
+            _priceRow(
+              'Sous-total',
+              '${order.subTotal.toStringAsFixed(0)} FCFA',
+            ),
             const SizedBox(height: 8),
             _priceRow(
               order.isDelivery ? 'Frais de livraison' : 'Retrait (gratuit)',
@@ -464,7 +510,10 @@ class OrderDetailScreen extends ConsumerWidget {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(20),
@@ -557,7 +606,35 @@ class OrderDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildStatusActions(BuildContext context, WidgetRef ref, Order order) {
-    if (order.status == OrderStatus.livrer || order.status == OrderStatus.annuler) {
+    if (order.status == OrderStatus.enRoute) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.blue.shade200),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.delivery_dining, color: Colors.blue[700], size: 28),
+            const SizedBox(width: 10),
+            Text(
+              'Le livreur est en route',
+              style: TextStyle(
+                color: Colors.blue[700],
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (order.status == OrderStatus.livrer ||
+        order.status == OrderStatus.annuler) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
@@ -569,8 +646,12 @@ class OrderDetailScreen extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              order.status == OrderStatus.livrer ? Icons.check_circle : Icons.cancel,
-              color: order.status == OrderStatus.livrer ? Colors.green : Colors.red,
+              order.status == OrderStatus.livrer
+                  ? Icons.check_circle
+                  : Icons.cancel,
+              color: order.status == OrderStatus.livrer
+                  ? Colors.green
+                  : Colors.red,
               size: 28,
             ),
             const SizedBox(width: 10),
@@ -621,7 +702,10 @@ class OrderDetailScreen extends ConsumerWidget {
                 icon: Icon(info.icon),
                 label: Text(
                   info.label,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -632,13 +716,19 @@ class OrderDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _updateStatus(
-      BuildContext context, WidgetRef ref, Order order, OrderStatus status) async {
+    BuildContext context,
+    WidgetRef ref,
+    Order order,
+    OrderStatus status,
+  ) async {
     if (status == OrderStatus.annuler) {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Annuler la commande ?'),
-          content: const Text('Cette action est irréversible. Le client sera notifié.'),
+          content: const Text(
+            'Cette action est irréversible. Le client sera notifié.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -656,7 +746,9 @@ class OrderDetailScreen extends ConsumerWidget {
     }
 
     try {
-      await ref.read(restaurantOrdersProvider.notifier).updateOrderStatus(order.id, status);
+      await ref
+          .read(restaurantOrdersProvider.notifier)
+          .updateOrderStatus(order.id, status);
 
       if (context.mounted) {
         final info = _getStatusInfo(status);
@@ -698,13 +790,21 @@ class OrderDetailScreen extends ConsumerWidget {
   List<OrderStatus> _getAvailableStatuses(OrderStatus current) {
     switch (current) {
       case OrderStatus.enattente:
-        return [OrderStatus.enpreparation, OrderStatus.payer, OrderStatus.annuler];
+        return [
+          OrderStatus.enpreparation,
+          OrderStatus.payer,
+          OrderStatus.annuler,
+        ];
       case OrderStatus.payer:
         return [OrderStatus.enpreparation, OrderStatus.annuler];
       case OrderStatus.enpreparation:
         return [OrderStatus.pret, OrderStatus.annuler];
       case OrderStatus.pret:
-        return [OrderStatus.livrer, OrderStatus.annuler];
+        // Pour les livraisons, le livreur marque livré après réception
+        return [OrderStatus.annuler];
+      case OrderStatus.enRoute:
+        // Le livreur est en transit, l'admin ne peut qu'annuler en cas d'urgence
+        return [];
       default:
         return [];
     }
@@ -713,20 +813,53 @@ class OrderDetailScreen extends ConsumerWidget {
   _StatusInfo _getStatusInfo(OrderStatus status) {
     switch (status) {
       case OrderStatus.enattente:
-        return _StatusInfo(label: 'En attente', color: Colors.orange, icon: Icons.hourglass_empty);
+        return _StatusInfo(
+          label: 'En attente',
+          color: Colors.orange,
+          icon: Icons.hourglass_empty,
+        );
       case OrderStatus.payer:
-        return _StatusInfo(label: 'Payée', color: Colors.blue, icon: Icons.payment);
+        return _StatusInfo(
+          label: 'Payée',
+          color: Colors.blue,
+          icon: Icons.payment,
+        );
       case OrderStatus.enpreparation:
         return _StatusInfo(
-            label: 'En préparation', color: Colors.indigo, icon: Icons.restaurant);
+          label: 'En préparation',
+          color: Colors.indigo,
+          icon: Icons.restaurant,
+        );
       case OrderStatus.pret:
-        return _StatusInfo(label: 'Prête', color: Colors.green, icon: Icons.check_circle);
+        return _StatusInfo(
+          label: 'Prête',
+          color: Colors.green,
+          icon: Icons.check_circle,
+        );
+      case OrderStatus.enRoute:
+        return _StatusInfo(
+          label: 'En livraison',
+          color: Colors.blue,
+          icon: Icons.delivery_dining,
+        );
       case OrderStatus.livrer:
-        return _StatusInfo(label: 'Livrée', color: Colors.teal, icon: Icons.local_shipping);
+        return _StatusInfo(
+          label: 'Livrée',
+          color: Colors.teal,
+          icon: Icons.local_shipping,
+        );
       case OrderStatus.annuler:
-        return _StatusInfo(label: 'Annuler', color: Colors.red, icon: Icons.cancel);
+        return _StatusInfo(
+          label: 'Annuler',
+          color: Colors.red,
+          icon: Icons.cancel,
+        );
       default:
-        return _StatusInfo(label: 'Inconnu', color: Colors.grey, icon: Icons.help_outline);
+        return _StatusInfo(
+          label: 'Inconnu',
+          color: Colors.grey,
+          icon: Icons.help_outline,
+        );
     }
   }
 
@@ -737,6 +870,79 @@ class OrderDetailScreen extends ConsumerWidget {
       return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     }
     return name.substring(0, name.length >= 2 ? 2 : name.length).toUpperCase();
+  }
+
+  Widget _buildAssignDelivererSection(
+    BuildContext context,
+    WidgetRef ref,
+    Order order,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.delivery_dining, color: Colors.orange[700], size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Assignation livreur',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.orange[700],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'La commande est prête. Assignez un livreur pour la prise en charge.',
+            style: TextStyle(color: Colors.orange[800], fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _showAssignDelivererSheet(context, ref, order),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange[700],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              icon: const Icon(Icons.person_add),
+              label: const Text(
+                'Choisir un livreur',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showAssignDelivererSheet(
+    BuildContext context,
+    WidgetRef ref,
+    Order order,
+  ) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _AssignDelivererSheet(order: order, ref: ref),
+    );
   }
 
   Future<void> _launchPhone(String phone) async {
@@ -753,4 +959,266 @@ class _StatusInfo {
   final IconData icon;
 
   _StatusInfo({required this.label, required this.color, required this.icon});
+}
+
+class _AssignDelivererSheet extends StatefulWidget {
+  final Order order;
+  final WidgetRef ref;
+
+  const _AssignDelivererSheet({required this.order, required this.ref});
+
+  @override
+  State<_AssignDelivererSheet> createState() => _AssignDelivererSheetState();
+}
+
+class _AssignDelivererSheetState extends State<_AssignDelivererSheet> {
+  final _service = DeliveryService();
+  List<AppDeliverer>? _deliverers;
+  bool _loading = true;
+  String? _error;
+  String? _assigningId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    try {
+      final deliverers = await _service.getAvailableDeliverers();
+      if (mounted) {
+        setState(() {
+          _deliverers = deliverers;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _assign(AppDeliverer deliverer) async {
+    setState(() => _assigningId = deliverer.id);
+    try {
+      await _service.assignDelivererToOrder(widget.order.id, deliverer.id);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text('${deliverer.nom} assigné avec succès')),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        widget.ref.refresh(restaurantOrdersProvider.future);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _assigningId = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        top: 16,
+        left: 16,
+        right: 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Choisir un livreur',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Commande #${widget.order.id.substring(0, 8).toUpperCase()}',
+            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          if (_loading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (_error != null)
+            Center(
+              child: Column(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red[400], size: 48),
+                  const SizedBox(height: 8),
+                  Text(_error!, style: TextStyle(color: Colors.red[600])),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: _loadData,
+                    child: const Text('Réessayer'),
+                  ),
+                ],
+              ),
+            )
+          else if (_deliverers!.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: Column(
+                  children: [
+                    Icon(Icons.delivery_dining, size: 48, color: Colors.grey),
+                    SizedBox(height: 8),
+                    Text('Aucun livreur disponible pour l\'instant'),
+                  ],
+                ),
+              ),
+            )
+          else
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.5,
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: _deliverers!.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final d = _deliverers![index];
+                  final isAssigning = _assigningId == d.id;
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 4,
+                    ),
+                    leading: CircleAvatar(
+                      radius: 24,
+                      backgroundColor: Colors.orange.shade100,
+                      backgroundImage: d.imageUrl != null
+                          ? NetworkImage(d.imageUrl!)
+                          : null,
+                      child: d.imageUrl == null
+                          ? Text(
+                              d.nom.isNotEmpty ? d.nom[0].toUpperCase() : '?',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange[800],
+                              ),
+                            )
+                          : null,
+                    ),
+                    title: Text(
+                      d.nom,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (d.phone != null)
+                          Text(
+                            d.phone!,
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: d.activeDeliveries == 0
+                                    ? Colors.green
+                                    : Colors.orange,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              d.activeDeliveries == 0
+                                  ? 'Disponible'
+                                  : '${d.activeDeliveries} livraison(s) en cours',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: d.activeDeliveries == 0
+                                    ? Colors.green[700]
+                                    : Colors.orange[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    trailing: isAssigning
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : ElevatedButton(
+                            onPressed: _assigningId != null
+                                ? null
+                                : () => _assign(d),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange[700],
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'Assigner',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

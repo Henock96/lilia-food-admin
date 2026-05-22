@@ -170,7 +170,7 @@ class _BannerFormScreenState extends ConsumerState<BannerFormScreen> {
                                 _imageUrlController.text,
                                 fit: BoxFit.cover,
                                 width: double.infinity,
-                                errorBuilder: (_, __, ___) =>
+                                errorBuilder: (_, _, _) =>
                                     _buildImagePlaceholder(),
                               ),
                             )

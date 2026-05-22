@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../auth/controller/auth_controller.dart';
 import '../../../auth/user_sync_provider.dart';
 import '../../../../models/role.dart';
 import '../providers/settings_provider.dart';
@@ -51,6 +52,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     super.dispose();
   }
 
+  Future<void> _showLogoutDialog() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Se déconnecter ?'),
+        content: const Text('Vous serez redirigé vers la page de connexion.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: _AppColors.danger),
+            child: const Text('Déconnecter'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && mounted) {
+      await ref.read(authControllerProvider.notifier).signOut();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final userProfile = ref.watch(currentUserProfileProvider);
@@ -71,6 +97,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               fontSize: 22,
             ),
           ),
+          actions: [
+            IconButton(
+              onPressed: _showLogoutDialog,
+              icon: const Icon(Icons.logout, color: _AppColors.danger),
+              tooltip: 'Se déconnecter',
+            ),
+            const SizedBox(width: 8),
+          ],
         ),
         body: const Center(
           child: Padding(
@@ -120,6 +154,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             fontSize: 22,
           ),
         ),
+        actions: [
+          IconButton(
+            onPressed: _showLogoutDialog,
+            icon: const Icon(Icons.logout, color: _AppColors.danger),
+            tooltip: 'Se déconnecter',
+          ),
+          const SizedBox(width: 8),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(52),
           child: Container(
@@ -261,7 +303,7 @@ class _SectionCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (trailing != null) trailing!,
+                  ?trailing,
                 ],
               ),
               const SizedBox(height: 20),

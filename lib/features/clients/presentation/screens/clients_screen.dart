@@ -1,5 +1,5 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -18,22 +18,36 @@ class ClientsScreen extends ConsumerStatefulWidget {
 }
 
 class _ClientsScreenState extends ConsumerState<ClientsScreen> {
-  String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  String _search = '';
+  int _page = 1;
+  Timer? _debounce;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  List<AppUser> _filterClients(List<AppUser> clients) {
-    if (_searchQuery.isEmpty) return clients;
-    final query = _searchQuery.toLowerCase();
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      setState(() {
+        _search = value;
+        _page = 1;
+      });
+    });
+  }
+
+  // Filtrage local — utilisé uniquement pour la vue restaurateur (liste complète).
+  List<AppUser> _filterLocal(List<AppUser> clients) {
+    if (_search.isEmpty) return clients;
+    final q = _search.toLowerCase();
     return clients.where((c) {
-      return (c.nom?.toLowerCase().contains(query) ?? false) ||
-          (c.email.toLowerCase().contains(query)) ||
-          (c.phone?.toLowerCase().contains(query) ?? false);
+      return (c.nom?.toLowerCase().contains(q) ?? false) ||
+          c.email.toLowerCase().contains(q) ||
+          (c.phone?.toLowerCase().contains(q) ?? false);
     }).toList();
   }
 
@@ -44,17 +58,10 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
 
     if (!isAdmin && widget.restaurantId.isEmpty) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Clients du Restaurant'),
-          centerTitle: true,
-        ),
+        appBar: AppBar(title: const Text('Clients du Restaurant'), centerTitle: true),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-
-    final clientsAsync = isAdmin
-        ? ref.watch(allClientsProvider)
-        : ref.watch(restaurantClientsProvider(widget.restaurantId));
 
     return Scaffold(
       appBar: AppBar(
@@ -66,6 +73,7 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
             tooltip: 'Actualiser',
             onPressed: () {
               if (isAdmin) {
+                setState(() => _page = 1);
                 ref.invalidate(allClientsProvider);
               } else {
                 ref.invalidate(restaurantClientsProvider(widget.restaurantId));
@@ -74,173 +82,169 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
           ),
         ],
       ),
-      body: clientsAsync.when(
-        data: (clients) {
-          if (clients.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.people_outline, size: 80, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'Aucun client trouvé.',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          final filteredClients = _filterClients(clients);
-
-          return RefreshIndicator(
-            onRefresh: () async {
-              if (isAdmin) {
-                return ref.refresh(allClientsProvider.future);
-              } else {
-                return ref.refresh(
-                    restaurantClientsProvider(widget.restaurantId).future);
-              }
-            },
-            child: Column(
-              children: [
-                // Barre de recherche + stats
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  child: Column(
-                    children: [
-                      // Stats rapides
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.people, color: Theme.of(context).colorScheme.primary, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${clients.length} client${clients.length > 1 ? 's' : ''} au total',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      // Barre de recherche
-                      TextField(
-                        controller: _searchController,
-                        onChanged: (value) {
-                          setState(() {
-                            _searchQuery = value;
-                          });
-                        },
-                        decoration: InputDecoration(
-                          hintText: 'Rechercher par nom, email ou téléphone...',
-                          prefixIcon: const Icon(Icons.search),
-                          suffixIcon: _searchQuery.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() {
-                                      _searchQuery = '';
-                                    });
-                                  },
-                                )
-                              : null,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey[300]!),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey[300]!),
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey[50],
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        ),
-                      ),
-                      if (_searchQuery.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          '${filteredClients.length} résultat${filteredClients.length > 1 ? 's' : ''}',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                // Liste des clients
-                Expanded(
-                  child: filteredClients.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Aucun résultat pour "$_searchQuery"',
-                                style: TextStyle(color: Colors.grey[600]),
-                              ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          itemCount: filteredClients.length,
-                          itemBuilder: (context, index) {
-                            return _ClientCard(client: filteredClients[index]);
-                          },
-                        ),
-                ),
-              ],
-            ),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                const SizedBox(height: 16),
-                Text(
-                  'Erreur de chargement',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  error.toString(),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    if (isAdmin) {
-                      ref.invalidate(allClientsProvider);
-                    } else {
-                      ref.invalidate(restaurantClientsProvider(widget.restaurantId));
-                    }
-                  },
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Réessayer'),
-                ),
-              ],
-            ),
+      body: Column(
+        children: [
+          _buildSearchBar(),
+          Expanded(
+            child: isAdmin ? _buildAdminList() : _buildRestaurantList(),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: TextField(
+        controller: _searchController,
+        onChanged: _onSearchChanged,
+        decoration: InputDecoration(
+          hintText: 'Rechercher par nom, email ou téléphone...',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    _onSearchChanged('');
+                  },
+                )
+              : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          filled: true,
+          fillColor: Colors.grey[50],
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+      ),
+    );
+  }
+
+  // ── Vue ADMIN : pagination + recherche serveur ──────────────────────────
+  Widget _buildAdminList() {
+    final clientsAsync = ref.watch(allClientsProvider(page: _page, search: _search));
+    return clientsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => _errorView(error, () => ref.invalidate(allClientsProvider)),
+      data: (result) {
+        if (result.clients.isEmpty) {
+          return _emptyView(
+            _search.isNotEmpty ? 'Aucun résultat pour "$_search"' : 'Aucun client trouvé.',
+          );
+        }
+        return Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                itemCount: result.clients.length,
+                itemBuilder: (context, index) =>
+                    _ClientCard(client: result.clients[index], showLoyalty: true),
+              ),
+            ),
+            _buildPagination(result.total, result.totalPages),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPagination(int total, int totalPages) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            '$total client${total > 1 ? 's' : ''} · page $_page/$totalPages',
+            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+          ),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left),
+                tooltip: 'Page précédente',
+                onPressed: _page > 1 ? () => setState(() => _page--) : null,
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right),
+                tooltip: 'Page suivante',
+                onPressed: _page < totalPages ? () => setState(() => _page++) : null,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Vue RESTAURATEUR : liste complète + filtrage local ──────────────────
+  Widget _buildRestaurantList() {
+    final clientsAsync = ref.watch(restaurantClientsProvider(widget.restaurantId));
+    return clientsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => _errorView(
+        error,
+        () => ref.invalidate(restaurantClientsProvider(widget.restaurantId)),
+      ),
+      data: (clients) {
+        final filtered = _filterLocal(clients);
+        if (filtered.isEmpty) {
+          return _emptyView(
+            _search.isNotEmpty ? 'Aucun résultat pour "$_search"' : 'Aucun client trouvé.',
+          );
+        }
+        return RefreshIndicator(
+          onRefresh: () => ref.refresh(restaurantClientsProvider(widget.restaurantId).future),
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            itemCount: filtered.length,
+            itemBuilder: (context, index) => _ClientCard(client: filtered[index]),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _emptyView(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
+          const SizedBox(height: 12),
+          Text(message, style: TextStyle(color: Colors.grey[600])),
+        ],
+      ),
+    );
+  }
+
+  Widget _errorView(Object error, VoidCallback onRetry) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text('Erreur de chargement', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(error.toString(), textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600])),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Réessayer'),
+            ),
+          ],
         ),
       ),
     );
@@ -249,8 +253,11 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
 
 class _ClientCard extends StatelessWidget {
   final AppUser client;
+  /// Affiche le solde de fidélité — uniquement en vue ADMIN, où l'endpoint
+  /// `/admin/clients` renvoie `loyaltyPoints` (la vue restaurateur ne l'a pas).
+  final bool showLoyalty;
 
-  const _ClientCard({required this.client});
+  const _ClientCard({required this.client, this.showLoyalty = false});
 
   @override
   Widget build(BuildContext context) {
@@ -261,21 +268,11 @@ class _ClientCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () {
-          final clientId = client.id;
-          if (clientId.isNotEmpty) {
-            context.goNamed(
-              'client-detail',
-              pathParameters: {'id': clientId},
-              extra: client,
-            );
-          }
-        },
+        onTap: () => _openDetail(context),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              // Avatar
               CircleAvatar(
                 radius: 26,
                 backgroundColor: theme.colorScheme.primaryContainer,
@@ -292,7 +289,6 @@ class _ClientCard extends StatelessWidget {
                     : null,
               ),
               const SizedBox(width: 12),
-              // Infos
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,51 +317,54 @@ class _ClientCard extends StatelessWidget {
                         children: [
                           Icon(Icons.phone_outlined, size: 14, color: Colors.grey[500]),
                           const SizedBox(width: 4),
-                          Text(
-                            client.phone!,
-                            style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                          ),
+                          Text(client.phone!, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
                         ],
                       ),
                     ],
                   ],
                 ),
               ),
-              // Actions rapides
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (client.phone != null)
-                    IconButton(
-                      icon: Icon(Icons.call, color: Colors.green[600], size: 22),
-                      tooltip: 'Appeler',
-                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                      padding: EdgeInsets.zero,
-                      onPressed: () => _launchPhone(client.phone!),
+                  if (showLoyalty) ...[
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.stars, size: 13, color: Colors.amber[700]),
+                        const SizedBox(width: 3),
+                        Text(
+                          '${client.loyaltyPoints}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Colors.amber[800],
+                          ),
+                        ),
+                      ],
                     ),
-                  IconButton(
-                    icon: Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 16),
-                    tooltip: 'Voir le détail',
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                    padding: EdgeInsets.zero,
-                    onPressed: () {
-                      final clientId = client.id;
-                      if (clientId.isNotEmpty) {
-                        context.goNamed(
-                          'client-detail',
-                          pathParameters: {'id': clientId},
-                          extra: client,
-                        );
-                      }
-                    },
-                  ),
+                    const SizedBox(height: 4),
+                  ],
+                  if (client.phone != null)
+                    InkWell(
+                      onTap: () => _launchPhone(client.phone!),
+                      child: Icon(Icons.call, color: Colors.green[600], size: 20),
+                    ),
                 ],
               ),
+              const SizedBox(width: 4),
+              Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 16),
             ],
           ),
         ),
       ),
     );
+  }
+
+  void _openDetail(BuildContext context) {
+    if (client.id.isNotEmpty) {
+      context.goNamed('client-detail', pathParameters: {'id': client.id}, extra: client);
+    }
   }
 
   Future<void> _launchPhone(String phone) async {

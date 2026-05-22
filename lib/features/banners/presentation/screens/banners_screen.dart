@@ -165,7 +165,7 @@ class _BannerTile extends StatelessWidget {
             child: Image.network(
               banner.imageUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+              errorBuilder: (_, _, _) => Container(
                 color: Colors.grey[200],
                 child: const Center(
                   child: Icon(Icons.broken_image, size: 48, color: Colors.grey),

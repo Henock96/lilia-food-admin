@@ -8,6 +8,7 @@ class AppUser {
   final String? imageUrl;
   final Role role;
   final DateTime createdAt;
+  final int loyaltyPoints;
 
   AppUser({
     required this.id,
@@ -17,6 +18,7 @@ class AppUser {
     this.imageUrl,
     required this.role,
     required this.createdAt,
+    this.loyaltyPoints = 0,
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
@@ -30,6 +32,7 @@ class AppUser {
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : DateTime.now(),
+      loyaltyPoints: json['loyaltyPoints'] as int? ?? 0,
     );
   }
 

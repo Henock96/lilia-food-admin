@@ -20,7 +20,7 @@ final latestOrderNotificationProvider = StateProvider<String?>((ref) => null);
 // --- Background Message Handler ---
 // Doit etre une fonction de haut niveau (en dehors d'une classe)
 @pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   if (message.notification != null) {
@@ -121,8 +121,6 @@ class NotificationService {
       _handleNotificationData(message.data);
     });
 
-    // Handler pour les messages en arriere-plan/app terminee
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   }
 
   Future<void> _initLocalNotifications() async {
@@ -330,7 +328,7 @@ class NotificationService {
               },
               body: jsonEncode({'token': fcmToken}),
             )
-            .timeout(const Duration(seconds: 10));
+            .timeout(const Duration(seconds: 35));
 
         if (response.statusCode == 200 || response.statusCode == 201) {
           debugPrint(
@@ -351,7 +349,7 @@ class NotificationService {
         if (attempt == maxRetries) {
           debugPrint('[ADMIN NOTIF] Nombre max de tentatives atteint');
         } else {
-          await Future.delayed(Duration(seconds: attempt * 2));
+          await Future.delayed(Duration(seconds: attempt * 15));
         }
       }
     }

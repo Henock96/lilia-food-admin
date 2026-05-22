@@ -284,7 +284,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                               _imageUrlController.text,
                               fit: BoxFit.cover,
                               width: double.infinity,
-                              errorBuilder: (_, __, ___) =>
+                              errorBuilder: (_, _, _) =>
                                   _buildImagePlaceholder(),
                             ),
                           )

@@ -485,7 +485,7 @@ class _RestaurantRankingSection extends ConsumerWidget {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: rankings.length,
-                  separatorBuilder: (_, __) => const Divider(),
+                  separatorBuilder: (_, _) => const Divider(),
                   itemBuilder: (context, index) {
                     final r = rankings[index];
                     return ListTile(
@@ -533,7 +533,7 @@ class _RestaurantRankingSection extends ConsumerWidget {
                   child: CircularProgressIndicator(),
                 ),
               ),
-              error: (_, __) => const Center(
+              error: (_, _) => const Center(
                 child: Padding(
                   padding: EdgeInsets.all(24),
                   child: Text('Erreur de chargement'),

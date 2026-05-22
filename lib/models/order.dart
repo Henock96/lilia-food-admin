@@ -4,6 +4,7 @@ enum OrderStatus {
   payer,
   enpreparation,
   pret,
+  enRoute,
   livrer,
   annuler,
   unknown
@@ -114,6 +115,8 @@ class Order {
         return OrderStatus.enpreparation;
       case 'PRET':
         return OrderStatus.pret;
+      case 'EN_ROUTE':
+        return OrderStatus.enRoute;
       case 'LIVRER':
         return OrderStatus.livrer;
       case 'ANNULER':
