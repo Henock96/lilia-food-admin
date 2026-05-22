@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:lilia_admin/features/clients/presentation/providers/user_orders_provider.dart';
+import 'package:lilia_admin/features/clients/presentation/providers/clients_provider.dart';
 import 'package:lilia_admin/features/home/presentation/screens/restaurant_orders_screen.dart';
 import 'package:lilia_admin/models/app_user.dart';
 import 'package:lilia_admin/models/order.dart';
@@ -45,6 +46,8 @@ class ClientDetailScreen extends ConsumerWidget {
                 data: (orders) => _buildOrderStats(context, orders),
               ) ??
               const SizedBox.shrink(),
+          const Divider(height: 1),
+          _buildLoyaltySection(context, ref, clientId),
           const Divider(height: 1),
           // Titre section commandes
           Padding(
@@ -299,6 +302,75 @@ class ClientDetailScreen extends ConsumerWidget {
             Colors.amber[700]!,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLoyaltySection(BuildContext context, WidgetRef ref, String clientId) {
+    final loyaltyAsync = ref.watch(clientLoyaltyProvider(clientId));
+    return loyaltyAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+      ),
+      error: (e, _) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text('Fidélité indisponible', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+      ),
+      data: (loyalty) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.stars, color: Colors.amber[700], size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  '${loyalty.balance} point${loyalty.balance > 1 ? 's' : ''} de fidélité',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.amber[800]),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 28, top: 2),
+              child: Text(
+                '≈ ${loyalty.balance * 5} FCFA de réduction disponible',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
+            ),
+            if (loyalty.transactions.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ...loyalty.transactions.take(5).map((t) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(t.reason, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
+                              Text(
+                                DateFormat('dd/MM/yyyy').format(t.createdAt),
+                                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '${t.points >= 0 ? '+' : ''}${t.points}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: t.points >= 0 ? Colors.green[600] : Colors.red[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+            ],
+          ],
+        ),
       ),
     );
   }
