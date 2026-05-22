@@ -37,73 +37,88 @@ class ClientDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildClientHeader(context),
-          const Divider(height: 1),
-          // Stats résumé
-          userOrdersAsync.whenOrNull(
-                data: (orders) => _buildOrderStats(context, orders),
-              ) ??
-              const SizedBox.shrink(),
-          const Divider(height: 1),
-          _buildLoyaltySection(context, ref, clientId),
-          const Divider(height: 1),
-          _buildReferralSection(context, ref, clientId),
-          const Divider(height: 1),
-          // Titre section commandes
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: Row(
-              children: [
-                Icon(Icons.receipt_long, color: Theme.of(context).colorScheme.primary, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Historique des commandes',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: userOrdersAsync.when(
-              data: (orders) {
-                if (orders.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey),
-                        SizedBox(height: 12),
-                        Text(
-                          'Ce client n\'a passé aucune commande.',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
+      body: RefreshIndicator(
+        onRefresh: () {
+          ref.invalidate(clientLoyaltyProvider(clientId));
+          ref.invalidate(clientReferralProvider(clientId));
+          return ref.refresh(userOrdersProvider(clientId).future);
+        },
+        // Toute la page défile : header + stats + fidélité + parrainage +
+        // historique. Évite un débordement du Column sur petit écran quand
+        // les sections fidélité/parrainage sont longues.
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              _buildClientHeader(context),
+              const Divider(height: 1),
+              // Stats résumé
+              userOrdersAsync.whenOrNull(
+                    data: (orders) => _buildOrderStats(context, orders),
+                  ) ??
+                  const SizedBox.shrink(),
+              const Divider(height: 1),
+              _buildLoyaltySection(context, ref, clientId),
+              const Divider(height: 1),
+              _buildReferralSection(context, ref, clientId),
+              const Divider(height: 1),
+              // Titre section commandes
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Row(
+                  children: [
+                    Icon(Icons.receipt_long, color: Theme.of(context).colorScheme.primary, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Historique des commandes',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
-                  );
-                }
-                return RefreshIndicator(
-                  onRefresh: () => ref.refresh(userOrdersProvider(clientId).future),
-                  child: ListView.builder(
+                  ],
+                ),
+              ),
+              userOrdersAsync.when(
+                data: (orders) {
+                  if (orders.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey),
+                          SizedBox(height: 12),
+                          Text(
+                            'Ce client n\'a passé aucune commande.',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return ListView.builder(
                     padding: const EdgeInsets.all(8.0),
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
                     itemCount: orders.length,
                     itemBuilder: (context, index) {
                       return OrderCard(order: orders[index]);
                     },
+                  );
+                },
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [CircularProgressIndicator()],
                   ),
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, stack) => Center(
-                child: Padding(
+                ),
+                error: (error, stack) => Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(Icons.error_outline, size: 48, color: Colors.red),
                       const SizedBox(height: 12),
@@ -122,9 +137,9 @@ class ClientDetailScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

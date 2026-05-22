@@ -73,6 +73,7 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
             tooltip: 'Actualiser',
             onPressed: () {
               if (isAdmin) {
+                setState(() => _page = 1);
                 ref.invalidate(allClientsProvider);
               } else {
                 ref.invalidate(restaurantClientsProvider(widget.restaurantId));
@@ -144,7 +145,8 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 itemCount: result.clients.length,
-                itemBuilder: (context, index) => _ClientCard(client: result.clients[index]),
+                itemBuilder: (context, index) =>
+                    _ClientCard(client: result.clients[index], showLoyalty: true),
               ),
             ),
             _buildPagination(result.total, result.totalPages),
@@ -251,8 +253,11 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
 
 class _ClientCard extends StatelessWidget {
   final AppUser client;
+  /// Affiche le solde de fidélité — uniquement en vue ADMIN, où l'endpoint
+  /// `/admin/clients` renvoie `loyaltyPoints` (la vue restaurateur ne l'a pas).
+  final bool showLoyalty;
 
-  const _ClientCard({required this.client});
+  const _ClientCard({required this.client, this.showLoyalty = false});
 
   @override
   Widget build(BuildContext context) {
@@ -322,22 +327,24 @@ class _ClientCard extends StatelessWidget {
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.stars, size: 13, color: Colors.amber[700]),
-                      const SizedBox(width: 3),
-                      Text(
-                        '${client.loyaltyPoints}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: Colors.amber[800],
+                  if (showLoyalty) ...[
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.stars, size: 13, color: Colors.amber[700]),
+                        const SizedBox(width: 3),
+                        Text(
+                          '${client.loyaltyPoints}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Colors.amber[800],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                  ],
                   if (client.phone != null)
                     InkWell(
                       onTap: () => _launchPhone(client.phone!),
