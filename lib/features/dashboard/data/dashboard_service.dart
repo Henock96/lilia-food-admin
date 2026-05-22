@@ -75,7 +75,7 @@ class DashboardService {
   Future<List<RevenueData>> getRevenueChart({int days = 30}) async {
     final token = await _getAuthToken();
     final response = await http.get(
-      Uri.parse('$_baseUrl/dashboard/revenue?days=$days'),
+      Uri.parse('$_baseUrl/dashboard/revenue-chart?days=$days'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
