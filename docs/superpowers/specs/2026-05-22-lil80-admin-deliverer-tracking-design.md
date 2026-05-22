@@ -45,7 +45,8 @@ DelivererDetail {
 }
 CurrentMission {
   orderId, deliveryId, deliveryStatus, orderStatus,
-  restaurantNom, deliveryAddress,
+  restaurant: { nom, adresse, latitude, longitude },
+  deliveryAddress, deliveryLatitude, deliveryLongitude,
   estimatedArrival, lastLatitude, lastLongitude, lastPositionAt
 }
 ```
@@ -96,9 +97,11 @@ Vérifier que le handler `order:watch` de `tracking.gateway.ts` autorise un **ad
 ### 4.5 Flutter — écran de suivi
 
 - **`DeliveryTrackingScreen`** (`lib/features/admin/presentation/screens/`) — paramètres : `orderId` + position initiale optionnelle (`lastLatitude/lastLongitude` de la mission).
-- Carte `google_maps_flutter` :
-  - Marqueur **livreur** mis à jour en direct depuis le `Stream<DriverPosition>` du `TrackingSocketService`.
-  - Marqueur **destination** si l'adresse de livraison porte des coordonnées (**à confirmer au plan** : le modèle d'adresse / la commande exposent-ils lat/lng ? Sinon, marqueur destination omis et carte centrée sur le livreur).
+- Carte `google_maps_flutter`. Chaque marqueur porte une **`InfoWindow`** (titre + détail, affichée au tap du marqueur) :
+  - Marqueur **livreur** — position mise à jour en direct depuis le `Stream<DriverPosition>` du `TrackingSocketService`. `InfoWindow` : nom du livreur, téléphone, ETA.
+  - Marqueur **restaurant** (point de retrait) — `InfoWindow` : nom et adresse du restaurant.
+  - Marqueur **destination client** — `InfoWindow` : adresse de livraison.
+  - Les marqueurs restaurant et destination ne sont placés que si des coordonnées sont disponibles (**à confirmer au plan** : `Restaurant` et l'adresse de livraison exposent-ils lat/lng ?) ; sinon ils sont omis et la carte se centre sur le livreur.
   - Badge **ETA** (« Arrive dans X min ») alimenté par `DriverPosition.eta`.
   - Caméra initiale centrée sur la dernière position connue passée en paramètre.
 - **Accès** :
@@ -131,7 +134,7 @@ Vérifier que le handler `order:watch` de `tracking.gateway.ts` autorise un **ad
 |---|---|
 | **Clés Google Maps** (prérequis bloquant) | Clé API à configurer dans `android/app/src/main/AndroidManifest.xml` et `ios/Runner/AppDelegate.swift` de l'app admin, SDK Maps Android + iOS activés en Google Cloud Console. **Fournies par l'équipe.** Sans clé, la carte ne s'affiche pas sur appareil. |
 | Autorisation admin sur `/tracking` | Vérifier que `order:watch` accepte un admin sur toute commande (cf. §4.2). |
-| Coordonnées de l'adresse de livraison | À confirmer : disponibilité de lat/lng pour placer le marqueur destination. Dégradation gracieuse si absentes. |
+| Coordonnées restaurant & adresse de livraison | À confirmer : disponibilité de lat/lng sur `Restaurant` et sur l'adresse de livraison, pour placer les marqueurs restaurant et destination. Dégradation gracieuse si absentes. |
 | Rebuild natif | L'ajout de `google_maps_flutter` impose un rebuild natif (pas de hot reload) et la config natif Android/iOS. |
 | Backend déployé | Nécessaire pour la vérification manuelle sur appareil. |
 
