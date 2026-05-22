@@ -6,24 +6,26 @@ import '../../../auth/user_sync_provider.dart';
 import '../../../../models/role.dart';
 import '../providers/settings_provider.dart';
 import '../../../../models/restaurant.dart';
+import 'package:lilia_admin/theme/lilia_tokens.dart';
 
 // ============================================================
 // Couleurs du theme
 // ============================================================
 class _AppColors {
-  static const primary = Color(0xFF6C63FF);
-  static const primaryLight = Color(0xFFEEEDFF);
-  static const success = Color(0xFF22C55E);
+  // Raccordé aux tokens de marque Lilia (cf. lib/theme/lilia_tokens.dart).
+  static const primary = LiliaColors.orange500;
+  static const primaryLight = LiliaColors.orange50;
+  static const success = LiliaColors.green400;
   static const successLight = Color(0xFFDCFCE7);
-  static const danger = Color(0xFFEF4444);
+  static const danger = LiliaColors.red400;
   static const dangerLight = Color(0xFFFEE2E2);
-  static const warning = Color(0xFFF59E0B);
+  static const warning = LiliaColors.amber400;
   static const warningLight = Color(0xFFFEF3C7);
-  static const surface = Color(0xFFF8FAFC);
+  static const surface = LiliaColors.cream100;
   static const cardBg = Colors.white;
-  static const textPrimary = Color(0xFF1E293B);
-  static const textSecondary = Color(0xFF64748B);
-  static const border = Color(0xFFE2E8F0);
+  static const textPrimary = LiliaColors.charcoal700;
+  static const textSecondary = LiliaColors.charcoal500;
+  static const border = LiliaColors.charcoal100;
 }
 
 // ============================================================
