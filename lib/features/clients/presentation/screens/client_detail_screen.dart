@@ -49,6 +49,8 @@ class ClientDetailScreen extends ConsumerWidget {
           const Divider(height: 1),
           _buildLoyaltySection(context, ref, clientId),
           const Divider(height: 1),
+          _buildReferralSection(context, ref, clientId),
+          const Divider(height: 1),
           // Titre section commandes
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -371,6 +373,67 @@ class ClientDetailScreen extends ConsumerWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildReferralSection(BuildContext context, WidgetRef ref, String clientId) {
+    final referralAsync = ref.watch(clientReferralProvider(clientId));
+    return referralAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+      ),
+      error: (e, _) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text('Parrainage indisponible', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+      ),
+      data: (referral) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.card_giftcard, color: Theme.of(context).colorScheme.primary, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  referral.referralCode != null
+                      ? 'Code parrainage : ${referral.referralCode}'
+                      : 'Aucun code de parrainage',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ],
+            ),
+            if (referral.referredByCode != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 28, top: 2),
+                child: Text(
+                  'Parrainé via ${referral.referredByCode}',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+              ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _referralStat(context, '${referral.totalReferrals}', 'Filleuls', Colors.blue),
+                _referralStat(context, '${referral.convertedReferrals}', 'Convertis', Colors.green),
+                _referralStat(context, '${referral.referralBonusEarned}', 'Pts gagnés', Colors.amber[700]!),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _referralStat(BuildContext context, String value, String label, Color color) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: color)),
+          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+        ],
       ),
     );
   }
