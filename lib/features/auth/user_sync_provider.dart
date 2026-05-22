@@ -5,6 +5,7 @@ import 'package:lilia_admin/features/auth/app_user_model.dart';
 import 'package:lilia_admin/models/restaurant.dart';
 import 'package:lilia_admin/services/notification_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:http/http.dart' as http;
 
 part 'user_sync_provider.g.dart';
@@ -55,13 +56,18 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
               // 2. Récupérer le restaurant via GET /restaurants/mine
               try {
                 final restaurantResponse = await http.get(
-                  Uri.parse('https://lilia-backend.onrender.com/restaurants/mine'),
+                  Uri.parse(
+                    'https://lilia-backend.onrender.com/restaurants/mine',
+                  ),
                   headers: {'Authorization': 'Bearer $token'},
                 );
 
                 if (restaurantResponse.statusCode == 200) {
-                  final restaurantData = json.decode(utf8.decode(restaurantResponse.bodyBytes));
-                  final restJson = restaurantData['data'] as Map<String, dynamic>?;
+                  final restaurantData = json.decode(
+                    utf8.decode(restaurantResponse.bodyBytes),
+                  );
+                  final restJson =
+                      restaurantData['data'] as Map<String, dynamic>?;
                   if (restJson != null) {
                     final restaurant = Restaurant.fromJson(restJson);
                     user = user.copyWith(restaurant: restaurant);
@@ -73,24 +79,42 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
 
               ref.read(currentUserProfileProvider.notifier).setUser(user);
               debugPrint(
-                  'Synchronisation réussie. Restaurant ID: ${user.restaurantId}');
+                'Synchronisation réussie. Restaurant ID: ${user.restaurantId}',
+              );
+
+              // Contexte Sentry : rattacher les erreurs à l'utilisateur
+              // connecté et à son rôle (ADMIN / RESTAURATEUR).
+              await Sentry.configureScope(
+                (scope) => scope.setUser(
+                  SentryUser(
+                    id: user.id ?? user.uid,
+                    email: user.email,
+                    data: {'role': user.role?.name ?? 'unknown'},
+                  ),
+                ),
+              );
 
               // Enregistrer le token FCM
-              ref.read(notificationServiceProvider).registerTokenOnServer();
+              await ref
+                  .read(notificationServiceProvider)
+                  .registerTokenOnServer();
             } else {
               debugPrint('user est null dans la réponse sync');
             }
           } else {
             debugPrint(
-                'Erreur sync: ${syncResponse.statusCode} - ${syncResponse.body}');
+              'Erreur sync: ${syncResponse.statusCode} - ${syncResponse.body}',
+            );
           }
         } catch (e) {
           debugPrint('Erreur lors de la synchronisation: $e');
         }
       } else {
         ref.read(currentUserProfileProvider.notifier).clear();
+        // Purger le contexte Sentry au logout.
+        await Sentry.configureScope((scope) => scope.setUser(null));
         debugPrint("L'utilisateur est déconnecté, aucun jeton disponible.");
       }
-    });
+    }, fireImmediately: true);
   }
 }

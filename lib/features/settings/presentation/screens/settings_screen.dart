@@ -208,7 +208,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           preferredSize: const Size.fromHeight(52),
           child: Container(
             decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: _AppColors.border, width: 1)),
+              border: Border(
+                bottom: BorderSide(color: _AppColors.border, width: 1),
+              ),
             ),
             child: TabBar(
               controller: _tabController,
@@ -217,8 +219,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               unselectedLabelColor: _AppColors.textSecondary,
               indicatorColor: _AppColors.primary,
               indicatorWeight: 3,
-              labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+              ),
               tabAlignment: TabAlignment.start,
               tabs: const [
                 Tab(text: 'General'),
@@ -255,7 +263,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     color: _AppColors.dangerLight,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.error_outline, color: _AppColors.danger, size: 48),
+                  child: const Icon(
+                    Icons.error_outline,
+                    color: _AppColors.danger,
+                    size: 48,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 const Text(
@@ -270,16 +282,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 Text(
                   '$error',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: _AppColors.textSecondary, fontSize: 14),
+                  style: const TextStyle(
+                    color: _AppColors.textSecondary,
+                    fontSize: 14,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 FilledButton.icon(
-                  onPressed: () => ref.read(restaurantSettingsProvider.notifier).refresh(),
+                  onPressed: () =>
+                      ref.read(restaurantSettingsProvider.notifier).refresh(),
                   icon: const Icon(Icons.refresh),
                   label: const Text('Reessayer'),
                   style: FilledButton.styleFrom(
                     backgroundColor: _AppColors.primary,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ],
@@ -300,7 +319,12 @@ class _SectionCard extends StatelessWidget {
   final Widget child;
   final Widget? trailing;
 
-  const _SectionCard({this.title, this.icon, required this.child, this.trailing});
+  const _SectionCard({
+    this.title,
+    this.icon,
+    required this.child,
+    this.trailing,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -397,7 +421,10 @@ class _StyledTextField extends StatelessWidget {
         prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 20) : null,
         filled: true,
         fillColor: enabled ? Colors.white : _AppColors.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: _AppColors.border),
@@ -412,9 +439,14 @@ class _StyledTextField extends StatelessWidget {
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: _AppColors.border.withValues(alpha: 0.5)),
+          borderSide: BorderSide(
+            color: _AppColors.border.withValues(alpha: 0.5),
+          ),
         ),
-        labelStyle: const TextStyle(color: _AppColors.textSecondary, fontSize: 14),
+        labelStyle: const TextStyle(
+          color: _AppColors.textSecondary,
+          fontSize: 14,
+        ),
       ),
     );
   }
@@ -448,8 +480,12 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
   void _initControllers() {
     _nameController = TextEditingController(text: widget.restaurant.name);
     _addressController = TextEditingController(text: widget.restaurant.address);
-    _phoneController = TextEditingController(text: widget.restaurant.phoneNumber ?? '');
-    _descriptionController = TextEditingController(text: widget.restaurant.description ?? '');
+    _phoneController = TextEditingController(
+      text: widget.restaurant.phoneNumber ?? '',
+    );
+    _descriptionController = TextEditingController(
+      text: widget.restaurant.description ?? '',
+    );
   }
 
   @override
@@ -472,12 +508,14 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
   Future<void> _saveChanges() async {
     setState(() => _isSaving = true);
     try {
-      await ref.read(restaurantSettingsProvider.notifier).updateGeneralInfo(
-        name: _nameController.text,
-        address: _addressController.text,
-        phone: _phoneController.text,
-        description: _descriptionController.text,
-      );
+      await ref
+          .read(restaurantSettingsProvider.notifier)
+          .updateGeneralInfo(
+            name: _nameController.text,
+            address: _addressController.text,
+            phone: _phoneController.text,
+            description: _descriptionController.text,
+          );
       setState(() => _isEditing = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -491,7 +529,9 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
             ),
             backgroundColor: _AppColors.success,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -502,7 +542,9 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
             content: Text('Erreur: $e'),
             backgroundColor: _AppColors.danger,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -524,12 +566,16 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: widget.restaurant.isOpen ? _AppColors.successLight : _AppColors.dangerLight,
+                  color: widget.restaurant.isOpen
+                      ? _AppColors.successLight
+                      : _AppColors.dangerLight,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
                   widget.restaurant.isOpen ? Icons.store : Icons.store_outlined,
-                  color: widget.restaurant.isOpen ? _AppColors.success : _AppColors.danger,
+                  color: widget.restaurant.isOpen
+                      ? _AppColors.success
+                      : _AppColors.danger,
                   size: 26,
                 ),
               ),
@@ -539,7 +585,9 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.restaurant.isOpen ? 'Restaurant ouvert' : 'Restaurant ferme',
+                      widget.restaurant.isOpen
+                          ? 'Restaurant ouvert'
+                          : 'Restaurant ferme',
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 16,
@@ -551,13 +599,19 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                       widget.restaurant.isOpen
                           ? 'Les clients peuvent commander'
                           : 'Les commandes sont desactivees',
-                      style: const TextStyle(color: _AppColors.textSecondary, fontSize: 13),
+                      style: const TextStyle(
+                        color: _AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
                     ),
                     if (widget.restaurant.manualOverride)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: _AppColors.warningLight,
                             borderRadius: BorderRadius.circular(6),
@@ -579,13 +633,19 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                 scale: 0.9,
                 child: Switch.adaptive(
                   value: widget.restaurant.isOpen,
-                  activeColor: _AppColors.success,
+                  activeThumbColor: _AppColors.success,
                   onChanged: (value) async {
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        title: Text(value ? 'Ouvrir le restaurant ?' : 'Fermer le restaurant ?'),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        title: Text(
+                          value
+                              ? 'Ouvrir le restaurant ?'
+                              : 'Fermer le restaurant ?',
+                        ),
                         content: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -603,12 +663,19 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                               ),
                               child: const Row(
                                 children: [
-                                  Icon(Icons.info_outline, color: _AppColors.warning, size: 18),
+                                  Icon(
+                                    Icons.info_outline,
+                                    color: _AppColors.warning,
+                                    size: 18,
+                                  ),
                                   SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
                                       'Le mode manuel sera active : les horaires automatiques ne modifieront plus le statut.',
-                                      style: TextStyle(fontSize: 12, color: _AppColors.textSecondary),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: _AppColors.textSecondary,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -624,7 +691,9 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                           FilledButton(
                             onPressed: () => Navigator.pop(context, true),
                             style: FilledButton.styleFrom(
-                              backgroundColor: value ? _AppColors.success : _AppColors.danger,
+                              backgroundColor: value
+                                  ? _AppColors.success
+                                  : _AppColors.danger,
                             ),
                             child: Text(value ? 'Ouvrir' : 'Fermer'),
                           ),
@@ -632,7 +701,9 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                       ),
                     );
                     if (confirm == true) {
-                      await ref.read(restaurantSettingsProvider.notifier).updateOpenStatus(value);
+                      await ref
+                          .read(restaurantSettingsProvider.notifier)
+                          .updateOpenStatus(value);
                     }
                   },
                 ),
@@ -650,10 +721,16 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
               ? null
               : IconButton(
                   onPressed: () => setState(() => _isEditing = true),
-                  icon: const Icon(Icons.edit_outlined, color: _AppColors.primary, size: 20),
+                  icon: const Icon(
+                    Icons.edit_outlined,
+                    color: _AppColors.primary,
+                    size: 20,
+                  ),
                   style: IconButton.styleFrom(
                     backgroundColor: _AppColors.primaryLight,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
           child: Column(
@@ -699,10 +776,15 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                         },
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           side: const BorderSide(color: _AppColors.border),
                         ),
-                        child: const Text('Annuler', style: TextStyle(color: _AppColors.textSecondary)),
+                        child: const Text(
+                          'Annuler',
+                          style: TextStyle(color: _AppColors.textSecondary),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -712,10 +794,19 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                         style: FilledButton.styleFrom(
                           backgroundColor: _AppColors.primary,
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         child: _isSaving
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
                             : const Text('Enregistrer'),
                       ),
                     ),
@@ -804,7 +895,9 @@ class _OperatingHoursTabState extends ConsumerState<_OperatingHoursTab> {
           data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
           child: Theme(
             data: Theme.of(context).copyWith(
-              colorScheme: Theme.of(context).colorScheme.copyWith(primary: _AppColors.primary),
+              colorScheme: Theme.of(
+                context,
+              ).colorScheme.copyWith(primary: _AppColors.primary),
             ),
             child: child!,
           ),
@@ -837,7 +930,9 @@ class _OperatingHoursTabState extends ConsumerState<_OperatingHoursTab> {
         };
       }).toList();
 
-      await ref.read(restaurantSettingsProvider.notifier).setOperatingHours(hours);
+      await ref
+          .read(restaurantSettingsProvider.notifier)
+          .setOperatingHours(hours);
       setState(() => _hasChanges = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -851,7 +946,9 @@ class _OperatingHoursTabState extends ConsumerState<_OperatingHoursTab> {
             ),
             backgroundColor: _AppColors.success,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -862,7 +959,9 @@ class _OperatingHoursTabState extends ConsumerState<_OperatingHoursTab> {
             content: Text('Erreur: $e'),
             backgroundColor: _AppColors.danger,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -883,12 +982,17 @@ class _OperatingHoursTabState extends ConsumerState<_OperatingHoursTab> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [_AppColors.primary.withValues(alpha: 0.08), _AppColors.primary.withValues(alpha: 0.03)],
+              colors: [
+                _AppColors.primary.withValues(alpha: 0.08),
+                _AppColors.primary.withValues(alpha: 0.03),
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _AppColors.primary.withValues(alpha: 0.15)),
+            border: Border.all(
+              color: _AppColors.primary.withValues(alpha: 0.15),
+            ),
           ),
           child: Row(
             children: [
@@ -898,7 +1002,11 @@ class _OperatingHoursTabState extends ConsumerState<_OperatingHoursTab> {
                   color: _AppColors.primaryLight,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.schedule, color: _AppColors.primary, size: 24),
+                child: const Icon(
+                  Icons.schedule,
+                  color: _AppColors.primary,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -907,14 +1015,21 @@ class _OperatingHoursTabState extends ConsumerState<_OperatingHoursTab> {
                   children: [
                     const Text(
                       'Horaires automatiques',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: _AppColors.textPrimary),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: _AppColors.textPrimary,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       hasExistingHours
                           ? 'Le restaurant s\'ouvre et se ferme automatiquement selon ces horaires.'
                           : 'Definissez vos horaires pour activer l\'ouverture/fermeture automatique.',
-                      style: const TextStyle(color: _AppColors.textSecondary, fontSize: 13),
+                      style: const TextStyle(
+                        color: _AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
@@ -930,16 +1045,25 @@ class _OperatingHoursTabState extends ConsumerState<_OperatingHoursTab> {
             decoration: BoxDecoration(
               color: _AppColors.warningLight,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _AppColors.warning.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: _AppColors.warning.withValues(alpha: 0.3),
+              ),
             ),
             child: const Row(
               children: [
-                Icon(Icons.warning_amber_rounded, color: _AppColors.warning, size: 22),
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: _AppColors.warning,
+                  size: 22,
+                ),
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'Le mode manuel est actif. Enregistrez les horaires pour reactiver le mode automatique.',
-                    style: TextStyle(color: _AppColors.textPrimary, fontSize: 13),
+                    style: TextStyle(
+                      color: _AppColors.textPrimary,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ],
@@ -958,14 +1082,30 @@ class _OperatingHoursTabState extends ConsumerState<_OperatingHoursTab> {
         FilledButton.icon(
           onPressed: _isSaving ? null : _saveAll,
           icon: _isSaving
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
               : const Icon(Icons.save_outlined),
-          label: Text(_isSaving ? 'Enregistrement...' : 'Enregistrer les horaires'),
+          label: Text(
+            _isSaving ? 'Enregistrement...' : 'Enregistrer les horaires',
+          ),
           style: FilledButton.styleFrom(
-            backgroundColor: _hasChanges ? _AppColors.primary : _AppColors.primary.withValues(alpha: 0.6),
+            backgroundColor: _hasChanges
+                ? _AppColors.primary
+                : _AppColors.primary.withValues(alpha: 0.6),
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
 
@@ -984,7 +1124,12 @@ class _OperatingHoursTabState extends ConsumerState<_OperatingHoursTab> {
         decoration: BoxDecoration(
           color: _AppColors.cardBg,
           borderRadius: BorderRadius.circular(14),
-          border: isToday ? Border.all(color: _AppColors.primary.withValues(alpha: 0.4), width: 1.5) : null,
+          border: isToday
+              ? Border.all(
+                  color: _AppColors.primary.withValues(alpha: 0.4),
+                  width: 1.5,
+                )
+              : null,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
@@ -1009,8 +1154,8 @@ class _OperatingHoursTabState extends ConsumerState<_OperatingHoursTab> {
                         color: schedule.isClosed
                             ? _AppColors.dangerLight
                             : isToday
-                                ? _AppColors.primaryLight
-                                : _AppColors.surface,
+                            ? _AppColors.primaryLight
+                            : _AppColors.surface,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Center(
@@ -1022,8 +1167,8 @@ class _OperatingHoursTabState extends ConsumerState<_OperatingHoursTab> {
                             color: schedule.isClosed
                                 ? _AppColors.danger
                                 : isToday
-                                    ? _AppColors.primary
-                                    : _AppColors.textPrimary,
+                                ? _AppColors.primary
+                                : _AppColors.textPrimary,
                           ),
                         ),
                       ),
@@ -1065,7 +1210,11 @@ class _OperatingHoursTabState extends ConsumerState<_OperatingHoursTab> {
                           ),
                           const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 8),
-                            child: Icon(Icons.arrow_forward, size: 16, color: _AppColors.textSecondary),
+                            child: Icon(
+                              Icons.arrow_forward,
+                              size: 16,
+                              color: _AppColors.textSecondary,
+                            ),
                           ),
                           _TimeChip(
                             time: schedule.closeTime,
@@ -1082,7 +1231,7 @@ class _OperatingHoursTabState extends ConsumerState<_OperatingHoursTab> {
                 scale: 0.8,
                 child: Switch.adaptive(
                   value: !schedule.isClosed,
-                  activeColor: _AppColors.success,
+                  activeThumbColor: _AppColors.success,
                   onChanged: (value) {
                     setState(() {
                       _schedules[day] = schedule.copyWith(isClosed: !value);
@@ -1128,7 +1277,8 @@ class _TimeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final timeStr = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    final timeStr =
+        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
@@ -1184,7 +1334,8 @@ class _DeliverySettingsTab extends ConsumerStatefulWidget {
   const _DeliverySettingsTab({required this.restaurant});
 
   @override
-  ConsumerState<_DeliverySettingsTab> createState() => _DeliverySettingsTabState();
+  ConsumerState<_DeliverySettingsTab> createState() =>
+      _DeliverySettingsTabState();
 }
 
 class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
@@ -1229,13 +1380,15 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
   Future<void> _saveChanges() async {
     setState(() => _isSaving = true);
     try {
-      await ref.read(restaurantSettingsProvider.notifier).updateDeliverySettings(
-        fixedDeliveryFee: double.tryParse(_deliveryFeeController.text),
-        estimatedDeliveryTimeMin: int.tryParse(_minTimeController.text),
-        estimatedDeliveryTimeMax: int.tryParse(_maxTimeController.text),
-        minimumOrderAmount: double.tryParse(_minOrderController.text),
-        deliveryPriceMode: _deliveryMode,
-      );
+      await ref
+          .read(restaurantSettingsProvider.notifier)
+          .updateDeliverySettings(
+            fixedDeliveryFee: double.tryParse(_deliveryFeeController.text),
+            estimatedDeliveryTimeMin: int.tryParse(_minTimeController.text),
+            estimatedDeliveryTimeMax: int.tryParse(_maxTimeController.text),
+            minimumOrderAmount: double.tryParse(_minOrderController.text),
+            deliveryPriceMode: _deliveryMode,
+          );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1248,7 +1401,9 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
             ),
             backgroundColor: _AppColors.success,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -1259,7 +1414,9 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
             content: Text('Erreur: $e'),
             backgroundColor: _AppColors.danger,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -1339,12 +1496,19 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline, color: _AppColors.primary, size: 20),
+                      Icon(
+                        Icons.info_outline,
+                        color: _AppColors.primary,
+                        size: 20,
+                      ),
                       const SizedBox(width: 10),
                       const Expanded(
                         child: Text(
                           'Les frais de livraison sont calcules automatiquement selon le quartier du client.',
-                          style: TextStyle(fontSize: 13, color: _AppColors.textSecondary),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: _AppColors.textSecondary,
+                          ),
                         ),
                       ),
                     ],
@@ -1370,8 +1534,13 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
                       foregroundColor: _AppColors.primary,
                       side: const BorderSide(color: _AppColors.primary),
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -1395,7 +1564,11 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
               ),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Icon(Icons.arrow_forward, size: 18, color: _AppColors.textSecondary),
+                child: Icon(
+                  Icons.arrow_forward,
+                  size: 18,
+                  color: _AppColors.textSecondary,
+                ),
               ),
               Expanded(
                 child: _StyledTextField(
@@ -1425,14 +1598,28 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
         FilledButton.icon(
           onPressed: _isSaving ? null : _saveChanges,
           icon: _isSaving
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
               : const Icon(Icons.save_outlined),
-          label: Text(_isSaving ? 'Enregistrement...' : 'Enregistrer les modifications'),
+          label: Text(
+            _isSaving ? 'Enregistrement...' : 'Enregistrer les modifications',
+          ),
           style: FilledButton.styleFrom(
             backgroundColor: _AppColors.primary,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
@@ -1463,7 +1650,9 @@ class _ModeOption extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isSelected ? _AppColors.primary.withValues(alpha: 0.08) : Colors.white,
+          color: isSelected
+              ? _AppColors.primary.withValues(alpha: 0.08)
+              : Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isSelected ? _AppColors.primary : _AppColors.border,
@@ -1482,7 +1671,9 @@ class _ModeOption extends StatelessWidget {
               ),
               child: Icon(
                 icon,
-                color: isSelected ? _AppColors.primary : _AppColors.textSecondary,
+                color: isSelected
+                    ? _AppColors.primary
+                    : _AppColors.textSecondary,
                 size: 22,
               ),
             ),
@@ -1499,7 +1690,10 @@ class _ModeOption extends StatelessWidget {
             Text(
               description,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: _AppColors.textSecondary),
+              style: const TextStyle(
+                fontSize: 11,
+                color: _AppColors.textSecondary,
+              ),
             ),
           ],
         ),
@@ -1549,7 +1743,9 @@ class _SpecialtiesTabState extends ConsumerState<_SpecialtiesTab> {
             ),
             backgroundColor: _AppColors.success,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -1560,7 +1756,9 @@ class _SpecialtiesTabState extends ConsumerState<_SpecialtiesTab> {
             content: Text('Erreur: $e'),
             backgroundColor: _AppColors.danger,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -1605,7 +1803,9 @@ class _SpecialtiesTabState extends ConsumerState<_SpecialtiesTab> {
               ),
               backgroundColor: _AppColors.success,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           );
         }
@@ -1616,7 +1816,9 @@ class _SpecialtiesTabState extends ConsumerState<_SpecialtiesTab> {
               content: Text('Erreur: $e'),
               backgroundColor: _AppColors.danger,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           );
         }
@@ -1649,11 +1851,20 @@ class _SpecialtiesTabState extends ConsumerState<_SpecialtiesTab> {
                   onPressed: _isAdding ? null : _addSpecialty,
                   style: FilledButton.styleFrom(
                     backgroundColor: _AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                   ),
                   child: _isAdding
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
                       : const Icon(Icons.add),
                 ),
               ),
@@ -1675,12 +1886,19 @@ class _SpecialtiesTabState extends ConsumerState<_SpecialtiesTab> {
                           color: _AppColors.surface,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.restaurant_menu, color: _AppColors.textSecondary, size: 32),
+                        child: const Icon(
+                          Icons.restaurant_menu,
+                          color: _AppColors.textSecondary,
+                          size: 32,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       const Text(
                         'Aucune specialite ajoutee',
-                        style: TextStyle(color: _AppColors.textSecondary, fontSize: 15),
+                        style: TextStyle(
+                          color: _AppColors.textSecondary,
+                          fontSize: 15,
+                        ),
                       ),
                     ],
                   ),
@@ -1695,7 +1913,12 @@ class _SpecialtiesTabState extends ConsumerState<_SpecialtiesTab> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.only(left: 14, top: 2, bottom: 2, right: 4),
+                        padding: const EdgeInsets.only(
+                          left: 14,
+                          top: 2,
+                          bottom: 2,
+                          right: 4,
+                        ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -1709,14 +1932,19 @@ class _SpecialtiesTabState extends ConsumerState<_SpecialtiesTab> {
                             ),
                             const SizedBox(width: 4),
                             InkWell(
-                              onTap: () => _removeSpecialty(specialty.id, specialty.name),
+                              onTap: () => _removeSpecialty(
+                                specialty.id,
+                                specialty.name,
+                              ),
                               borderRadius: BorderRadius.circular(20),
                               child: Container(
                                 padding: const EdgeInsets.all(4),
                                 child: Icon(
                                   Icons.close,
                                   size: 16,
-                                  color: _AppColors.primary.withValues(alpha: 0.6),
+                                  color: _AppColors.primary.withValues(
+                                    alpha: 0.6,
+                                  ),
                                 ),
                               ),
                             ),

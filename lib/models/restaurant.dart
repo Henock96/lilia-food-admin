@@ -1,3 +1,5 @@
+// ignore_for_file: constant_identifier_names
+
 class Restaurant {
   final String id;
   final String name;
@@ -64,26 +66,30 @@ class Restaurant {
           ? (json['averageRating'] as num).toDouble()
           : null,
       totalReviews: json['totalReviews'] as int?,
-      createdAt:
-          json['createdAt'] != null ? DateTime.parse(json['createdAt'] as String) : null,
-      updatedAt:
-          json['updatedAt'] != null ? DateTime.parse(json['updatedAt'] as String) : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : null,
       isOpen: json['isOpen'] as bool? ?? true,
       manualOverride: json['manualOverride'] as bool? ?? false,
       operatingHours: json['operatingHours'] != null
           ? (json['operatingHours'] as List)
-              .map((h) => OperatingHours.fromJson(h as Map<String, dynamic>))
-              .toList()
+                .map((h) => OperatingHours.fromJson(h as Map<String, dynamic>))
+                .toList()
           : [],
       deliveryPriceMode: json['deliveryPriceMode'] as String? ?? 'FIXED',
       fixedDeliveryFee: (json['fixedDeliveryFee'] as num?)?.toDouble() ?? 500,
-      estimatedDeliveryTimeMin: (json['estimatedDeliveryTimeMin'] as num?)?.toInt() ?? 15,
-      estimatedDeliveryTimeMax: (json['estimatedDeliveryTimeMax'] as num?)?.toInt() ?? 30,
+      estimatedDeliveryTimeMin:
+          (json['estimatedDeliveryTimeMin'] as num?)?.toInt() ?? 15,
+      estimatedDeliveryTimeMax:
+          (json['estimatedDeliveryTimeMax'] as num?)?.toInt() ?? 30,
       minimumOrderAmount: (json['minimumOrderAmount'] as num?)?.toDouble() ?? 0,
       specialties: json['specialties'] != null
           ? (json['specialties'] as List)
-              .map((s) => Specialty.fromJson(s as Map<String, dynamic>))
-              .toList()
+                .map((s) => Specialty.fromJson(s as Map<String, dynamic>))
+                .toList()
           : [],
     );
   }
@@ -135,8 +141,10 @@ class Restaurant {
       operatingHours: operatingHours ?? this.operatingHours,
       deliveryPriceMode: deliveryPriceMode ?? this.deliveryPriceMode,
       fixedDeliveryFee: fixedDeliveryFee ?? this.fixedDeliveryFee,
-      estimatedDeliveryTimeMin: estimatedDeliveryTimeMin ?? this.estimatedDeliveryTimeMin,
-      estimatedDeliveryTimeMax: estimatedDeliveryTimeMax ?? this.estimatedDeliveryTimeMax,
+      estimatedDeliveryTimeMin:
+          estimatedDeliveryTimeMin ?? this.estimatedDeliveryTimeMin,
+      estimatedDeliveryTimeMax:
+          estimatedDeliveryTimeMax ?? this.estimatedDeliveryTimeMax,
       minimumOrderAmount: minimumOrderAmount ?? this.minimumOrderAmount,
       specialties: specialties ?? this.specialties,
     );
@@ -148,24 +156,20 @@ class Specialty {
   final String name;
   final DateTime? createdAt;
 
-  Specialty({
-    required this.id,
-    required this.name,
-    this.createdAt,
-  });
+  Specialty({required this.id, required this.name, this.createdAt});
 
   factory Specialty.fromJson(Map<String, dynamic> json) {
     return Specialty(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt'] as String) : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-    };
+    return {'name': name};
   }
 }
 

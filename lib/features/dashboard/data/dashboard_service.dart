@@ -23,8 +23,8 @@ class DashboardService {
     );
 
     if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      return DashboardOverview.fromJson(data['data']);
+      final data = _payloadMap(response);
+      return DashboardOverview.fromJson(data);
     } else {
       throw Exception('Failed to load dashboard overview: ${response.body}');
     }
@@ -33,22 +33,27 @@ class DashboardService {
   /// Récupère les statistiques des commandes par statut
   Future<OrderStats> getOrderStats({String? period}) async {
     final token = await _getAuthToken();
-    final uri = Uri.parse('$_baseUrl/dashboard/orders${period != null ? '?period=$period' : ''}');
+    final uri = Uri.parse(
+      '$_baseUrl/dashboard/orders${period != null ? '?period=$period' : ''}',
+    );
     final response = await http.get(
       uri,
       headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      return OrderStats.fromJson(data['data']);
+      final data = _payloadMap(response);
+      return OrderStats.fromJson(data);
     } else {
       throw Exception('Failed to load order stats: ${response.body}');
     }
   }
 
   /// Récupère les produits les plus vendus
-  Future<List<TopProduct>> getTopProducts({int limit = 10, String? period}) async {
+  Future<List<TopProduct>> getTopProducts({
+    int limit = 10,
+    String? period,
+  }) async {
     final token = await _getAuthToken();
     var url = '$_baseUrl/dashboard/top-products?limit=$limit';
     if (period != null) url += '&period=$period';
@@ -59,9 +64,8 @@ class DashboardService {
     );
 
     if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      final products = data['data'] as List;
-      return products.map((p) => TopProduct.fromJson(p)).toList();
+      final products = _payloadList(response);
+      return products.map((p) => TopProduct.fromJson(_asMap(p))).toList();
     } else {
       throw Exception('Failed to load top products: ${response.body}');
     }
@@ -71,14 +75,13 @@ class DashboardService {
   Future<List<RevenueData>> getRevenueChart({int days = 30}) async {
     final token = await _getAuthToken();
     final response = await http.get(
-      Uri.parse('$_baseUrl/dashboard/revenue-chart?days=$days'),
+      Uri.parse('$_baseUrl/dashboard/revenue?days=$days'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      final chartData = data['data'] as List;
-      return chartData.map((d) => RevenueData.fromJson(d)).toList();
+      final chartData = _payloadList(response);
+      return chartData.map((d) => RevenueData.fromJson(_asMap(d))).toList();
     } else {
       throw Exception('Failed to load revenue chart: ${response.body}');
     }
@@ -93,8 +96,8 @@ class DashboardService {
     );
 
     if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      return ClientStats.fromJson(data['data']);
+      final data = _payloadMap(response);
+      return ClientStats.fromJson(data);
     } else {
       throw Exception('Failed to load client stats: ${response.body}');
     }
@@ -103,14 +106,16 @@ class DashboardService {
   /// Récupère les heures de pointe
   Future<PeakHoursData> getPeakHours({String? period}) async {
     final token = await _getAuthToken();
-    final uri = Uri.parse('$_baseUrl/dashboard/peak-hours${period != null ? '?period=$period' : ''}');
+    final uri = Uri.parse(
+      '$_baseUrl/dashboard/peak-hours${period != null ? '?period=$period' : ''}',
+    );
     final response = await http.get(
       uri,
       headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
+      final data = _payloadMap(response);
       return PeakHoursData.fromJson(data);
     } else {
       throw Exception('Failed to load peak hours: ${response.body}');
@@ -120,7 +125,7 @@ class DashboardService {
   /// Récupère le classement des restaurants (ADMIN uniquement)
   Future<List<RestaurantRanking>> getRestaurantRanking({String? period}) async {
     final token = await _getAuthToken();
-    var url = '$_baseUrl/dashboard/restaurant-ranking';
+    var url = '$_baseUrl/dashboard/restaurants';
     if (period != null) url += '?period=$period';
 
     final response = await http.get(
@@ -129,13 +134,77 @@ class DashboardService {
     );
 
     if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      final rankings = data['data'] as List;
-      return rankings.map((r) => RestaurantRanking.fromJson(r)).toList();
+      final rankings = _payloadList(response);
+      return rankings
+          .map((r) => RestaurantRanking.fromJson(_asMap(r)))
+          .toList();
     } else {
       throw Exception('Failed to load restaurant ranking: ${response.body}');
     }
   }
+
+  dynamic _decodeBody(http.Response response) {
+    return json.decode(utf8.decode(response.bodyBytes));
+  }
+
+  Map<String, dynamic> _decodeMap(http.Response response) {
+    final decoded = _decodeBody(response);
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    return const <String, dynamic>{};
+  }
+
+  Map<String, dynamic> _payloadMap(http.Response response) {
+    final decoded = _decodeMap(response);
+    final data = decoded['data'];
+    if (data is Map<String, dynamic>) return data;
+    return decoded;
+  }
+
+  List<dynamic> _payloadList(http.Response response) {
+    final body = _decodeBody(response);
+    if (body is List) return body;
+    final decoded = body is Map<String, dynamic>
+        ? body
+        : body is Map
+        ? Map<String, dynamic>.from(body)
+        : const <String, dynamic>{};
+    final data = decoded['data'];
+    if (data is List) return data;
+    final restaurants = decoded['restaurants'];
+    if (restaurants is List) return restaurants;
+    final items = decoded['items'];
+    if (items is List) return items;
+    if (decoded['date'] != null || decoded['hour'] != null) return [decoded];
+    return const [];
+  }
+}
+
+Map<String, dynamic> _asMap(dynamic value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return Map<String, dynamic>.from(value);
+  return const <String, dynamic>{};
+}
+
+List<dynamic> _asList(dynamic value) {
+  if (value is List) return value;
+  return const [];
+}
+
+int _asInt(dynamic value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString() ?? '') ?? 0;
+}
+
+double _asDouble(dynamic value) {
+  if (value is num) return value.toDouble();
+  return double.tryParse(value?.toString() ?? '') ?? 0;
+}
+
+String _asString(dynamic value, [String fallback = '']) {
+  final text = value?.toString();
+  return text == null || text.isEmpty ? fallback : text;
 }
 
 // Models
@@ -159,12 +228,12 @@ class RestaurantRanking {
 
   factory RestaurantRanking.fromJson(Map<String, dynamic> json) {
     return RestaurantRanking(
-      id: json['id'],
-      nom: json['nom'],
-      imageUrl: json['imageUrl'],
-      isActive: json['isActive'] ?? true,
-      orderCount: json['orderCount'] ?? 0,
-      totalRevenue: (json['totalRevenue'] as num?)?.toDouble() ?? 0,
+      id: _asString(json['id']),
+      nom: _asString(json['nom'], 'Restaurant'),
+      imageUrl: json['imageUrl'] as String?,
+      isActive: json['isActive'] as bool? ?? true,
+      orderCount: _asInt(json['orderCount']),
+      totalRevenue: _asDouble(json['totalRevenue']),
     );
   }
 }
@@ -187,13 +256,17 @@ class DashboardOverview {
   });
 
   factory DashboardOverview.fromJson(Map<String, dynamic> json) {
+    final products = _asMap(json['products']);
+    final clients = _asMap(json['clients']);
     return DashboardOverview(
-      orders: OrdersOverview.fromJson(json['orders']),
-      revenue: RevenueOverview.fromJson(json['revenue']),
-      totalProducts: json['products']['total'] ?? 0,
-      totalClients: json['clients']['total'] ?? 0,
-      rating: RatingOverview.fromJson(json['rating']),
-      totalRestaurants: json['totalRestaurants'] as int?,
+      orders: OrdersOverview.fromJson(_asMap(json['orders'])),
+      revenue: RevenueOverview.fromJson(_asMap(json['revenue'])),
+      totalProducts: _asInt(products['total']),
+      totalClients: _asInt(clients['total']),
+      rating: RatingOverview.fromJson(_asMap(json['rating'])),
+      totalRestaurants: json['totalRestaurants'] == null
+          ? null
+          : _asInt(json['totalRestaurants']),
     );
   }
 }
@@ -215,11 +288,11 @@ class OrdersOverview {
 
   factory OrdersOverview.fromJson(Map<String, dynamic> json) {
     return OrdersOverview(
-      total: json['total'] ?? 0,
-      today: json['today'] ?? 0,
-      week: json['week'] ?? 0,
-      month: json['month'] ?? 0,
-      pending: json['pending'] ?? 0,
+      total: _asInt(json['total']),
+      today: _asInt(json['today']),
+      week: _asInt(json['week']),
+      month: _asInt(json['month']),
+      pending: _asInt(json['pending']),
     );
   }
 }
@@ -241,11 +314,11 @@ class RevenueOverview {
 
   factory RevenueOverview.fromJson(Map<String, dynamic> json) {
     return RevenueOverview(
-      total: (json['total'] as num?)?.toDouble() ?? 0,
-      today: (json['today'] as num?)?.toDouble() ?? 0,
-      week: (json['week'] as num?)?.toDouble() ?? 0,
-      month: (json['month'] as num?)?.toDouble() ?? 0,
-      currency: json['currency'] ?? 'XAF',
+      total: _asDouble(json['total']),
+      today: _asDouble(json['today']),
+      week: _asDouble(json['week']),
+      month: _asDouble(json['month']),
+      currency: _asString(json['currency'], 'XAF'),
     );
   }
 }
@@ -258,8 +331,8 @@ class RatingOverview {
 
   factory RatingOverview.fromJson(Map<String, dynamic> json) {
     return RatingOverview(
-      average: (json['average'] as num?)?.toDouble() ?? 0,
-      count: json['count'] ?? 0,
+      average: _asDouble(json['average']),
+      count: _asInt(json['count']),
     );
   }
 }
@@ -272,8 +345,10 @@ class OrderStats {
 
   factory OrderStats.fromJson(Map<String, dynamic> json) {
     return OrderStats(
-      byStatus: (json['byStatus'] as List).map((s) => StatusStat.fromJson(s)).toList(),
-      totals: OrderTotals.fromJson(json['totals']),
+      byStatus: _asList(
+        json['byStatus'],
+      ).map((s) => StatusStat.fromJson(_asMap(s))).toList(),
+      totals: OrderTotals.fromJson(_asMap(json['totals'])),
     );
   }
 }
@@ -293,9 +368,9 @@ class StatusStat {
 
   factory StatusStat.fromJson(Map<String, dynamic> json) {
     return StatusStat(
-      status: json['status'],
-      count: json['count'] ?? 0,
-      revenue: (json['revenue'] as num?)?.toDouble() ?? 0,
+      status: _asString(json['status'], 'INCONNU'),
+      count: _asInt(json['count']),
+      revenue: _asDouble(json['revenue']),
       percentage: json['percentage']?.toString() ?? '0',
     );
   }
@@ -314,8 +389,8 @@ class OrderTotals {
 
   factory OrderTotals.fromJson(Map<String, dynamic> json) {
     return OrderTotals(
-      orders: json['orders'] ?? 0,
-      revenue: (json['revenue'] as num?)?.toDouble() ?? 0,
+      orders: _asInt(json['orders']),
+      revenue: _asDouble(json['revenue']),
       averageOrderValue: json['averageOrderValue']?.toString() ?? '0',
     );
   }
@@ -338,11 +413,13 @@ class TopProduct {
 
   factory TopProduct.fromJson(Map<String, dynamic> json) {
     return TopProduct(
-      rank: json['rank'] ?? 0,
-      product: json['product'] != null ? ProductInfo.fromJson(json['product']) : null,
-      totalSold: json['totalSold'] ?? 0,
-      totalRevenue: (json['totalRevenue'] as num?)?.toDouble() ?? 0,
-      orderCount: json['orderCount'] ?? 0,
+      rank: _asInt(json['rank']),
+      product: json['product'] != null
+          ? ProductInfo.fromJson(_asMap(json['product']))
+          : null,
+      totalSold: _asInt(json['totalSold']),
+      totalRevenue: _asDouble(json['totalRevenue']),
+      orderCount: _asInt(json['orderCount']),
     );
   }
 }
@@ -362,10 +439,10 @@ class ProductInfo {
 
   factory ProductInfo.fromJson(Map<String, dynamic> json) {
     return ProductInfo(
-      id: json['id'],
-      name: json['nom'],
-      imageUrl: json['imageUrl'],
-      price: (json['prixOriginal'] as num?)?.toDouble() ?? 0,
+      id: _asString(json['id']),
+      name: _asString(json['nom'], 'Produit'),
+      imageUrl: json['imageUrl'] as String?,
+      price: _asDouble(json['prixOriginal']),
     );
   }
 }
@@ -375,13 +452,17 @@ class RevenueData {
   final double revenue;
   final int orders;
 
-  RevenueData({required this.date, required this.revenue, required this.orders});
+  RevenueData({
+    required this.date,
+    required this.revenue,
+    required this.orders,
+  });
 
   factory RevenueData.fromJson(Map<String, dynamic> json) {
     return RevenueData(
-      date: json['date'],
-      revenue: (json['revenue'] as num?)?.toDouble() ?? 0,
-      orders: json['orders'] ?? 0,
+      date: _asString(json['date']),
+      revenue: _asDouble(json['revenue']),
+      orders: _asInt(json['orders']),
     );
   }
 }
@@ -400,11 +481,14 @@ class ClientStats {
   });
 
   factory ClientStats.fromJson(Map<String, dynamic> json) {
+    final lastMonth = _asMap(json['lastMonth']);
     return ClientStats(
-      thisMonth: ThisMonthStats.fromJson(json['thisMonth']),
-      lastMonthTotal: json['lastMonth']['total'] ?? 0,
+      thisMonth: ThisMonthStats.fromJson(_asMap(json['thisMonth'])),
+      lastMonthTotal: _asInt(lastMonth['total']),
       growth: json['growth']?.toString() ?? '0',
-      topClients: (json['topClients'] as List).map((c) => TopClient.fromJson(c)).toList(),
+      topClients: _asList(
+        json['topClients'],
+      ).map((c) => TopClient.fromJson(_asMap(c))).toList(),
     );
   }
 }
@@ -414,13 +498,17 @@ class ThisMonthStats {
   final int newClients;
   final int returning;
 
-  ThisMonthStats({required this.total, required this.newClients, required this.returning});
+  ThisMonthStats({
+    required this.total,
+    required this.newClients,
+    required this.returning,
+  });
 
   factory ThisMonthStats.fromJson(Map<String, dynamic> json) {
     return ThisMonthStats(
-      total: json['total'] ?? 0,
-      newClients: json['new'] ?? 0,
-      returning: json['returning'] ?? 0,
+      total: _asInt(json['total']),
+      newClients: _asInt(json['new']),
+      returning: _asInt(json['returning']),
     );
   }
 }
@@ -440,10 +528,12 @@ class TopClient {
 
   factory TopClient.fromJson(Map<String, dynamic> json) {
     return TopClient(
-      rank: json['rank'] ?? 0,
-      client: json['client'] != null ? ClientInfo.fromJson(json['client']) : null,
-      orderCount: json['orderCount'] ?? 0,
-      totalSpent: (json['totalSpent'] as num?)?.toDouble() ?? 0,
+      rank: _asInt(json['rank']),
+      client: json['client'] != null
+          ? ClientInfo.fromJson(_asMap(json['client']))
+          : null,
+      orderCount: _asInt(json['orderCount']),
+      totalSpent: _asDouble(json['totalSpent']),
     );
   }
 }
@@ -458,10 +548,10 @@ class ClientInfo {
 
   factory ClientInfo.fromJson(Map<String, dynamic> json) {
     return ClientInfo(
-      id: json['id'],
-      name: json['nom'],
-      email: json['email'],
-      imageUrl: json['imageUrl'],
+      id: _asString(json['id']),
+      name: json['nom'] as String?,
+      email: json['email'] as String?,
+      imageUrl: json['imageUrl'] as String?,
     );
   }
 }
@@ -473,9 +563,11 @@ class PeakHoursData {
   PeakHoursData({required this.hours, required this.peakHour});
 
   factory PeakHoursData.fromJson(Map<String, dynamic> json) {
+    final hours = _asList(json['data'] ?? json['hours']);
+    final peakHour = _asMap(json['peakHour']);
     return PeakHoursData(
-      hours: (json['data'] as List).map((h) => HourStat.fromJson(h)).toList(),
-      peakHour: HourStat.fromJson(json['peakHour']),
+      hours: hours.map((h) => HourStat.fromJson(_asMap(h))).toList(),
+      peakHour: HourStat.fromJson(peakHour),
     );
   }
 }
@@ -487,9 +579,6 @@ class HourStat {
   HourStat({required this.hour, required this.count});
 
   factory HourStat.fromJson(Map<String, dynamic> json) {
-    return HourStat(
-      hour: json['hour'] ?? 0,
-      count: json['count'] ?? 0,
-    );
+    return HourStat(hour: _asInt(json['hour']), count: _asInt(json['count']));
   }
 }

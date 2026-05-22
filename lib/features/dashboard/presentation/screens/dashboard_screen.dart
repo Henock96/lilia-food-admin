@@ -77,7 +77,10 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildOverviewCards(DashboardOverview overview, {bool isAdmin = false}) {
+  Widget _buildOverviewCards(
+    DashboardOverview overview, {
+    bool isAdmin = false,
+  }) {
     final cards = <Widget>[
       _StatCard(
         title: 'Commandes du jour',
@@ -225,7 +228,7 @@ class DashboardScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.withValues(),
+                color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -284,10 +287,7 @@ class _StatCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -304,10 +304,7 @@ class _StatCard extends StatelessWidget {
             ),
             Text(
               subtitle,
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey[500],
-              ),
+              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
             ),
           ],
         ),
@@ -327,22 +324,13 @@ class _RevenueItem extends StatelessWidget {
     final formatter = NumberFormat('#,###', 'fr_FR');
     return Column(
       children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-        ),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         const SizedBox(height: 4),
         Text(
           formatter.format(amount),
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        const Text(
-          'FCFA',
-          style: TextStyle(fontSize: 10, color: Colors.grey),
-        ),
+        const Text('FCFA', style: TextStyle(fontSize: 10, color: Colors.grey)),
       ],
     );
   }
@@ -358,17 +346,11 @@ class _OrderItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-        ),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         const SizedBox(height: 4),
         Text(
           '$count',
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const Text(
           'commandes',
@@ -414,7 +396,7 @@ class _TopProductsSection extends ConsumerWidget {
                     final product = products[index];
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: Colors.blue.withOpacity(0.1),
+                        backgroundColor: Colors.blue.withValues(alpha: 0.1),
                         child: Text(
                           '${product.rank}',
                           style: const TextStyle(
@@ -491,8 +473,8 @@ class _RestaurantRankingSection extends ConsumerWidget {
                     return ListTile(
                       leading: CircleAvatar(
                         backgroundColor: index < 3
-                            ? Colors.amber.withOpacity(0.2)
-                            : Colors.grey.withOpacity(0.1),
+                            ? Colors.amber.withValues(alpha: 0.2)
+                            : Colors.grey.withValues(alpha: 0.1),
                         child: Text(
                           '${index + 1}',
                           style: TextStyle(
@@ -506,14 +488,20 @@ class _RestaurantRankingSection extends ConsumerWidget {
                           Expanded(child: Text(r.nom)),
                           if (!r.isActive)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
+                                color: Colors.red.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: const Text(
                                 'Inactif',
-                                style: TextStyle(fontSize: 10, color: Colors.red),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.red,
+                                ),
                               ),
                             ),
                         ],
@@ -600,8 +588,8 @@ class _ClientStatsSection extends ConsumerWidget {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: isPositiveGrowth
-                            ? Colors.green.withOpacity(0.1)
-                            : Colors.red.withOpacity(0.1),
+                            ? Colors.green.withValues(alpha: 0.1)
+                            : Colors.red.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -618,7 +606,9 @@ class _ClientStatsSection extends ConsumerWidget {
                             '${isPositiveGrowth ? '+' : ''}${stats.growth}% par rapport au mois dernier',
                             style: TextStyle(
                               fontWeight: FontWeight.w500,
-                              color: isPositiveGrowth ? Colors.green : Colors.red,
+                              color: isPositiveGrowth
+                                  ? Colors.green
+                                  : Colors.red,
                             ),
                           ),
                         ],
@@ -666,15 +656,9 @@ class _ClientStatItem extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-        ),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
       ],
     );
   }

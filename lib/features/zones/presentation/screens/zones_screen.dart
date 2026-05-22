@@ -33,7 +33,8 @@ class ZonesScreen extends ConsumerWidget {
               Text('Erreur: $error'),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => ref.read(deliveryZonesProvider.notifier).refresh(),
+                onPressed: () =>
+                    ref.read(deliveryZonesProvider.notifier).refresh(),
                 child: const Text('Réessayer'),
               ),
             ],
@@ -49,10 +50,7 @@ class ZonesScreen extends ConsumerWidget {
   }
 
   void _showCreateZoneDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (context) => _CreateZoneDialog(),
-    );
+    showDialog(context: context, builder: (context) => _CreateZoneDialog());
   }
 }
 
@@ -114,12 +112,16 @@ class _ZonesContent extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
+                        color: Colors.blue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                          const Icon(
+                            Icons.info_outline,
+                            color: Colors.blue,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           const Expanded(
                             child: Text(
@@ -140,10 +142,7 @@ class _ZonesContent extends ConsumerWidget {
           // Liste des zones
           Text(
             'Zones configurées (${data.zones.length})',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
 
@@ -154,7 +153,11 @@ class _ZonesContent extends ConsumerWidget {
                 child: Center(
                   child: Column(
                     children: [
-                      Icon(Icons.map_outlined, size: 48, color: Colors.grey[400]),
+                      Icon(
+                        Icons.map_outlined,
+                        size: 48,
+                        color: Colors.grey[400],
+                      ),
                       const SizedBox(height: 16),
                       const Text(
                         'Aucune zone de livraison configurée',
@@ -199,7 +202,9 @@ class _ZoneCard extends ConsumerWidget {
           '${formatter.format(zone.fee)} FCFA - ${zone.quartiers.length} quartier(s)',
         ),
         leading: CircleAvatar(
-          backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+          backgroundColor: Theme.of(
+            context,
+          ).primaryColor.withValues(alpha: 0.1),
           child: Icon(Icons.location_on, color: Theme.of(context).primaryColor),
         ),
         trailing: Row(
@@ -229,7 +234,10 @@ class _ZoneCard extends ConsumerWidget {
                 if (zone.quartiers.isEmpty)
                   const Text(
                     'Aucun quartier associé',
-                    style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontStyle: FontStyle.italic,
+                    ),
                   )
                 else
                   Wrap(
@@ -250,7 +258,11 @@ class _ZoneCard extends ConsumerWidget {
     );
   }
 
-  void _showEditZoneDialog(BuildContext context, WidgetRef ref, DeliveryZone zone) {
+  void _showEditZoneDialog(
+    BuildContext context,
+    WidgetRef ref,
+    DeliveryZone zone,
+  ) {
     showDialog(
       context: context,
       builder: (context) => _EditZoneDialog(zone: zone),
@@ -262,7 +274,9 @@ class _ZoneCard extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Supprimer la zone ?'),
-        content: Text('Voulez-vous vraiment supprimer la zone "${zone.zoneName}" ?'),
+        content: Text(
+          'Voulez-vous vraiment supprimer la zone "${zone.zoneName}" ?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -272,7 +286,9 @@ class _ZoneCard extends ConsumerWidget {
             onPressed: () async {
               Navigator.pop(context);
               try {
-                await ref.read(deliveryZonesProvider.notifier).deleteZone(zone.id);
+                await ref
+                    .read(deliveryZonesProvider.notifier)
+                    .deleteZone(zone.id);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Zone supprimée')),
@@ -280,9 +296,9 @@ class _ZoneCard extends ConsumerWidget {
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Erreur: $e')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
                 }
               }
             },
@@ -414,22 +430,20 @@ class _CreateZoneDialogState extends ConsumerState<_CreateZoneDialog> {
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(deliveryZonesProvider.notifier).createZone(
-            name,
-            fee,
-            _selectedQuartierIds.toList(),
-          );
+      await ref
+          .read(deliveryZonesProvider.notifier)
+          .createZone(name, fee, _selectedQuartierIds.toList());
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Zone créée avec succès')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Zone créée avec succès')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -456,8 +470,12 @@ class _EditZoneDialogState extends ConsumerState<_EditZoneDialog> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.zone.zoneName);
-    _feeController = TextEditingController(text: widget.zone.fee.toStringAsFixed(0));
-    _selectedQuartierIds = widget.zone.quartiers.map((q) => q.quartierId).toSet();
+    _feeController = TextEditingController(
+      text: widget.zone.fee.toStringAsFixed(0),
+    );
+    _selectedQuartierIds = widget.zone.quartiers
+        .map((q) => q.quartierId)
+        .toSet();
   }
 
   @override
@@ -567,7 +585,9 @@ class _EditZoneDialogState extends ConsumerState<_EditZoneDialog> {
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(deliveryZonesProvider.notifier).updateZone(
+      await ref
+          .read(deliveryZonesProvider.notifier)
+          .updateZone(
             widget.zone.id,
             zoneName: name,
             fee: fee,
@@ -575,15 +595,15 @@ class _EditZoneDialogState extends ConsumerState<_EditZoneDialog> {
           );
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Zone mise à jour')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Zone mise à jour')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

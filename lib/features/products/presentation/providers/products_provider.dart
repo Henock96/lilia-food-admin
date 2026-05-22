@@ -15,6 +15,7 @@ class Products extends _$Products {
   @override
   Future<List<Product>> build() async {
     final restaurantId = ref.watch(currentRestaurantIdProvider);
+    if (restaurantId.isEmpty) return const [];
     final service = ref.watch(productServiceProvider);
     return service.getProducts(restaurantId);
   }
@@ -23,6 +24,7 @@ class Products extends _$Products {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final restaurantId = ref.read(currentRestaurantIdProvider);
+      if (restaurantId.isEmpty) return const <Product>[];
       final service = ref.read(productServiceProvider);
       return service.getProducts(restaurantId);
     });
@@ -35,7 +37,9 @@ class Products extends _$Products {
   }
 
   Future<void> updateProduct(
-      String productId, Map<String, dynamic> productData) async {
+    String productId,
+    Map<String, dynamic> productData,
+  ) async {
     final service = ref.read(productServiceProvider);
     await service.updateProduct(productId, productData);
     await refresh();
