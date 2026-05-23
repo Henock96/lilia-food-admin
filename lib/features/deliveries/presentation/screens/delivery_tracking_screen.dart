@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:lilia_admin/core/utils/geo.dart';
 import 'package:lilia_admin/features/admin/presentation/providers/deliverer_detail_provider.dart';
@@ -525,6 +526,13 @@ class _DelivererBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final hasDeliverer = delivery.delivererId != null;
+    final delivererLabel = delivery.delivererNom?.trim().isNotEmpty == true
+        ? delivery.delivererNom!
+        : (hasDeliverer
+            ? '#${delivery.delivererId!.substring(0, delivery.delivererId!.length >= 8 ? 8 : delivery.delivererId!.length)}'
+            : _kNoDelivererAssigned);
+    final hasPhone = delivery.delivererPhone?.trim().isNotEmpty == true;
+    final avatarUrl = delivery.delivererImageUrl;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -565,10 +573,14 @@ class _DelivererBottomSheet extends StatelessWidget {
                 CircleAvatar(
                   radius: 22,
                   backgroundColor: cs.primaryContainer,
-                  child: Icon(
-                    Iconsax.user,
-                    color: cs.onPrimaryContainer,
-                  ),
+                  backgroundImage:
+                      avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                  child: avatarUrl == null
+                      ? Icon(
+                          Iconsax.user,
+                          color: cs.onPrimaryContainer,
+                        )
+                      : null,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -582,9 +594,7 @@ class _DelivererBottomSheet extends StatelessWidget {
                             ),
                       ),
                       Text(
-                        hasDeliverer
-                            ? '#${delivery.delivererId!.substring(0, delivery.delivererId!.length >= 8 ? 8 : delivery.delivererId!.length)}'
-                            : _kNoDelivererAssigned,
+                        delivererLabel,
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
@@ -603,7 +613,7 @@ class _DelivererBottomSheet extends StatelessWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: hasDeliverer
+                      onPressed: hasPhone
                           ? () => _callDeliverer(context)
                           : null,
                       icon: const Icon(Iconsax.call),
@@ -627,14 +637,23 @@ class _DelivererBottomSheet extends StatelessWidget {
     );
   }
 
-  void _callDeliverer(BuildContext context) {
-    // Le modèle [Delivery] ne porte pas (encore) le téléphone — il faudrait
-    // composer avec `delivererDetailProvider(delivererId)`. Out of scope LIL-86.
-    // TODO LIL-87 / LIL-88: récupérer le téléphone via delivererDetailProvider
-    //   puis lancer `launchUrl(Uri(scheme: 'tel', path: phone))`.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text(_kPhoneUnavailable)),
-    );
+  Future<void> _callDeliverer(BuildContext context) async {
+    final phone = delivery.delivererPhone;
+    if (phone == null || phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(_kPhoneUnavailable)),
+      );
+      return;
+    }
+    final uri = Uri(scheme: 'tel', path: phone);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      }
+    } catch (e, st) {
+      developer.log('launchPhone failed: $e',
+          name: 'DeliveryTrackingScreen', error: e, stackTrace: st);
+    }
   }
 }
 
