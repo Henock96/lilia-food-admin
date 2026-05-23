@@ -41,7 +41,7 @@ class OrderDetailScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.refresh(restaurantOrdersProvider.future),
+            onPressed: () => ref.invalidate(restaurantOrdersProvider),
             tooltip: 'Actualiser',
           ),
         ],
@@ -766,7 +766,7 @@ class OrderDetailScreen extends ConsumerWidget {
             duration: const Duration(seconds: 2),
           ),
         );
-        ref.refresh(restaurantOrdersProvider.future);
+        ref.invalidate(restaurantOrdersProvider);
       }
     } catch (e) {
       if (context.mounted) {
@@ -1022,7 +1022,7 @@ class _AssignDelivererSheetState extends State<_AssignDelivererSheet> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        widget.ref.refresh(restaurantOrdersProvider.future);
+        widget.ref.invalidate(restaurantOrdersProvider);
       }
     } catch (e) {
       if (mounted) {

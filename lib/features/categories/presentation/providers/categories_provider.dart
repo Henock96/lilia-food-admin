@@ -15,6 +15,7 @@ class Categories extends _$Categories {
   @override
   Future<List<Category>> build() async {
     final restaurantId = ref.watch(currentRestaurantIdProvider);
+    if (restaurantId.isEmpty) return const [];
     final service = ref.watch(categoryServiceProvider);
     return service.getCategories(restaurantId);
   }
@@ -23,6 +24,7 @@ class Categories extends _$Categories {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final restaurantId = ref.read(currentRestaurantIdProvider);
+      if (restaurantId.isEmpty) return const <Category>[];
       final service = ref.read(categoryServiceProvider);
       return service.getCategories(restaurantId);
     });
@@ -30,13 +32,18 @@ class Categories extends _$Categories {
 
   Future<void> createCategory(Map<String, dynamic> categoryData) async {
     final restaurantId = ref.read(currentRestaurantIdProvider);
+    if (restaurantId.isEmpty) {
+      throw Exception('Restaurant non chargé. Veuillez réessayer.');
+    }
     final service = ref.read(categoryServiceProvider);
     await service.createCategory(restaurantId, categoryData);
     await refresh();
   }
 
   Future<void> updateCategory(
-      String categoryId, Map<String, dynamic> categoryData) async {
+    String categoryId,
+    Map<String, dynamic> categoryData,
+  ) async {
     final service = ref.read(categoryServiceProvider);
     await service.updateCategory(categoryId, categoryData);
     await refresh();

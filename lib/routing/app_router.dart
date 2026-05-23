@@ -16,6 +16,10 @@ import 'package:lilia_admin/features/admin/presentation/screens/create_restauran
 import 'package:lilia_admin/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:lilia_admin/features/settings/presentation/screens/settings_screen.dart';
 import 'package:lilia_admin/features/zones/presentation/screens/zones_screen.dart';
+import 'package:lilia_admin/features/admin/presentation/screens/payments_screen.dart';
+import 'package:lilia_admin/features/admin/presentation/screens/deliverers_screen.dart';
+import 'package:lilia_admin/features/admin/presentation/screens/quartiers_screen.dart';
+import 'package:lilia_admin/features/admin/presentation/screens/platform_settings_screen.dart';
 import 'package:lilia_admin/features/restaurant/presentation/providers/restaurant_provider.dart';
 import 'package:lilia_admin/features/auth/user_sync_provider.dart';
 import 'package:lilia_admin/models/role.dart';
@@ -36,8 +40,9 @@ GoRouter router(Ref ref) {
   return GoRouter(
     navigatorKey: _key,
     initialLocation: '/sign-in',
-    refreshListenable:
-        GoRouterRefreshStream(ref.watch(authRepositoryProvider).authStateChanges()),
+    refreshListenable: GoRouterRefreshStream(
+      ref.watch(authRepositoryProvider).authStateChanges(),
+    ),
     redirect: (context, state) {
       final bool isLoggedIn = authState.when(
         data: (user) => user != null,
@@ -59,10 +64,11 @@ GoRouter router(Ref ref) {
     },
     routes: [
       GoRoute(
-          path: '/sign-in',
-          name: 'sign-in',
-          pageBuilder: (context, state) =>
-              const MaterialPage(child: SignInPage())),
+        path: '/sign-in',
+        name: 'sign-in',
+        pageBuilder: (context, state) =>
+            const MaterialPage(child: SignInPage()),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return BottomNavigationPage(navigationShell: navigationShell);
@@ -74,29 +80,42 @@ GoRouter router(Ref ref) {
                 path: '/',
                 name: 'dashboard',
                 pageBuilder: (context, state) =>
-                const MaterialPage(child: DashboardScreen()),
+                    const MaterialPage(child: DashboardScreen()),
               ),
             ],
           ),
-          StatefulShellBranch(routes: [
-            GoRoute(
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
                 path: '/commandes',
                 name: 'commandes',
-                pageBuilder: (context, state) => const MaterialPage(
-                    child: RestaurantOrdersScreen()),
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: RestaurantOrdersScreen()),
                 routes: [
                   GoRoute(
                     path: ':id',
                     name: 'order-detail',
                     pageBuilder: (context, state) {
-                      final order = state.extra as order_model.Order;
+                      final extra = state.extra;
+                      if (extra is! order_model.Order) {
+                        return MaterialPage(
+                          child: _MissingRouteDataScreen(
+                            title: 'Commande indisponible',
+                            message:
+                                'Rechargez la liste des commandes puis ouvrez le détail à nouveau.',
+                            backRouteName: 'commandes',
+                          ),
+                        );
+                      }
                       return MaterialPage(
-                        child: OrderDetailScreen(order: order),
+                        child: OrderDetailScreen(order: extra),
                       );
                     },
                   ),
-                ]),
-          ]),
+                ],
+              ),
+            ],
+          ),
 
           StatefulShellBranch(
             routes: [
@@ -107,12 +126,16 @@ GoRouter router(Ref ref) {
                   return MaterialPage(
                     child: Consumer(
                       builder: (context, ref, child) {
-                        final userProfile = ref.watch(currentUserProfileProvider);
+                        final userProfile = ref.watch(
+                          currentUserProfileProvider,
+                        );
                         final isAdmin = userProfile?.role == Role.admin;
                         if (isAdmin) {
                           return const ClientsScreen(restaurantId: '');
                         }
-                        final restaurantId = ref.watch(currentRestaurantIdProvider);
+                        final restaurantId = ref.watch(
+                          currentRestaurantIdProvider,
+                        );
                         return ClientsScreen(restaurantId: restaurantId);
                       },
                     ),
@@ -123,13 +146,23 @@ GoRouter router(Ref ref) {
                     path: ':id',
                     name: 'client-detail',
                     pageBuilder: (context, state) {
-                      final client = state.extra as AppUser;
+                      final extra = state.extra;
+                      if (extra is! AppUser) {
+                        return MaterialPage(
+                          child: _MissingRouteDataScreen(
+                            title: 'Client indisponible',
+                            message:
+                                'Rechargez la liste des clients puis ouvrez le détail à nouveau.',
+                            backRouteName: 'clients',
+                          ),
+                        );
+                      }
                       return MaterialPage(
-                        child: ClientDetailScreen(client: client),
+                        child: ClientDetailScreen(client: extra),
                       );
                     },
                   ),
-                ]
+                ],
               ),
             ],
           ),
@@ -140,60 +173,126 @@ GoRouter router(Ref ref) {
                 path: '/settings',
                 name: 'settings',
                 pageBuilder: (context, state) =>
-                const MaterialPage(child: SettingsScreen()),
+                    const MaterialPage(child: SettingsScreen()),
                 routes: [
                   GoRoute(
                     path: 'zones',
                     name: 'delivery-zones',
                     pageBuilder: (context, state) =>
-                    const MaterialPage(child: ZonesScreen()),
+                        const MaterialPage(child: ZonesScreen()),
+                  ),
+                  GoRoute(
+                    path: 'paiements',
+                    name: 'admin-payments',
+                    pageBuilder: (context, state) =>
+                        const MaterialPage(child: PaymentsScreen()),
+                  ),
+                  GoRoute(
+                    path: 'livreurs',
+                    name: 'admin-deliverers',
+                    pageBuilder: (context, state) =>
+                        const MaterialPage(child: DeliverersScreen()),
+                  ),
+                  GoRoute(
+                    path: 'quartiers',
+                    name: 'admin-quartiers',
+                    pageBuilder: (context, state) =>
+                        const MaterialPage(child: QuartiersScreen()),
+                  ),
+                  GoRoute(
+                    path: 'parametres-plateforme',
+                    name: 'platform-settings',
+                    pageBuilder: (context, state) =>
+                        const MaterialPage(child: PlatformSettingsScreen()),
                   ),
                 ],
               ),
             ],
           ),
           StatefulShellBranch(
-
             routes: [
               GoRoute(
                 path: '/profile',
                 name: 'profile',
                 pageBuilder: (context, state) =>
-                const MaterialPage(child: UserPage()),
-                routes: [
-                  GoRoute(
-                    path: '/produits',
-                    name: 'produits',
-                    pageBuilder: (context, state) => const MaterialPage(
-                        child: ProductsScreen()),
-                  ),
-                  GoRoute(
-                      path: '/categories',
-                      name: 'categories',
-                      pageBuilder: (context, state) => const MaterialPage(
-                          child: CategoriesScreen()),),
-                  GoRoute(
-                      path: '/menus',
-                      name: 'menus',
-                      pageBuilder: (context, state) => const MaterialPage(
-                          child: MenusScreen()),),
-                  GoRoute(
-                      path: '/banners',
-                      name: 'banners',
-                      pageBuilder: (context, state) => const MaterialPage(
-                          child: BannersScreen()),),
-                  GoRoute(
-                      path: '/create-restaurant',
-                      name: 'create-restaurant',
-                      pageBuilder: (context, state) => const MaterialPage(
-                          child: CreateRestaurantScreen()),),
-                ]
+                    const MaterialPage(child: UserPage()),
               ),
-
+              GoRoute(
+                path: '/produits',
+                name: 'produits',
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: ProductsScreen()),
+              ),
+              GoRoute(
+                path: '/categories',
+                name: 'categories',
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: CategoriesScreen()),
+              ),
+              GoRoute(
+                path: '/menus',
+                name: 'menus',
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: MenusScreen()),
+              ),
+              GoRoute(
+                path: '/banners',
+                name: 'banners',
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: BannersScreen()),
+              ),
+              GoRoute(
+                path: '/create-restaurant',
+                name: 'create-restaurant',
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: CreateRestaurantScreen()),
+              ),
             ],
           ),
         ],
       ),
     ],
   );
+}
+
+class _MissingRouteDataScreen extends StatelessWidget {
+  const _MissingRouteDataScreen({
+    required this.title,
+    required this.message,
+    required this.backRouteName,
+  });
+
+  final String title;
+  final String message;
+  final String backRouteName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.info_outline, size: 48),
+              const SizedBox(height: 16),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: () => context.goNamed(backRouteName),
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Retour'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

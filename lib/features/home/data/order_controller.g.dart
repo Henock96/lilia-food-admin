@@ -75,7 +75,7 @@ final class RestaurantOrdersProvider
   RestaurantOrders create() => RestaurantOrders();
 }
 
-String _$restaurantOrdersHash() => r'74b342ccacf20d1b0ab0515e887e3ddc1541ec4f';
+String _$restaurantOrdersHash() => r'ee1142778995f5d5ffba1769a9eb1fef66123a5c';
 
 abstract class _$RestaurantOrders extends $AsyncNotifier<List<Order>> {
   FutureOr<List<Order>> build();

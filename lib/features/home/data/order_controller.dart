@@ -25,7 +25,8 @@ class RestaurantOrders extends _$RestaurantOrders {
     final orderService = ref.read(orderServiceRepositoryProvider);
 
     // Mettre à jour l'état local immédiatement pour une meilleure réactivité
-    final currentState = state.value ?? [];
+    final List<Order>? previousState = state.value;
+    final currentState = <Order>[...?previousState];
     final index = currentState.indexWhere((o) => o.id == orderId);
 
     if (index != -1) {
@@ -34,15 +35,21 @@ class RestaurantOrders extends _$RestaurantOrders {
       state = AsyncData([...currentState]);
     }
 
-    // Appeler l'API
-    await orderService.updateOrderStatus(orderId, newStatus);
+    try {
+      await orderService.updateOrderStatus(orderId, newStatus);
+    } catch (_) {
+      if (previousState != null) {
+        state = AsyncData(previousState);
+      }
+      rethrow;
+    }
   }
 
   // Méthode pour mettre à jour ou ajouter une commande dans l'état local.
   // Elle sera appelée depuis l'écran lorsque l'événement SSE est reçu.
   void updateOrAddOrder(Order order) {
-    // `state.valueOrNull` récupère la liste actuelle si elle existe.
-    final currentState = state.value ?? [];
+    // `state.value` récupère la liste actuelle si elle existe.
+    final currentState = <Order>[...?state.value];
     final index = currentState.indexWhere((o) => o.id == order.id);
 
     if (index != -1) {

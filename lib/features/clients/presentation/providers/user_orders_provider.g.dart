@@ -105,7 +105,7 @@ final class UserOrdersProvider
   }
 }
 
-String _$userOrdersHash() => r'93535b43206ab4f6bd75cacb1f02e286173b2d58';
+String _$userOrdersHash() => r'e9ac1b3ad2d1c2a55546d327e3d1b364e378f499';
 
 final class UserOrdersFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<List<Order>>, String> {

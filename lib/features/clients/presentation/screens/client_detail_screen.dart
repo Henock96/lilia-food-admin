@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:lilia_admin/features/clients/presentation/providers/user_orders_provider.dart';
 import 'package:lilia_admin/features/clients/presentation/providers/clients_provider.dart';
+import 'package:lilia_admin/features/auth/user_sync_provider.dart';
+import 'package:lilia_admin/models/role.dart';
 import 'package:lilia_admin/features/home/presentation/screens/restaurant_orders_screen.dart';
 import 'package:lilia_admin/models/app_user.dart';
 import 'package:lilia_admin/models/order.dart';
@@ -25,6 +27,7 @@ class ClientDetailScreen extends ConsumerWidget {
     }
 
     final userOrdersAsync = ref.watch(userOrdersProvider(clientId));
+    final isAdmin = ref.watch(currentUserProfileProvider)?.role == Role.admin;
 
     return Scaffold(
       appBar: AppBar(
@@ -58,10 +61,12 @@ class ClientDetailScreen extends ConsumerWidget {
                   ) ??
                   const SizedBox.shrink(),
               const Divider(height: 1),
-              _buildLoyaltySection(context, ref, clientId),
-              const Divider(height: 1),
-              _buildReferralSection(context, ref, clientId),
-              const Divider(height: 1),
+              if (isAdmin) ...[
+                _buildLoyaltySection(context, ref, clientId),
+                const Divider(height: 1),
+                _buildReferralSection(context, ref, clientId),
+                const Divider(height: 1),
+              ],
               // Titre section commandes
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
