@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lilia_admin/features/admin/presentation/providers/admin_operations_provider.dart';
 import 'package:lilia_admin/models/admin_deliverer.dart';
@@ -67,7 +68,10 @@ class _DeliverersScreenState extends ConsumerState<DeliverersScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.push('/deliverers/${deliverer.id}'),
+        child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
@@ -148,6 +152,7 @@ class _DeliverersScreenState extends ConsumerState<DeliverersScreen> {
               ],
             ),
           ],
+        ),
         ),
       ),
     );
