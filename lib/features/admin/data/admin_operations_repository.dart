@@ -3,6 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:lilia_admin/models/admin_payment.dart';
 import 'package:lilia_admin/models/admin_deliverer.dart';
+import 'package:lilia_admin/models/deliverer_detail.dart';
+import 'package:lilia_admin/models/deliverer_stats.dart';
+import 'package:lilia_admin/models/delivery.dart';
+import 'package:lilia_admin/models/delivery_mission_summary.dart';
+import 'package:lilia_admin/models/delivery_status.dart';
+import 'package:lilia_admin/models/paginated.dart';
 import 'package:lilia_admin/models/platform_settings.dart';
 
 /// Appels HTTP des opérations d'administration transverses :
@@ -161,5 +167,153 @@ class AdminOperationsRepository {
       }
     } catch (_) {}
     throw Exception(message);
+  }
+
+  // ─── Fiche livreur détaillée (LIL-84) ────────────────────────────────────
+
+  /// Stats agrégées d'un livreur — `GET /admin/deliverers/:id/stats`.
+  Future<DelivererStats> getDelivererStats(String id) async {
+    final token = await _getAuthToken();
+    final response = await http.get(
+      Uri.parse('$_baseUrl/admin/deliverers/$id/stats'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode == 200) {
+      final body = json.decode(utf8.decode(response.bodyBytes))
+          as Map<String, dynamic>;
+      final data = body['data'] as Map<String, dynamic>? ?? const {};
+      return DelivererStats.fromJson(data);
+    }
+    throw Exception(_parseError(
+        response, 'Échec du chargement des stats livreur'));
+  }
+
+  /// Missions d'un livreur paginées et optionnellement filtrées par statut —
+  /// `GET /admin/deliverers/:id/missions?status=&page=&limit=`.
+  Future<Paginated<DeliveryMissionSummary>> getDelivererMissions(
+    String id, {
+    DeliveryStatus? status,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final token = await _getAuthToken();
+    final url = Uri.parse('$_baseUrl/admin/deliverers/$id/missions').replace(
+      queryParameters: {
+        'page': '$page',
+        'limit': '$limit',
+        if (status != null) 'status': status.wireValue,
+      },
+    );
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode == 200) {
+      final body = json.decode(utf8.decode(response.bodyBytes))
+          as Map<String, dynamic>;
+      return Paginated<DeliveryMissionSummary>.fromJson(
+        body,
+        DeliveryMissionSummary.fromJson,
+      );
+    }
+    throw Exception(_parseError(
+        response, 'Échec du chargement des missions livreur'));
+  }
+
+  /// Livraison associée à une commande — `GET /deliveries/by-order/:orderId`.
+  Future<Delivery> getDeliveryByOrder(String orderId) async {
+    final token = await _getAuthToken();
+    final response = await http.get(
+      Uri.parse('$_baseUrl/deliveries/by-order/$orderId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode == 200) {
+      final body = json.decode(utf8.decode(response.bodyBytes))
+          as Map<String, dynamic>;
+      final data = body['data'] as Map<String, dynamic>? ?? body;
+      return Delivery.fromJson(data);
+    }
+    throw Exception(_parseError(
+        response, 'Échec du chargement de la livraison'));
+  }
+
+  /// Fiche détaillée composée : user (depuis la liste paginée) + stats +
+  /// mission en cours (EN_TRANSIT prioritaire, sinon ASSIGNER).
+  ///
+  /// Backend manquant : pas de `GET /admin/deliverers/:id`. On scanne la
+  /// liste paginée jusqu'à trouver le bon id. TODO : ajouter un endpoint
+  /// backend dédié si le volume dépasse ~500 livreurs.
+  Future<DelivererDetail> getDelivererDetail(String id) async {
+    final results = await Future.wait([
+      _findDelivererInList(id),
+      getDelivererStats(id),
+      _findCurrentMission(id),
+    ]);
+
+    final user = results[0] as AdminDeliverer;
+    final stats = results[1] as DelivererStats;
+    final current = results[2] as DeliveryMissionSummary?;
+
+    return DelivererDetail(user: user, stats: stats, currentMission: current);
+  }
+
+  /// Lookup linéaire dans `GET /admin/deliverers` (paginé).
+  Future<AdminDeliverer> _findDelivererInList(String id) async {
+    var page = 1;
+    while (true) {
+      final paginated = await fetchDeliverers(page: page);
+      final match =
+          paginated.deliverers.where((d) => d.id == id).cast<AdminDeliverer?>();
+      if (match.isNotEmpty) return match.first!;
+      final totalFetched = paginated.page * paginated.limit;
+      if (paginated.deliverers.isEmpty || totalFetched >= paginated.total) {
+        throw Exception('Livreur introuvable');
+      }
+      page += 1;
+    }
+  }
+
+  /// Mission en cours = première `EN_TRANSIT`, sinon première `ASSIGNER`.
+  Future<DeliveryMissionSummary?> _findCurrentMission(String id) async {
+    try {
+      final inTransit = await getDelivererMissions(
+        id,
+        status: DeliveryStatus.enTransit,
+        limit: 1,
+      );
+      if (inTransit.data.isNotEmpty) return inTransit.data.first;
+
+      final assigned = await getDelivererMissions(
+        id,
+        status: DeliveryStatus.assigner,
+        limit: 1,
+      );
+      return assigned.data.isNotEmpty ? assigned.data.first : null;
+    } catch (_) {
+      // Dégradation gracieuse : pas de mission en cours plutôt qu'échec total.
+      return null;
+    }
+  }
+
+  String _parseError(http.Response response, String fallback) {
+    try {
+      final body = json.decode(utf8.decode(response.bodyBytes));
+      if (body is Map && body['message'] is String) {
+        return body['message'] as String;
+      }
+      if (body is Map && body['message'] is List) {
+        return (body['message'] as List).join(', ');
+      }
+    } catch (_) {}
+    return '$fallback (${response.statusCode})';
   }
 }
