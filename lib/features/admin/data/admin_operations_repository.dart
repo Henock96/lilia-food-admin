@@ -3,6 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:lilia_admin/models/admin_payment.dart';
 import 'package:lilia_admin/models/admin_deliverer.dart';
+import 'package:lilia_admin/models/deliverer_detail.dart';
+import 'package:lilia_admin/models/deliverer_stats.dart';
+import 'package:lilia_admin/models/delivery.dart';
+import 'package:lilia_admin/models/delivery_mission_summary.dart';
+import 'package:lilia_admin/models/delivery_status.dart';
+import 'package:lilia_admin/models/paginated.dart';
 import 'package:lilia_admin/models/platform_settings.dart';
 
 /// Appels HTTP des opérations d'administration transverses :
@@ -161,5 +167,131 @@ class AdminOperationsRepository {
       }
     } catch (_) {}
     throw Exception(message);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fiche livreur (LIL-85 stubs — LIL-84 livrera l'implémentation finale)
+  // ---------------------------------------------------------------------------
+
+  /// Fiche détaillée d'un livreur (GET /admin/deliverers/:id).
+  ///
+  /// **Stub LIL-85** : implémentation HTTP minimale pour que les providers
+  /// compilent. LIL-84 livrera la version définitive (parsing complet, gestion
+  /// d'erreurs alignée sur le reste du fichier). Au merge, LIL-84 prévaut.
+  Future<DelivererDetail> getDelivererDetail(String id) async {
+    final token = await _getAuthToken();
+    final response = await http.get(
+      Uri.parse('$_baseUrl/admin/deliverers/$id'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final body = json.decode(utf8.decode(response.bodyBytes))
+          as Map<String, dynamic>;
+      final data = body['data'] as Map<String, dynamic>? ?? const {};
+      return DelivererDetail.fromJson(data);
+    }
+    throw Exception(
+      'Échec du chargement de la fiche livreur: '
+      '${response.statusCode} ${response.body}',
+    );
+  }
+
+  /// Stats agrégées d'un livreur (GET /admin/deliverers/:id/stats).
+  ///
+  /// **Stub LIL-85** — voir [getDelivererDetail].
+  Future<DelivererStats> getDelivererStats(String id) async {
+    final token = await _getAuthToken();
+    final response = await http.get(
+      Uri.parse('$_baseUrl/admin/deliverers/$id/stats'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final body = json.decode(utf8.decode(response.bodyBytes))
+          as Map<String, dynamic>;
+      final data = body['data'] as Map<String, dynamic>? ?? const {};
+      return DelivererStats.fromJson(data);
+    }
+    throw Exception(
+      'Échec du chargement des stats livreur: '
+      '${response.statusCode} ${response.body}',
+    );
+  }
+
+  /// Missions d'un livreur paginées et optionnellement filtrées par statut
+  /// (GET /admin/deliverers/:id/missions?status=...&page=...&limit=...).
+  ///
+  /// **Stub LIL-85** — voir [getDelivererDetail].
+  Future<Paginated<DeliveryMissionSummary>> getDelivererMissions(
+    String id, {
+    DeliveryStatus? status,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final token = await _getAuthToken();
+    final queryParameters = <String, String>{
+      'page': '$page',
+      'limit': '$limit',
+      if (status != null) 'status': status.wireValue,
+    };
+    final url = Uri.parse('$_baseUrl/admin/deliverers/$id/missions')
+        .replace(queryParameters: queryParameters);
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final body = json.decode(utf8.decode(response.bodyBytes))
+          as Map<String, dynamic>;
+      return Paginated<DeliveryMissionSummary>.fromJson(
+        body,
+        DeliveryMissionSummary.fromJson,
+      );
+    }
+    throw Exception(
+      'Échec du chargement des missions livreur: '
+      '${response.statusCode} ${response.body}',
+    );
+  }
+
+  /// Livraison associée à une commande
+  /// (GET /deliveries/by-order/:orderId).
+  ///
+  /// **Stub LIL-85** — `DeliveryService` n'expose pas encore cette route.
+  /// LIL-84 décidera s'il garde la méthode ici ou s'il la déplace dans
+  /// `DeliveryService`. En attendant, on l'ajoute ici pour que le provider
+  /// `deliveryByOrderProvider` puisse compiler.
+  Future<Delivery> getDeliveryByOrder(String orderId) async {
+    final token = await _getAuthToken();
+    final response = await http.get(
+      Uri.parse('$_baseUrl/deliveries/by-order/$orderId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final body = json.decode(utf8.decode(response.bodyBytes))
+          as Map<String, dynamic>;
+      final data = body['data'] as Map<String, dynamic>? ?? const {};
+      return Delivery.fromJson(data);
+    }
+    throw Exception(
+      'Échec du chargement de la livraison: '
+      '${response.statusCode} ${response.body}',
+    );
   }
 }
