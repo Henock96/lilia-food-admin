@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/widgets.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import '../constants/app_constants.dart';
@@ -229,6 +230,21 @@ class TrackingSocketService with WidgetsBindingObserver {
     if (_explicitlyDisconnected) return;
     if (isConnected || _isConnecting) return;
     _isConnecting = true;
+
+    final isReconnect = _reconnectAttempt > 0;
+    // Breadcrumb Sentry — utile pour corréler les déconnexions/reconnexions
+    // dans les sessions admin (cf. LIL-89). Sentry est initialisé dans
+    // `main.dart` ; `addBreadcrumb` est no-op si le SDK n'est pas actif.
+    Sentry.addBreadcrumb(Breadcrumb(
+      message: 'tracking_socket_connect',
+      category: 'tracking',
+      level: SentryLevel.info,
+      data: {
+        'reconnect': isReconnect,
+        'attempt': _reconnectAttempt,
+        'watchedOrders': _watchedOrders.length,
+      },
+    ));
 
     try {
       final token = await _getFreshIdToken();
