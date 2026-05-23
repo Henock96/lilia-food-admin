@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:iconsax/iconsax.dart';
 
@@ -41,7 +42,6 @@ const String _kDeliveryCompleted = 'Livraison terminée';
 const String _kDelivererCardTitle = 'Livreur';
 const String _kNoDelivererAssigned = 'Aucun livreur assigné';
 const String _kViewDelivererFile = 'Voir fiche livreur';
-const String _kComingSoon = 'Bientôt disponible';
 const String _kEtaUnknown = '—';
 const String _kEtaSuffix = 'min';
 const String _kCallButton = 'Appeler';
@@ -277,10 +277,7 @@ class _DeliveryTrackingScreenState
       );
       return;
     }
-    // TODO LIL-88: navigation vers /deliverers/:id (route admin à créer).
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text(_kComingSoon)),
-    );
+    context.push('/deliverers/$id');
   }
 
   // ──────────────────────────────────────────────────────────────────────

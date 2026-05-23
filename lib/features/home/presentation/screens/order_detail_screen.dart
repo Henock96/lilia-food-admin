@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -615,17 +616,47 @@ class OrderDetailScreen extends ConsumerWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.blue.shade200),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Column(
           children: [
-            Icon(Icons.delivery_dining, color: Colors.blue[700], size: 28),
-            const SizedBox(width: 10),
-            Text(
-              'Le livreur est en route',
-              style: TextStyle(
-                color: Colors.blue[700],
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.delivery_dining, color: Colors.blue[700], size: 28),
+                const SizedBox(width: 10),
+                Text(
+                  'Le livreur est en route',
+                  style: TextStyle(
+                    color: Colors.blue[700],
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // CTA tracking — n'affiche que si on a un id de commande valide.
+            // TODO LIL-89: lien "Voir le livreur" quand le modèle Order
+            //   exposera `delivery.delivererId` (actuellement non porté côté
+            //   admin — fetch séparé via deliveryByOrderProvider serait
+            //   nécessaire et l'ergonomie ne le justifie pas ici).
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () =>
+                    context.push('/deliveries/${order.id}/tracking'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.blue[700],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: const Icon(Icons.map_outlined),
+                label: const Text(
+                  'Suivre sur la carte',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           ],
