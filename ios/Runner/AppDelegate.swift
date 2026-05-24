@@ -8,7 +8,12 @@ import GoogleMaps
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    GMSServices.provideAPIKey("YOUR_IOS_MAPS_API_KEY")
+    let apiKey = Bundle.main.object(forInfoDictionaryKey: "GoogleMapsApiKey") as? String ?? ""
+    if apiKey.isEmpty || apiKey == "YOUR_IOS_MAPS_API_KEY" {
+      NSLog("[Lilia Admin] Google Maps API key missing — see ios/Flutter/Maps.xcconfig.example")
+    } else {
+      GMSServices.provideAPIKey(apiKey)
+    }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

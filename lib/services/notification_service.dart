@@ -8,7 +8,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:lilia_admin/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_admin/features/home/data/order_controller.dart';
+import 'package:lilia_admin/features/incidents/presentation/providers/incidents_provider.dart';
 import 'package:lilia_admin/firebase_options.dart';
+import 'package:lilia_admin/routing/app_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:http/http.dart' as http;
 
@@ -16,6 +18,10 @@ part 'notification_service.g.dart';
 
 /// Provider pour stocker l'ID de la derniere commande notifiee
 final latestOrderNotificationProvider = StateProvider<String?>((ref) => null);
+
+/// Provider pour stocker l'ID du dernier incident notifié (FCM data.type='incident').
+/// Consommé en lecture par les écrans qui veulent surligner le nouvel élément.
+final latestIncidentNotificationProvider = StateProvider<String?>((ref) => null);
 
 // --- Background Message Handler ---
 // Doit etre une fonction de haut niveau (en dehors d'une classe)
@@ -179,6 +185,34 @@ class NotificationService {
 
   void _handleNotificationData(Map<String, dynamic> data) {
     if (_isDisposed) return;
+
+    final type = data['type'] as String?;
+
+    // Incident : naviguer directement vers le détail (admin clique sur la push
+    // FCM envoyée par IncidentsNotificationListener côté backend pour les
+    // sévérités HIGH/CRITICAL).
+    if (type == 'incident') {
+      final incidentId = data['incidentId'] as String?;
+      if (incidentId == null || incidentId.isEmpty) {
+        debugPrint('[ADMIN NOTIF] Incident reçu sans incidentId — ignoré');
+        return;
+      }
+      debugPrint('[ADMIN NOTIF] Incident détecté: $incidentId');
+      _ref.read(latestIncidentNotificationProvider.notifier).state = incidentId;
+      _ref.invalidate(incidentsListProvider);
+      // Deep link : pousser le détail dans le router. `pushNamed` ajoute par
+      // dessus la pile courante — si l'utilisateur était déjà sur une page, il
+      // peut revenir en arrière.
+      try {
+        _ref.read(routerProvider).pushNamed(
+          'incident-detail',
+          pathParameters: {'id': incidentId},
+        );
+      } catch (e) {
+        debugPrint('[ADMIN NOTIF] Erreur navigation incident: $e');
+      }
+      return;
+    }
 
     if (data.containsKey('orderId')) {
       final orderId = data['orderId'] as String;

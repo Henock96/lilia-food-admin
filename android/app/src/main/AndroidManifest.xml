@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <application
-        android:label="lilia_admin"
+        android:label="Lilia F. Admin"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <meta-data

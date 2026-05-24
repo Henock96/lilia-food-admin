@@ -24,6 +24,7 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
     OrderStatus.payer,
     OrderStatus.enpreparation,
     OrderStatus.pret,
+    OrderStatus.enRoute,
     OrderStatus.livrer,
     OrderStatus.annuler,
   ];
@@ -55,6 +56,8 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
         return 'En préparation';
       case OrderStatus.pret:
         return 'Prête';
+      case OrderStatus.enRoute:
+        return 'En route';
       case OrderStatus.livrer:
         return 'Livrée';
       case OrderStatus.annuler:
