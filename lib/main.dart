@@ -3,6 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:lilia_admin/routing/app_router.dart';
 import 'package:lilia_admin/services/notification_service.dart';
 import 'package:lilia_admin/theme/app_theme.dart';
@@ -20,6 +21,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  // Locale FR pour DateFormat / NumberFormat (fiche livreur, missions, etc.).
+  await initializeDateFormatting('fr_FR');
 
   await SentryFlutter.init(
     (options) {

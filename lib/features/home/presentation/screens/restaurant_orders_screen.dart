@@ -307,6 +307,26 @@ class OrderCard extends ConsumerWidget {
                     ),
                   ),
                   const Spacer(),
+                  // Bouton suivi carte — visible uniquement pour les commandes
+                  // EN_ROUTE (livreur en transit). Permet à l'admin d'ouvrir
+                  // l'écran de tracking temps réel sans passer par le détail.
+                  if (order.status == OrderStatus.enRoute) ...[
+                    SizedBox(
+                      height: 28,
+                      width: 28,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        iconSize: 18,
+                        tooltip: 'Suivre sur la carte',
+                        icon: Icon(Icons.map_outlined,
+                            color: statusInfo.color),
+                        onPressed: () => context.push(
+                          '/deliveries/${order.id}/tracking',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   Text(
                     '#${order.id.substring(0, 8).toUpperCase()}',
                     style: TextStyle(

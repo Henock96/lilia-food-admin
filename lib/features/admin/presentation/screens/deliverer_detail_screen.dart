@@ -14,6 +14,7 @@ import 'package:lilia_admin/models/deliverer_detail.dart';
 import 'package:lilia_admin/models/deliverer_stats.dart';
 import 'package:lilia_admin/models/delivery_mission_summary.dart';
 import 'package:lilia_admin/models/delivery_status.dart';
+import 'package:lilia_admin/theme/lilia_tokens.dart';
 
 /// Strings UI groupés ici pour rester centralisé (cf. règle « zéro string
 /// métier hardcoded »).
@@ -90,7 +91,12 @@ Color _statusColor(BuildContext context, DeliveryStatus s) {
     case DeliveryStatus.enTransit:
       return scheme.primary;
     case DeliveryStatus.livrer:
-      return Colors.green.shade600;
+      // "Livré" → couleur succès. ColorScheme Material n'a pas de slot
+      // success — on passe par le token semantic Lilia. Si le thème dark
+      // admin est introduit plus tard, exposer un `ThemeExtension<LiliaTheme>`
+      // pour résoudre selon `Theme.of(context).brightness`.
+      // TODO LIL-90+ : success/danger via ThemeExtension quand dark mode activé.
+      return LiliaColors.green400;
     case DeliveryStatus.echec:
       return scheme.error;
   }

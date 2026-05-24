@@ -1,8 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lilia_admin/features/admin/presentation/providers/admin_operations_provider.dart';
 import 'package:lilia_admin/models/admin_deliverer.dart';
+
+/// Strings UI groupées en `_Strings` privée — cohérent avec le pattern adopté
+/// dans `DelivererDetailScreen` (LIL-87) et `DeliveryTrackingScreen` (LIL-86).
+class _Strings {
+  static const title = 'Livreurs';
+  static const refreshTooltip = 'Actualiser';
+  static const fallbackName = 'Livreur';
+  static const fallbackNoName = '—';
+  static const lastDeliveryPrefix = 'Dernière : ';
+  static const noDelivery = 'Aucune livraison';
+  static const prevPageTooltip = 'Page précédente';
+  static const nextPageTooltip = 'Page suivante';
+  static const emptyTitle = 'Aucun livreur';
+  static const errorTitle = 'Erreur de chargement';
+  static const retry = 'Réessayer';
+}
 
 class DeliverersScreen extends ConsumerStatefulWidget {
   const DeliverersScreen({super.key});
@@ -20,12 +37,12 @@ class _DeliverersScreenState extends ConsumerState<DeliverersScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Livreurs'),
+        title: const Text(_Strings.title),
         centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Actualiser',
+            tooltip: _Strings.refreshTooltip,
             onPressed: () => ref.invalidate(adminDeliverersProvider),
           ),
         ],
@@ -58,7 +75,8 @@ class _DeliverersScreenState extends ConsumerState<DeliverersScreen> {
 
   Widget _delivererCard(AdminDeliverer deliverer) {
     final theme = Theme.of(context);
-    final name = deliverer.nom ?? deliverer.email ?? 'Livreur';
+    final scheme = theme.colorScheme;
+    final name = deliverer.nom ?? deliverer.email ?? _Strings.fallbackName;
     final lastDelivery = deliverer.recentDeliveries.isNotEmpty
         ? deliverer.recentDeliveries.first
         : null;
@@ -67,13 +85,16 @@ class _DeliverersScreenState extends ConsumerState<DeliverersScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.push('/deliverers/${deliverer.id}'),
+        child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
             CircleAvatar(
               radius: 24,
-              backgroundColor: theme.colorScheme.primaryContainer,
+              backgroundColor: scheme.primaryContainer,
               backgroundImage: deliverer.imageUrl != null
                   ? NetworkImage(deliverer.imageUrl!)
                   : null,
@@ -82,7 +103,7 @@ class _DeliverersScreenState extends ConsumerState<DeliverersScreen> {
                       name.isNotEmpty ? name[0].toUpperCase() : '?',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onPrimaryContainer,
+                        color: scheme.onPrimaryContainer,
                       ),
                     )
                   : null,
@@ -92,7 +113,7 @@ class _DeliverersScreenState extends ConsumerState<DeliverersScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(deliverer.nom ?? '—',
+                  Text(deliverer.nom ?? _Strings.fallbackNoName,
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 15)),
                   const SizedBox(height: 2),
@@ -100,12 +121,12 @@ class _DeliverersScreenState extends ConsumerState<DeliverersScreen> {
                     Row(
                       children: [
                         Icon(Icons.email_outlined,
-                            size: 13, color: Colors.grey[500]),
+                            size: 13, color: scheme.outline),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(deliverer.email!,
-                              style: TextStyle(
-                                  color: Colors.grey[600], fontSize: 12),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                  color: scheme.onSurfaceVariant),
                               overflow: TextOverflow.ellipsis),
                         ),
                       ],
@@ -114,11 +135,11 @@ class _DeliverersScreenState extends ConsumerState<DeliverersScreen> {
                     Row(
                       children: [
                         Icon(Icons.phone_outlined,
-                            size: 13, color: Colors.grey[500]),
+                            size: 13, color: scheme.outline),
                         const SizedBox(width: 4),
                         Text(deliverer.phone!,
-                            style: TextStyle(
-                                color: Colors.grey[600], fontSize: 12)),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: scheme.onSurfaceVariant)),
                       ],
                     ),
                 ],
@@ -131,7 +152,7 @@ class _DeliverersScreenState extends ConsumerState<DeliverersScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.local_shipping_outlined,
-                        size: 14, color: Colors.grey[600]),
+                        size: 14, color: scheme.onSurfaceVariant),
                     const SizedBox(width: 4),
                     Text('${deliverer.totalDeliveries}',
                         style: const TextStyle(
@@ -141,19 +162,23 @@ class _DeliverersScreenState extends ConsumerState<DeliverersScreen> {
                 const SizedBox(height: 4),
                 Text(
                   lastDelivery != null
-                      ? 'Dernière : ${DateFormat('dd/MM/yyyy').format(lastDelivery.createdAt)}'
-                      : 'Aucune livraison',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                      ? '${_Strings.lastDeliveryPrefix}${DateFormat('dd/MM/yyyy').format(lastDelivery.createdAt)}'
+                      : _Strings.noDelivery,
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(color: scheme.outline),
                 ),
               ],
             ),
           ],
+        ),
         ),
       ),
     );
   }
 
   Widget _buildPagination(int total, int totalPages) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
       child: Row(
@@ -161,18 +186,19 @@ class _DeliverersScreenState extends ConsumerState<DeliverersScreen> {
         children: [
           Text(
             '$total livreur${total > 1 ? 's' : ''} · page $_page/$totalPages',
-            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: scheme.onSurfaceVariant),
           ),
           Row(
             children: [
               IconButton(
                 icon: const Icon(Icons.chevron_left),
-                tooltip: 'Page précédente',
+                tooltip: _Strings.prevPageTooltip,
                 onPressed: _page > 1 ? () => setState(() => _page--) : null,
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_right),
-                tooltip: 'Page suivante',
+                tooltip: _Strings.nextPageTooltip,
                 onPressed:
                     _page < totalPages ? () => setState(() => _page++) : null,
               ),
@@ -184,39 +210,45 @@ class _DeliverersScreenState extends ConsumerState<DeliverersScreen> {
   }
 
   Widget _emptyView() {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.delivery_dining_outlined,
-              size: 64, color: Colors.grey[400]),
+              size: 64, color: scheme.outlineVariant),
           const SizedBox(height: 12),
-          Text('Aucun livreur', style: TextStyle(color: Colors.grey[600])),
+          Text(_Strings.emptyTitle,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant)),
         ],
       ),
     );
   }
 
   Widget _errorView(Object error) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            Icon(Icons.error_outline, size: 64, color: scheme.error),
             const SizedBox(height: 16),
-            Text('Erreur de chargement',
-                style: Theme.of(context).textTheme.titleLarge),
+            Text(_Strings.errorTitle, style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(error.toString(),
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600])),
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: scheme.onSurfaceVariant)),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () => ref.invalidate(adminDeliverersProvider),
               icon: const Icon(Icons.refresh),
-              label: const Text('Réessayer'),
+              label: const Text(_Strings.retry),
             ),
           ],
         ),

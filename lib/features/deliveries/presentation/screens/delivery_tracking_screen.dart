@@ -3,8 +3,10 @@ import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:lilia_admin/core/utils/geo.dart';
 import 'package:lilia_admin/features/admin/presentation/providers/deliverer_detail_provider.dart';
@@ -41,7 +43,6 @@ const String _kDeliveryCompleted = 'Livraison terminée';
 const String _kDelivererCardTitle = 'Livreur';
 const String _kNoDelivererAssigned = 'Aucun livreur assigné';
 const String _kViewDelivererFile = 'Voir fiche livreur';
-const String _kComingSoon = 'Bientôt disponible';
 const String _kEtaUnknown = '—';
 const String _kEtaSuffix = 'min';
 const String _kCallButton = 'Appeler';
@@ -82,11 +83,13 @@ class _DeliveryTrackingScreenState
   /// localement via Haversine.
   double? _lastBackendEta;
 
-  /// Destination du client (extrait de la commande/livraison). À ce stade le
-  /// modèle [Delivery] ne porte pas encore lat/lng, on tombe sur le fallback.
-  /// TODO LIL-87 / backend: enrichir Delivery avec adresse géocodée — quand
-  /// ce sera fait, retirer le `final` et résoudre depuis `delivery`.
-  final LatLng _destination = _kFallbackDestination;
+  /// Destination du client (extrait de [Delivery.destinationLatitude/Longitude]).
+  /// Vaut `null` tant que la livraison n'est pas chargée. On retombe sur le
+  /// fallback `_kFallbackDestination` si la commande n'a pas de coords géocodées.
+  LatLng? _destination;
+
+  /// Coords du restaurant (marker secondaire). `null` si absent.
+  LatLng? _restaurant;
 
   /// Indique si on a déjà recentré la caméra une première fois (au 1er event).
   bool _hasFittedBounds = false;
@@ -123,7 +126,7 @@ class _DeliveryTrackingScreenState
     );
     if (!_hasFittedBounds) {
       _hasFittedBounds = true;
-      _animateCameraToFit(pos, _destination);
+      _animateCameraToFit(pos, _destination ?? _kFallbackDestination);
     }
   }
 
@@ -277,10 +280,7 @@ class _DeliveryTrackingScreenState
       );
       return;
     }
-    // TODO LIL-88: navigation vers /deliverers/:id (route admin à créer).
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text(_kComingSoon)),
-    );
+    context.push('/deliverers/$id');
   }
 
   // ──────────────────────────────────────────────────────────────────────
@@ -288,6 +288,18 @@ class _DeliveryTrackingScreenState
   // ──────────────────────────────────────────────────────────────────────
 
   Widget _buildMap(Delivery delivery) {
+    // Résout les coords destination + resto à partir du modèle (1ère fois).
+    _destination ??= delivery.hasDestinationCoords
+        ? LatLng(delivery.destinationLatitude!, delivery.destinationLongitude!)
+        : _kFallbackDestination;
+    if (_restaurant == null &&
+        delivery.restaurantLatitude != null &&
+        delivery.restaurantLongitude != null) {
+      _restaurant =
+          LatLng(delivery.restaurantLatitude!, delivery.restaurantLongitude!);
+    }
+
+    final destination = _destination!;
     final markers = <Marker>{};
 
     if (_lastDriverPosition != null) {
@@ -299,16 +311,30 @@ class _DeliveryTrackingScreenState
         icon: BitmapDescriptor.defaultMarkerWithHue(
           BitmapDescriptor.hueOrange,
         ),
-        infoWindow: const InfoWindow(title: 'Livreur'),
+        infoWindow: InfoWindow(
+          title: delivery.delivererNom ?? 'Livreur',
+        ),
       ));
     }
 
     markers.add(Marker(
       markerId: const MarkerId('destination'),
-      position: _destination,
+      position: destination,
       icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-      infoWindow: const InfoWindow(title: 'Destination'),
+      infoWindow: const InfoWindow(title: 'Adresse de livraison'),
     ));
+
+    if (_restaurant != null) {
+      markers.add(Marker(
+        markerId: const MarkerId('restaurant'),
+        position: _restaurant!,
+        icon:
+            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
+        infoWindow: InfoWindow(
+          title: delivery.restaurantNom ?? 'Restaurant',
+        ),
+      ));
+    }
 
     final polylines = <Polyline>{};
     if (_trail.length >= 2) {
@@ -321,8 +347,8 @@ class _DeliveryTrackingScreenState
     }
 
     return GoogleMap(
-      initialCameraPosition: const CameraPosition(
-        target: _kFallbackDestination,
+      initialCameraPosition: CameraPosition(
+        target: destination,
         zoom: _kInitialZoom,
       ),
       markers: markers,
@@ -333,6 +359,14 @@ class _DeliveryTrackingScreenState
       onMapCreated: (c) {
         _mapController = c;
         if (!_mapReady.isCompleted) _mapReady.complete(c);
+        // Si on n'a pas encore reçu de position livreur, recentre quand même
+        // sur la destination réelle (et le resto si dispo) au 1er rendu.
+        if (_lastDriverPosition == null && !_hasFittedBounds) {
+          _hasFittedBounds = true;
+          if (_restaurant != null) {
+            _animateCameraToFit(_restaurant!, destination);
+          }
+        }
       },
     );
   }
@@ -348,12 +382,13 @@ class _DeliveryTrackingScreenState
     }
     // Priorité 2 : calcul local Haversine à partir de la dernière position.
     final driver = _lastDriverPosition;
-    if (driver != null) {
+    final destination = _destination;
+    if (driver != null && destination != null) {
       final km = haversineKm(
         driver.latitude,
         driver.longitude,
-        _destination.latitude,
-        _destination.longitude,
+        destination.latitude,
+        destination.longitude,
       );
       return '${etaMinutes(km)} $_kEtaSuffix';
     }
@@ -528,6 +563,13 @@ class _DelivererBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final hasDeliverer = delivery.delivererId != null;
+    final delivererLabel = delivery.delivererNom?.trim().isNotEmpty == true
+        ? delivery.delivererNom!
+        : (hasDeliverer
+            ? '#${delivery.delivererId!.substring(0, delivery.delivererId!.length >= 8 ? 8 : delivery.delivererId!.length)}'
+            : _kNoDelivererAssigned);
+    final hasPhone = delivery.delivererPhone?.trim().isNotEmpty == true;
+    final avatarUrl = delivery.delivererImageUrl;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -568,10 +610,14 @@ class _DelivererBottomSheet extends StatelessWidget {
                 CircleAvatar(
                   radius: 22,
                   backgroundColor: cs.primaryContainer,
-                  child: Icon(
-                    Iconsax.user,
-                    color: cs.onPrimaryContainer,
-                  ),
+                  backgroundImage:
+                      avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                  child: avatarUrl == null
+                      ? Icon(
+                          Iconsax.user,
+                          color: cs.onPrimaryContainer,
+                        )
+                      : null,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -585,9 +631,7 @@ class _DelivererBottomSheet extends StatelessWidget {
                             ),
                       ),
                       Text(
-                        hasDeliverer
-                            ? '#${delivery.delivererId!.substring(0, delivery.delivererId!.length >= 8 ? 8 : delivery.delivererId!.length)}'
-                            : _kNoDelivererAssigned,
+                        delivererLabel,
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
@@ -606,7 +650,7 @@ class _DelivererBottomSheet extends StatelessWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: hasDeliverer
+                      onPressed: hasPhone
                           ? () => _callDeliverer(context)
                           : null,
                       icon: const Icon(Iconsax.call),
@@ -630,14 +674,23 @@ class _DelivererBottomSheet extends StatelessWidget {
     );
   }
 
-  void _callDeliverer(BuildContext context) {
-    // Le modèle [Delivery] ne porte pas (encore) le téléphone — il faudrait
-    // composer avec `delivererDetailProvider(delivererId)`. Out of scope LIL-86.
-    // TODO LIL-87 / LIL-88: récupérer le téléphone via delivererDetailProvider
-    //   puis lancer `launchUrl(Uri(scheme: 'tel', path: phone))`.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text(_kPhoneUnavailable)),
-    );
+  Future<void> _callDeliverer(BuildContext context) async {
+    final phone = delivery.delivererPhone;
+    if (phone == null || phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(_kPhoneUnavailable)),
+      );
+      return;
+    }
+    final uri = Uri(scheme: 'tel', path: phone);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      }
+    } catch (e, st) {
+      developer.log('launchPhone failed: $e',
+          name: 'DeliveryTrackingScreen', error: e, stackTrace: st);
+    }
   }
 }
 

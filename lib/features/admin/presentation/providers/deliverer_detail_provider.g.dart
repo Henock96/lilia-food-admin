@@ -352,7 +352,7 @@ final class DelivererMissionsControllerProvider
 }
 
 String _$delivererMissionsControllerHash() =>
-    r'5482fe739efcb5507867a00f185d3f0ba87882db';
+    r'55f616c8317568bc1a45cbf6b2c24dd69c69d691';
 
 /// Contrôleur paginé des missions d'un livreur.
 ///

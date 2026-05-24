@@ -18,8 +18,10 @@ import 'package:lilia_admin/features/settings/presentation/screens/settings_scre
 import 'package:lilia_admin/features/zones/presentation/screens/zones_screen.dart';
 import 'package:lilia_admin/features/admin/presentation/screens/payments_screen.dart';
 import 'package:lilia_admin/features/admin/presentation/screens/deliverers_screen.dart';
+import 'package:lilia_admin/features/admin/presentation/screens/deliverer_detail_screen.dart';
 import 'package:lilia_admin/features/admin/presentation/screens/quartiers_screen.dart';
 import 'package:lilia_admin/features/admin/presentation/screens/platform_settings_screen.dart';
+import 'package:lilia_admin/features/deliveries/presentation/screens/delivery_tracking_screen.dart';
 import 'package:lilia_admin/features/restaurant/presentation/providers/restaurant_provider.dart';
 import 'package:lilia_admin/features/auth/user_sync_provider.dart';
 import 'package:lilia_admin/models/role.dart';
@@ -68,6 +70,33 @@ GoRouter router(Ref ref) {
         name: 'sign-in',
         pageBuilder: (context, state) =>
             const MaterialPage(child: SignInPage()),
+      ),
+      // ─── Routes plein écran (hors bottom nav) ──────────────────────────
+      // Routes ADMIN-only — protégées via [_AdminOnlyGuard] qui redirige les
+      // non-admins vers la racine.
+      GoRoute(
+        path: '/deliverers/:id',
+        name: 'deliverer-detail',
+        pageBuilder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return MaterialPage(
+            child: _AdminOnlyGuard(
+              child: DelivererDetailScreen(delivererId: id),
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/deliveries/:orderId/tracking',
+        name: 'delivery-tracking',
+        pageBuilder: (context, state) {
+          final orderId = state.pathParameters['orderId']!;
+          return MaterialPage(
+            child: _AdminOnlyGuard(
+              child: DeliveryTrackingScreen(orderId: orderId),
+            ),
+          );
+        },
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -253,6 +282,32 @@ GoRouter router(Ref ref) {
       ),
     ],
   );
+}
+
+/// Garde les routes admin-only : si l'utilisateur courant n'a pas le rôle
+/// [Role.admin], on bascule sur un écran d'erreur 403 plutôt que de rendre
+/// l'écran cible. Tant que le profil est en cours de chargement on affiche
+/// un loader (évite les flashs vers 403 pendant le hot-reload / cold start).
+class _AdminOnlyGuard extends ConsumerWidget {
+  const _AdminOnlyGuard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userProfile = ref.watch(currentUserProfileProvider);
+    if (userProfile == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (userProfile.role != Role.admin) {
+      return _MissingRouteDataScreen(
+        title: 'Accès refusé',
+        message: 'Cette page est réservée aux administrateurs.',
+        backRouteName: 'dashboard',
+      );
+    }
+    return child;
+  }
 }
 
 class _MissingRouteDataScreen extends StatelessWidget {
