@@ -47,3 +47,7 @@ app.*.map.json
 # Google Maps API key (never commit real key)
 **/google_maps_key.xml
 ios/Flutter/Maps.xcconfig
+
+ios/Flutter/Maps.xcconfig.example,
+ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+ios/Runner.xcworkspace/xcshareddata/swiftpm

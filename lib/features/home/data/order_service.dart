@@ -52,6 +52,9 @@ class OrderService {
       case OrderStatus.pret:
         statusString = 'PRET';
         break;
+      case OrderStatus.enRoute:
+        statusString = 'EN_ROUTE';
+        break;
       case OrderStatus.livrer:
         statusString = 'LIVRER';
         break;
