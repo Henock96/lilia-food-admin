@@ -22,6 +22,8 @@ import 'package:lilia_admin/features/admin/presentation/screens/deliverer_detail
 import 'package:lilia_admin/features/admin/presentation/screens/quartiers_screen.dart';
 import 'package:lilia_admin/features/admin/presentation/screens/platform_settings_screen.dart';
 import 'package:lilia_admin/features/deliveries/presentation/screens/delivery_tracking_screen.dart';
+import 'package:lilia_admin/features/incidents/presentation/screens/incidents_screen.dart';
+import 'package:lilia_admin/features/incidents/presentation/screens/incident_detail_screen.dart';
 import 'package:lilia_admin/features/restaurant/presentation/providers/restaurant_provider.dart';
 import 'package:lilia_admin/features/auth/user_sync_provider.dart';
 import 'package:lilia_admin/models/role.dart';
@@ -85,6 +87,27 @@ GoRouter router(Ref ref) {
             ),
           );
         },
+      ),
+      GoRoute(
+        path: '/incidents',
+        name: 'incidents',
+        pageBuilder: (context, state) => const MaterialPage(
+          child: _AdminOnlyGuard(child: IncidentsScreen()),
+        ),
+        routes: [
+          GoRoute(
+            path: ':id',
+            name: 'incident-detail',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return MaterialPage(
+                child: _AdminOnlyGuard(
+                  child: IncidentDetailScreen(incidentId: id),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       GoRoute(
         path: '/deliveries/:orderId/tracking',

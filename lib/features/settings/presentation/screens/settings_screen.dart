@@ -155,6 +155,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               onTap: () => context.goNamed('admin-payments'),
             ),
             _AdminMenuTile(
+              icon: Icons.report_problem_outlined,
+              iconColor: _AppColors.danger,
+              title: 'Incidents',
+              subtitle: 'Suivre et résoudre les incidents opérationnels',
+              onTap: () => context.goNamed('incidents'),
+            ),
+            _AdminMenuTile(
               icon: Icons.delivery_dining_outlined,
               iconColor: _AppColors.primary,
               title: 'Livreurs',
