@@ -46,30 +46,44 @@ Restreindre aussi chaque clé aux APIs strictement nécessaires :
 
 ### 3. Coller la clé Android
 
-Éditer `android/app/src/main/res/values/google_maps_key.xml` :
+Créer (s'il n'existe pas) `android/app/src/main/res/values/google_maps_key.xml` :
 
 ```xml
-<string name="google_maps_key" translatable="false">VOTRE_VRAIE_CLE_ANDROID</string>
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="google_maps_key" translatable="false">VOTRE_VRAIE_CLE_ANDROID</string>
+</resources>
 ```
 
 Ce fichier est dans `.gitignore` — la vraie clé ne sera jamais commitée.
 
 ### 4. Coller la clé iOS
 
-Éditer `ios/Runner/AppDelegate.swift`, remplacer la chaîne placeholder :
+La clé iOS est lue à partir d'`Info.plist` → `GoogleMapsApiKey`, dont la
+valeur est injectée au build via la variable `GOOGLE_MAPS_API_KEY` définie
+dans un xcconfig gitignored.
 
-```swift
-GMSServices.provideAPIKey("VOTRE_VRAIE_CLE_IOS")
+Copier le template puis renseigner la vraie clé :
+
+```bash
+cp ios/Flutter/Maps.xcconfig.example ios/Flutter/Maps.xcconfig
+# puis éditer ios/Flutter/Maps.xcconfig :
+# GOOGLE_MAPS_API_KEY = VOTRE_VRAIE_CLE_IOS
 ```
 
-> Note : le placeholder dans `AppDelegate.swift` est versionné car le fichier
-> contient aussi de la logique d'initialisation Flutter. Ne pas commiter de
-> vraie clé ici — utiliser `.env` / Xcode build settings si nécessaire en
-> production.
+Plomberie : `Maps.xcconfig` est inclus depuis `Debug.xcconfig` et
+`Release.xcconfig` ; `Info.plist` expose `GoogleMapsApiKey = $(GOOGLE_MAPS_API_KEY)` ;
+`AppDelegate.swift` lit cette clé via `Bundle.main` puis appelle
+`GMSServices.provideAPIKey(...)`. Si `Maps.xcconfig` est absent ou contient
+encore le placeholder, l'app démarre mais log un warning et n'initialise pas
+les Maps (utile en CI).
+
+> ⚠️ Ne jamais coller la clé dans `AppDelegate.swift` (fichier versionné).
 
 ### 5. Vérification
 
 ```bash
 flutter pub get
+cd ios && pod install && cd ..
 flutter run        # Android et iOS — une carte vide doit s'afficher
 ```

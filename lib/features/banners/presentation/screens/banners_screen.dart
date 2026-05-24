@@ -55,7 +55,7 @@ class BannersScreen extends ConsumerWidget {
             child: ReorderableListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: banners.length,
-              onReorder: (oldIndex, newIndex) {
+              onReorderItem: (oldIndex, newIndex) {
                 if (newIndex > oldIndex) newIndex--;
                 final reordered = List<AppBanner>.from(banners);
                 final item = reordered.removeAt(oldIndex);
