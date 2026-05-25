@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../models/order.dart';
+import '../../../../services/admin_tracking_socket_service.dart';
 import '../../data/order_controller.dart';
 
 class RestaurantOrdersScreen extends ConsumerStatefulWidget {
@@ -15,8 +18,20 @@ class RestaurantOrdersScreen extends ConsumerStatefulWidget {
 }
 
 class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
+  StreamSubscription<AdminOrderStatusEvent>? _wsSubscription;
+
+  /// Statuts considérés "actifs" — on s'abonne en WebSocket à chaque
+  /// commande dans l'un de ces états. LIVRER et ANNULER sont terminaux,
+  /// pas de mise à jour à attendre.
+  static const Set<OrderStatus> _activeStatuses = {
+    OrderStatus.enattente,
+    OrderStatus.payer,
+    OrderStatus.enpreparation,
+    OrderStatus.pret,
+    OrderStatus.enRoute,
+  };
 
   final List<OrderStatus?> _filterStatuses = [
     null, // Toutes
@@ -33,12 +48,55 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: _filterStatuses.length, vsync: this);
+    WidgetsBinding.instance.addObserver(this);
+
+    // Abonnement WebSocket aux events `order:status`. Quand un event arrive,
+    // on invalide `restaurantOrdersProvider` → la liste se rafraîchit toute
+    // seule, plus besoin de pull-to-refresh (LIL-77).
+    _wsSubscription = ref
+        .read(adminTrackingSocketServiceProvider)
+        .events
+        .listen((_) {
+      if (!mounted) return;
+      ref.invalidate(restaurantOrdersProvider);
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _wsSubscription?.cancel();
     _tabController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final socket = ref.read(adminTrackingSocketServiceProvider);
+    if (state == AppLifecycleState.resumed) {
+      // Retour foreground → reconnecter et re-watch les commandes actives.
+      // `reconnect()` rafraîchit aussi le token Firebase si nécessaire.
+      socket.reconnect();
+    } else if (state == AppLifecycleState.paused) {
+      // App backgroundée → on coupe pour économiser la batterie. Les events
+      // ratés seront rattrapés par le refetch au resume + FCM en fallback.
+      socket.disconnect();
+    }
+  }
+
+  /// Abonne le socket aux commandes actives chaque fois que la liste
+  /// arrive ou change. Le diff interne du service évite les doublons.
+  void _syncSocketSubscriptions(List<Order> orders) {
+    final activeIds = orders
+        .where((o) => _activeStatuses.contains(o.status))
+        .map((o) => o.id)
+        .toList(growable: false);
+    if (activeIds.isEmpty) return;
+    unawaited(
+      ref
+          .read(adminTrackingSocketServiceProvider)
+          .subscribeToOrders(activeIds),
+    );
   }
 
   String _getTabLabel(OrderStatus? status) {
@@ -80,6 +138,14 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
   @override
   Widget build(BuildContext context) {
     final ordersState = ref.watch(restaurantOrdersProvider);
+
+    // Synchronise les abonnements WebSocket avec les commandes actives
+    // dès qu'une nouvelle liste arrive. `ref.listen` est asynchrone donc
+    // l'opération ne déclenche pas de rebuild ; le diff interne du service
+    // évite les `order:watch` doublons.
+    ref.listen<AsyncValue<List<Order>>>(restaurantOrdersProvider, (_, next) {
+      next.whenData(_syncSocketSubscriptions);
+    });
 
     return Scaffold(
       appBar: AppBar(
