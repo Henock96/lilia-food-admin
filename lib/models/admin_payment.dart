@@ -3,6 +3,9 @@ class AdminPaymentOrder {
   final String id;
   final double total;
   final String status;
+  /// Méthode choisie par le client au checkout ('MTN_MOMO' | 'AIRTEL_MONEY').
+  /// Indispensable pour distinguer MTN/Airtel quand `provider == 'MANUAL'`.
+  final String? paymentMethod;
   final String? clientNom;
   final String? clientPhone;
 
@@ -10,6 +13,7 @@ class AdminPaymentOrder {
     required this.id,
     required this.total,
     required this.status,
+    this.paymentMethod,
     this.clientNom,
     this.clientPhone,
   });
@@ -20,6 +24,7 @@ class AdminPaymentOrder {
       id: json['id'] as String? ?? '',
       total: (json['total'] as num?)?.toDouble() ?? 0,
       status: json['status'] as String? ?? '',
+      paymentMethod: json['paymentMethod'] as String?,
       clientNom: user?['nom'] as String?,
       clientPhone: user?['phone'] as String?,
     );

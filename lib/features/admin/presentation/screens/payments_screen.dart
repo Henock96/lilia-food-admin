@@ -1,17 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lilia_admin/features/admin/presentation/providers/admin_operations_provider.dart';
 import 'package:lilia_admin/models/admin_payment.dart';
+import 'package:lilia_admin/models/payments_stats.dart';
 
 /// Statuts de paiement (ordre des filtres) et leurs libellés français.
-const _paymentStatuses = ['PENDING', 'SUCCESS', 'FAILED', 'CANCELLED'];
+/// La valeur '' = vue "Tous statuts confondus" (pas de filtre serveur).
+const _paymentFilters = <({String value, String label})>[
+  (value: '', label: 'Tous'),
+  (value: 'PENDING', label: 'En attente'),
+  (value: 'SUCCESS', label: 'Confirmé'),
+  (value: 'FAILED', label: 'Échoué'),
+  (value: 'CANCELLED', label: 'Annulé'),
+];
 const _paymentStatusLabels = <String, String>{
   'PENDING': 'En attente',
   'SUCCESS': 'Confirmé',
   'FAILED': 'Échoué',
   'CANCELLED': 'Annulé',
 };
+
+const _paymentMethodLabels = <String, String>{
+  'MTN_MOMO': 'MTN Mobile Money',
+  'AIRTEL_MONEY': 'Airtel Money',
+  'CASH_ON_DELIVERY': 'À la livraison',
+};
+
+const _paymentMethodColors = <String, Color>{
+  'MTN_MOMO': Color(0xFFFACC15),     // jaune MTN
+  'AIRTEL_MONEY': Color(0xFFEF4444), // rouge Airtel
+  'CASH_ON_DELIVERY': Color(0xFF9CA3AF),
+};
+
+final _xafFormatter = NumberFormat.decimalPattern('fr_FR');
 
 class PaymentsScreen extends ConsumerStatefulWidget {
   const PaymentsScreen({super.key});
@@ -21,7 +44,9 @@ class PaymentsScreen extends ConsumerStatefulWidget {
 }
 
 class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
-  String _status = 'PENDING';
+  // '' = "Tous statuts" par défaut — l'admin voit l'historique complet et peut
+  // ensuite filtrer sur PENDING pour traiter les confirmations à faire.
+  String _status = '';
   int _page = 1;
   String? _confirmingId;
 
@@ -33,6 +58,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
           .confirmPayment(payment.id);
       if (!mounted) return;
       ref.invalidate(adminPaymentsProvider);
+      ref.invalidate(adminPaymentsStatsProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Paiement confirmé'),
@@ -69,6 +95,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
   Widget build(BuildContext context) {
     final paymentsAsync =
         ref.watch(adminPaymentsProvider(page: _page, status: _status));
+    final statsAsync = ref.watch(adminPaymentsStatsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -78,12 +105,16 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Actualiser',
-            onPressed: () => ref.invalidate(adminPaymentsProvider),
+            onPressed: () {
+              ref.invalidate(adminPaymentsProvider);
+              ref.invalidate(adminPaymentsStatsProvider);
+            },
           ),
         ],
       ),
       body: Column(
         children: [
+          _buildStatsCards(statsAsync),
           _buildStatusFilter(),
           Expanded(
             child: paymentsAsync.when(
@@ -91,8 +122,14 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
               error: (error, _) => _errorView(error),
               data: (result) {
                 if (result.payments.isEmpty) {
+                  final currentLabel = _paymentFilters
+                      .firstWhere((f) => f.value == _status,
+                          orElse: () => (value: '', label: 'Tous'))
+                      .label;
                   return _emptyView(
-                    'Aucun paiement « ${_paymentStatusLabels[_status]} »',
+                    _status.isEmpty
+                        ? 'Aucun paiement enregistré'
+                        : 'Aucun paiement « $currentLabel »',
                   );
                 }
                 return Column(
@@ -117,21 +154,90 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
     );
   }
 
+  Widget _buildStatsCards(AsyncValue<PaymentsStats> statsAsync) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      child: SizedBox(
+        height: 88,
+        child: statsAsync.when(
+          loading: () => _statsSkeleton(),
+          error: (_, _) => const SizedBox.shrink(),
+          data: (stats) => Row(
+            children: [
+              Expanded(
+                child: _StatCard(
+                  icon: Icons.schedule,
+                  iconColor: Colors.amber.shade700,
+                  label: 'À confirmer',
+                  value: _xafFormatter.format(stats.pending.totalXaf),
+                  unit: 'XAF',
+                  sub: '${stats.pending.count} paiement'
+                      '${stats.pending.count > 1 ? 's' : ''}',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _StatCard(
+                  icon: Icons.calendar_month_outlined,
+                  iconColor: Colors.green.shade700,
+                  label: 'Ce mois',
+                  value: _xafFormatter.format(stats.monthSuccess.totalXaf),
+                  unit: 'XAF',
+                  sub: '${stats.monthSuccess.count} encaissé'
+                      '${stats.monthSuccess.count > 1 ? 's' : ''}',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _StatCard(
+                  icon: Icons.trending_up,
+                  iconColor: Colors.blue.shade700,
+                  label: '7 derniers j.',
+                  value: _xafFormatter.format(stats.last7DaysSuccess.totalXaf),
+                  unit: 'XAF',
+                  sub: '${stats.last7DaysSuccess.count} encaissé'
+                      '${stats.last7DaysSuccess.count > 1 ? 's' : ''}',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _statsSkeleton() {
+    return Row(
+      children: List.generate(
+        3,
+        (_) => Expanded(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatusFilter() {
     return SizedBox(
       height: 48,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        children: _paymentStatuses.map((s) {
+        children: _paymentFilters.map((f) {
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ChoiceChip(
-              label: Text(_paymentStatusLabels[s] ?? s),
-              selected: s == _status,
+              label: Text(f.label),
+              selected: f.value == _status,
               onSelected: (_) {
                 setState(() {
-                  _status = s;
+                  _status = f.value;
                   _page = 1;
                 });
               },
@@ -149,6 +255,9 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
         ? '#${orderId.substring(orderId.length - 6).toUpperCase()}'
         : (orderId.isEmpty ? '—' : '#${orderId.toUpperCase()}');
     final color = _statusColor(payment.status);
+    final method = order?.paymentMethod;
+    final methodLabel = method != null ? _paymentMethodLabels[method] : null;
+    final methodColor = method != null ? _paymentMethodColors[method] : null;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -161,9 +270,26 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
           children: [
             Row(
               children: [
-                Text(orderRef,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 13)),
+                if (orderId.isNotEmpty)
+                  // Tap → liste des commandes (filtrable). Le deep link direct
+                  // vers `/commandes/:id` nécessite que la route order-detail
+                  // accepte un fetch par id (à faire en suivi LIL-105).
+                  GestureDetector(
+                    onTap: () => context.goNamed('commandes'),
+                    child: Text(
+                      orderRef,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.primary,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  )
+                else
+                  Text(orderRef,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(width: 8),
                 Container(
                   padding:
@@ -180,6 +306,41 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                         fontWeight: FontWeight.w600),
                   ),
                 ),
+                if (methodLabel != null && methodColor != null) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: methodColor.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color: methodColor.withValues(alpha: 0.5), width: 0.5),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: methodColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          methodLabel,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const Spacer(),
                 Text(
                   '${payment.amount.toStringAsFixed(0)} ${payment.currency}',
@@ -202,8 +363,14 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 Text(payment.phoneNumber,
                     style: TextStyle(color: Colors.grey[600], fontSize: 12)),
                 const SizedBox(width: 10),
-                Text(payment.provider,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                Text(
+                  payment.provider == 'MANUAL'
+                      ? 'Virement manuel'
+                      : payment.provider == 'MTN_MOMO'
+                          ? 'MTN auto'
+                          : payment.provider,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -310,6 +477,92 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// KPI card de la rangée d'en-tête (à confirmer / ce mois / 7 derniers jours).
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+    required this.unit,
+    required this.sub,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String value;
+  final String unit;
+  final String sub;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: iconColor),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Flexible(
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 3),
+              Text(
+                unit,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey.shade500,
+                ),
+              ),
+            ],
+          ),
+          Text(
+            sub,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+          ),
+        ],
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:lilia_admin/models/admin_payment.dart';
+import 'package:lilia_admin/models/payments_stats.dart';
 import 'package:lilia_admin/models/admin_deliverer.dart';
 import 'package:lilia_admin/models/deliverer_detail.dart';
 import 'package:lilia_admin/models/deliverer_stats.dart';
@@ -26,14 +27,19 @@ class AdminOperationsRepository {
     return await user.getIdToken();
   }
 
-  /// Paiements paginés, filtrés par statut (GET /admin/payments).
+  /// Paiements paginés (GET /admin/payments).
+  /// `status` vide → vue "Tous statuts confondus" (pas de filtre côté backend).
   Future<PaginatedPayments> fetchPayments({
     int page = 1,
-    String status = 'PENDING',
+    String status = '',
   }) async {
     final token = await _getAuthToken();
     final url = Uri.parse('$_baseUrl/admin/payments').replace(
-      queryParameters: {'page': '$page', 'limit': '20', 'status': status},
+      queryParameters: {
+        'page': '$page',
+        'limit': '20',
+        if (status.isNotEmpty) 'status': status,
+      },
     );
 
     final response = await http.get(
@@ -59,6 +65,27 @@ class AdminOperationsRepository {
     }
     throw Exception(
         'Échec du chargement des paiements: ${response.statusCode} ${response.body}');
+  }
+
+  /// KPI paiements agrégés (GET /admin/payments/stats).
+  Future<PaymentsStats> fetchPaymentsStats() async {
+    final token = await _getAuthToken();
+    final response = await http.get(
+      Uri.parse('$_baseUrl/admin/payments/stats'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode == 200) {
+      final body = json.decode(utf8.decode(response.bodyBytes))
+          as Map<String, dynamic>;
+      // Le backend renvoie l'objet plat (pas wrappé) — on tolère les 2 formes.
+      final data = body['data'] as Map<String, dynamic>? ?? body;
+      return PaymentsStats.fromJson(data);
+    }
+    throw Exception(_parseError(
+        response, 'Échec du chargement des stats paiements'));
   }
 
   /// Confirmation manuelle d'un paiement (POST /payments/:id/confirm).
