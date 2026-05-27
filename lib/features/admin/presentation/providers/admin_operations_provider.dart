@@ -2,6 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_admin/features/admin/data/admin_operations_repository.dart';
 import 'package:lilia_admin/models/admin_payment.dart';
 import 'package:lilia_admin/models/admin_deliverer.dart';
+import 'package:lilia_admin/models/payments_stats.dart';
 import 'package:lilia_admin/models/platform_settings.dart';
 
 part 'admin_operations_provider.g.dart';
@@ -11,7 +12,7 @@ AdminOperationsRepository adminOperationsRepository(Ref ref) {
   return AdminOperationsRepository();
 }
 
-/// Paiements paginés, filtrés par statut (ADMIN).
+/// Paiements paginés (ADMIN). `status` vide → vue "Tous statuts confondus".
 @riverpod
 Future<PaginatedPayments> adminPayments(
   Ref ref, {
@@ -21,6 +22,12 @@ Future<PaginatedPayments> adminPayments(
   return ref
       .watch(adminOperationsRepositoryProvider)
       .fetchPayments(page: page, status: status);
+}
+
+/// KPI paiements (ADMIN) — pending à confirmer, encaissé ce mois, 7j roulants.
+@riverpod
+Future<PaymentsStats> adminPaymentsStats(Ref ref) {
+  return ref.watch(adminOperationsRepositoryProvider).fetchPaymentsStats();
 }
 
 /// Livreurs paginés (ADMIN).

@@ -57,12 +57,12 @@ final class AdminOperationsRepositoryProvider
 String _$adminOperationsRepositoryHash() =>
     r'5c58ae7be403969ed9c3b15bb6bf6d9a3c176c4a';
 
-/// Paiements paginés, filtrés par statut (ADMIN).
+/// Paiements paginés (ADMIN). `status` vide → vue "Tous statuts confondus".
 
 @ProviderFor(adminPayments)
 final adminPaymentsProvider = AdminPaymentsFamily._();
 
-/// Paiements paginés, filtrés par statut (ADMIN).
+/// Paiements paginés (ADMIN). `status` vide → vue "Tous statuts confondus".
 
 final class AdminPaymentsProvider
     extends
@@ -74,7 +74,7 @@ final class AdminPaymentsProvider
     with
         $FutureModifier<PaginatedPayments>,
         $FutureProvider<PaginatedPayments> {
-  /// Paiements paginés, filtrés par statut (ADMIN).
+  /// Paiements paginés (ADMIN). `status` vide → vue "Tous statuts confondus".
   AdminPaymentsProvider._({
     required AdminPaymentsFamily super.from,
     required ({int page, String status}) super.argument,
@@ -121,7 +121,7 @@ final class AdminPaymentsProvider
 
 String _$adminPaymentsHash() => r'd586ab74617563d6b5842fce22400ee17d7dffc9';
 
-/// Paiements paginés, filtrés par statut (ADMIN).
+/// Paiements paginés (ADMIN). `status` vide → vue "Tous statuts confondus".
 
 final class AdminPaymentsFamily extends $Family
     with
@@ -138,7 +138,7 @@ final class AdminPaymentsFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// Paiements paginés, filtrés par statut (ADMIN).
+  /// Paiements paginés (ADMIN). `status` vide → vue "Tous statuts confondus".
 
   AdminPaymentsProvider call({required int page, required String status}) =>
       AdminPaymentsProvider._(
@@ -149,6 +149,51 @@ final class AdminPaymentsFamily extends $Family
   @override
   String toString() => r'adminPaymentsProvider';
 }
+
+/// KPI paiements (ADMIN) — pending à confirmer, encaissé ce mois, 7j roulants.
+
+@ProviderFor(adminPaymentsStats)
+final adminPaymentsStatsProvider = AdminPaymentsStatsProvider._();
+
+/// KPI paiements (ADMIN) — pending à confirmer, encaissé ce mois, 7j roulants.
+
+final class AdminPaymentsStatsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<PaymentsStats>,
+          PaymentsStats,
+          FutureOr<PaymentsStats>
+        >
+    with $FutureModifier<PaymentsStats>, $FutureProvider<PaymentsStats> {
+  /// KPI paiements (ADMIN) — pending à confirmer, encaissé ce mois, 7j roulants.
+  AdminPaymentsStatsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'adminPaymentsStatsProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$adminPaymentsStatsHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<PaymentsStats> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<PaymentsStats> create(Ref ref) {
+    return adminPaymentsStats(ref);
+  }
+}
+
+String _$adminPaymentsStatsHash() =>
+    r'5e59aaa86b23e90bdaf646976216f931b7a3922f';
 
 /// Livreurs paginés (ADMIN).
 
