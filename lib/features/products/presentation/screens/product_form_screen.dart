@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../models/product.dart';
+import '../../../../models/product_type.dart';
+import '../../../../models/stock_mode.dart';
+import '../../../../models/vendor_type.dart';
 import '../../../categories/presentation/providers/categories_provider.dart';
 import '../../../restaurant/presentation/providers/restaurant_provider.dart';
+import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../../users/data/cloudinary_service.dart';
 import '../providers/products_provider.dart';
 
@@ -28,6 +32,11 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   bool _isLoading = false;
   bool _isUploading = false;
 
+  // LIL-126 : champs marketplace + pré-commande
+  ProductType? _productType;
+  StockMode _stockMode = StockMode.DAILY;
+  bool _madeToOrder = false;
+
   bool get isEditing => widget.product != null;
 
   @override
@@ -44,6 +53,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         text: widget.product?.stockQuotidien?.toString() ?? '');
     _selectedCategoryId = widget.product?.categoryId;
     _variants = widget.product?.variants.toList() ?? [];
+    _productType = widget.product?.productType;
+    _stockMode = widget.product?.stockMode ?? StockMode.DAILY;
+    _madeToOrder = widget.product?.madeToOrder ?? false;
   }
 
   @override
@@ -118,6 +130,12 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       );
       return;
     }
+    if (_productType == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez sélectionner un type de produit')),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -135,6 +153,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         'restaurantId': restaurantId,
         'variants': _variants.map((v) => v.toJson()).toList(),
         if (stockText.isNotEmpty) 'stockQuotidien': int.parse(stockText),
+        'productType': _productType!.name,
+        'stockMode': _stockMode.name,
+        'madeToOrder': _madeToOrder,
       };
 
       if (isEditing) {
@@ -196,6 +217,18 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   @override
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(categoriesProvider);
+    final restaurantAsync = ref.watch(restaurantSettingsProvider);
+    final vendorType = restaurantAsync.value?.vendorType ?? VendorType.RESTAURANT;
+    // Matrice alignée sur ProductValidatorService backend. ALCOHOL est exclu
+    // par le filtre `!= ALCOHOL` pour respecter le pivot lancement.
+    final allowedTypes = (kAllowedProductTypes[vendorType] ?? const [])
+        .where((t) => t != ProductType.ALCOHOL)
+        .toList();
+    // Initialise _productType au 1er type autorisé si pas encore défini
+    // (création d'un produit ; édition garde la valeur existante).
+    if (_productType == null && allowedTypes.isNotEmpty) {
+      _productType = allowedTypes.first;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -331,6 +364,60 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               ),
               loading: () => const LinearProgressIndicator(),
               error: (e, _) => Text('Erreur: $e'),
+            ),
+            const SizedBox(height: 16),
+            // LIL-126 : ProductType (filtré par vendorType via la matrice
+            // partagée avec le backend).
+            DropdownButtonFormField<ProductType>(
+              initialValue: _productType,
+              decoration: const InputDecoration(
+                labelText: 'Type de produit *',
+                border: OutlineInputBorder(),
+              ),
+              items: allowedTypes
+                  .map((t) => DropdownMenuItem(
+                        value: t,
+                        child: Text(t.label),
+                      ))
+                  .toList(),
+              onChanged: allowedTypes.isEmpty
+                  ? null
+                  : (value) => setState(() => _productType = value),
+              validator: (value) =>
+                  value == null ? 'Sélectionnez un type' : null,
+            ),
+            const SizedBox(height: 16),
+            // LIL-126 : StockMode (DAILY reset chaque nuit, PERMANENT non reset).
+            DropdownButtonFormField<StockMode>(
+              initialValue: _stockMode,
+              decoration: const InputDecoration(
+                labelText: 'Gestion du stock',
+                border: OutlineInputBorder(),
+                helperText:
+                    'Journalier : reset chaque nuit. Permanent : décrémentation pure.',
+              ),
+              items: StockMode.values
+                  .map((s) => DropdownMenuItem(
+                        value: s,
+                        child: Text(s.label),
+                      ))
+                  .toList(),
+              onChanged: (value) =>
+                  setState(() => _stockMode = value ?? StockMode.DAILY),
+            ),
+            const SizedBox(height: 16),
+            // LIL-126 : Switch madeToOrder. Si activé, le produit déclenche
+            // la pré-commande côté client (créneau requis au checkout).
+            SwitchListTile(
+              value: _madeToOrder,
+              onChanged: (value) => setState(() => _madeToOrder = value),
+              title: const Text('Produit fait sur commande'),
+              subtitle: const Text(
+                'Le client devra choisir un créneau de retrait. '
+                'Notification automatique J-1 au matin.',
+              ),
+              contentPadding: EdgeInsets.zero,
+              activeThumbColor: Colors.orange,
             ),
             const SizedBox(height: 24),
             Row(
