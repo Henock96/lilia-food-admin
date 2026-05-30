@@ -148,6 +148,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               ),
             ),
             _AdminMenuTile(
+              icon: Icons.storefront_outlined,
+              iconColor: _AppColors.primary,
+              title: 'Vendeurs marketplace',
+              subtitle: 'Approuver, suspendre, gérer les vendeurs',
+              onTap: () => context.goNamed('admin-vendors'),
+            ),
+            _AdminMenuTile(
               icon: Icons.payments_outlined,
               iconColor: _AppColors.success,
               title: 'Paiements',

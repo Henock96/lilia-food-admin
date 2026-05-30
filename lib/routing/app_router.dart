@@ -21,6 +21,7 @@ import 'package:lilia_admin/features/admin/presentation/screens/deliverers_scree
 import 'package:lilia_admin/features/admin/presentation/screens/deliverer_detail_screen.dart';
 import 'package:lilia_admin/features/admin/presentation/screens/quartiers_screen.dart';
 import 'package:lilia_admin/features/admin/presentation/screens/platform_settings_screen.dart';
+import 'package:lilia_admin/features/admin/presentation/screens/admin_vendors_screen.dart';
 import 'package:lilia_admin/features/deliveries/presentation/screens/delivery_tracking_screen.dart';
 import 'package:lilia_admin/features/incidents/presentation/screens/incidents_screen.dart';
 import 'package:lilia_admin/features/incidents/presentation/screens/incident_detail_screen.dart';
@@ -256,6 +257,12 @@ GoRouter router(Ref ref) {
                     name: 'platform-settings',
                     pageBuilder: (context, state) =>
                         const MaterialPage(child: PlatformSettingsScreen()),
+                  ),
+                  GoRoute(
+                    path: 'vendeurs',
+                    name: 'admin-vendors',
+                    pageBuilder: (context, state) =>
+                        const MaterialPage(child: AdminVendorsScreen()),
                   ),
                 ],
               ),
