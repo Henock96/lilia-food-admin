@@ -24,6 +24,10 @@ class Product {
   final String? availableUntil;
   final bool isActive;
 
+  // LIL-130 : métadonnées fait maison / pâtisserie
+  final String? ingredients;
+  final int? shelfLifeDays;
+
   Product({
     required this.id,
     required this.name,
@@ -44,6 +48,8 @@ class Product {
     this.availableFrom,
     this.availableUntil,
     this.isActive = true,
+    this.ingredients,
+    this.shelfLifeDays,
   });
 
   bool get isAvailable => stockRestant == null || stockRestant! > 0;
@@ -76,6 +82,8 @@ class Product {
       availableFrom: json['availableFrom'] as String?,
       availableUntil: json['availableUntil'] as String?,
       isActive: json['isActive'] as bool? ?? true,
+      ingredients: json['ingredients'] as String?,
+      shelfLifeDays: (json['shelfLifeDays'] as num?)?.toInt(),
     );
   }
 
@@ -90,8 +98,10 @@ class Product {
       'productType': productType.name,
       'stockMode': stockMode.name,
       'madeToOrder': madeToOrder,
-      if (availableFrom != null) 'availableFrom': availableFrom,
-      if (availableUntil != null) 'availableUntil': availableUntil,
+      'availableFrom': ?availableFrom,
+      'availableUntil': ?availableUntil,
+      'ingredients': ?ingredients,
+      'shelfLifeDays': ?shelfLifeDays,
     };
   }
 
@@ -111,6 +121,8 @@ class Product {
     String? availableFrom,
     String? availableUntil,
     bool? isActive,
+    String? ingredients,
+    int? shelfLifeDays,
   }) {
     return Product(
       id: id ?? this.id,
@@ -130,6 +142,8 @@ class Product {
       availableFrom: availableFrom ?? this.availableFrom,
       availableUntil: availableUntil ?? this.availableUntil,
       isActive: isActive ?? this.isActive,
+      ingredients: ingredients ?? this.ingredients,
+      shelfLifeDays: shelfLifeDays ?? this.shelfLifeDays,
     );
   }
 }

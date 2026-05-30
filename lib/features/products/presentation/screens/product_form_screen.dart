@@ -28,6 +28,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   late TextEditingController _priceController;
   late TextEditingController _imageUrlController;
   late TextEditingController _stockController;
+  late TextEditingController _ingredientsController;
+  late TextEditingController _shelfLifeController;
   String? _selectedCategoryId;
   List<ProductVariant> _variants = [];
   bool _isLoading = false;
@@ -52,6 +54,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         TextEditingController(text: widget.product?.imageUrl ?? '');
     _stockController = TextEditingController(
         text: widget.product?.stockQuotidien?.toString() ?? '');
+    _ingredientsController =
+        TextEditingController(text: widget.product?.ingredients ?? '');
+    _shelfLifeController = TextEditingController(
+        text: widget.product?.shelfLifeDays?.toString() ?? '');
     _selectedCategoryId = widget.product?.categoryId;
     _variants = widget.product?.variants.toList() ?? [];
     _productType = widget.product?.productType;
@@ -66,6 +72,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     _priceController.dispose();
     _imageUrlController.dispose();
     _stockController.dispose();
+    _ingredientsController.dispose();
+    _shelfLifeController.dispose();
     super.dispose();
   }
 
@@ -228,6 +236,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     try {
       final restaurantId = ref.read(currentRestaurantIdProvider);
       final stockText = _stockController.text.trim();
+      final ingredientsText = _ingredientsController.text.trim();
+      final shelfLifeText = _shelfLifeController.text.trim();
       final productData = {
         'nom': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
@@ -242,6 +252,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         'productType': _productType!.name,
         'stockMode': _stockMode.name,
         'madeToOrder': _madeToOrder,
+        if (ingredientsText.isNotEmpty) 'ingredients': ingredientsText,
+        if (shelfLifeText.isNotEmpty)
+          'shelfLifeDays': int.parse(shelfLifeText),
       };
 
       if (isEditing) {
@@ -484,6 +497,41 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               contentPadding: EdgeInsets.zero,
               activeThumbColor: Colors.orange,
             ),
+            // LIL-130 : champs ingrédients + DLC pour produits faits maison /
+            // pâtisseries. Visibles seulement quand le contexte s'y prête —
+            // évite de polluer le form pour des FOOD/BEVERAGE classiques.
+            if (_productType == ProductType.PASTRY || _madeToOrder) ...[
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _ingredientsController,
+                decoration: const InputDecoration(
+                  labelText: 'Ingrédients (allergènes)',
+                  helperText:
+                      'Texte libre, ex: "Farine, beurre, œufs, sucre, noisettes".',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.list_alt_outlined),
+                ),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _shelfLifeController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Durée de conservation (jours)',
+                  helperText: 'Ex: 3 pour un gâteau, vide si non applicable.',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.schedule_outlined),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) return null;
+                  if (int.tryParse(value.trim()) == null) {
+                    return 'Entrez un nombre de jours valide';
+                  }
+                  return null;
+                },
+              ),
+            ],
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
