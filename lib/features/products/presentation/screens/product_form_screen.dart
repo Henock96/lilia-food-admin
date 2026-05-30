@@ -6,6 +6,7 @@ import '../../../../models/product_type.dart';
 import '../../../../models/stock_mode.dart';
 import '../../../../models/vendor_type.dart';
 import '../../../categories/presentation/providers/categories_provider.dart';
+import '../../../categories/presentation/widgets/create_category_dialog.dart';
 import '../../../restaurant/presentation/providers/restaurant_provider.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../../users/data/cloudinary_service.dart';
@@ -105,6 +106,91 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       }
     } finally {
       if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  /// LIL-129 : champ catégorie qui s'adapte au cas où la liste est vide
+  /// (cas typique des nouveaux vendeurs non-RESTAURANT qui n'ont pas
+  /// encore créé leurs catégories). Affiche un état vide bloquant avec
+  /// bouton "Créer ma 1re catégorie" plutôt qu'un dropdown vide qui
+  /// empêcherait l'enregistrement.
+  Widget _buildCategoryField(List<Category> categories) {
+    if (categories.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.amber.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.amber.shade300),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.info_outline, size: 18, color: Colors.amber[800]),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Aucune catégorie',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Vous devez créer au moins une catégorie pour pouvoir '
+              'enregistrer un produit (ex. "Pâtisseries", "Boissons").',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 10),
+            FilledButton.icon(
+              onPressed: _openCreateCategoryDialog,
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Créer ma 1re catégorie'),
+            ),
+          ],
+        ),
+      );
+    }
+    return Row(
+      children: [
+        Expanded(
+          child: DropdownButtonFormField<String>(
+            initialValue: _selectedCategoryId,
+            decoration: const InputDecoration(
+              labelText: 'Catégorie *',
+              border: OutlineInputBorder(),
+            ),
+            items: categories
+                .map((cat) => DropdownMenuItem(
+                      value: cat.id,
+                      child: Text(cat.name),
+                    ))
+                .toList(),
+            onChanged: (value) =>
+                setState(() => _selectedCategoryId = value),
+            validator: (value) =>
+                value == null ? 'Sélectionnez une catégorie' : null,
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Raccourci "+" pour créer une catégorie sans quitter le form.
+        IconButton.filledTonal(
+          tooltip: 'Nouvelle catégorie',
+          onPressed: _openCreateCategoryDialog,
+          icon: const Icon(Icons.add),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openCreateCategoryDialog() async {
+    final created = await showCreateCategoryDialog(context, ref);
+    if (created != null && mounted) {
+      // Auto-sélectionne la catégorie tout juste créée.
+      setState(() => _selectedCategoryId = created.id);
     }
   }
 
@@ -340,28 +426,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             ),
             const SizedBox(height: 16),
             categoriesAsync.when(
-              data: (categories) => DropdownButtonFormField<String>(
-                initialValue: _selectedCategoryId,
-                decoration: const InputDecoration(
-                  labelText: 'Catégorie *',
-                  border: OutlineInputBorder(),
-                ),
-                items: categories
-                    .map((cat) => DropdownMenuItem(
-                          value: cat.id,
-                          child: Text(cat.name),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() => _selectedCategoryId = value);
-                },
-                validator: (value) {
-                  if (value == null) {
-                    return 'Sélectionnez une catégorie';
-                  }
-                  return null;
-                },
-              ),
+              data: (categories) => _buildCategoryField(categories),
               loading: () => const LinearProgressIndicator(),
               error: (e, _) => Text('Erreur: $e'),
             ),

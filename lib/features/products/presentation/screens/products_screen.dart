@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../models/product.dart';
 import '../providers/products_provider.dart';
 import 'product_form_screen.dart';
@@ -15,6 +16,11 @@ class ProductsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Produits'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.category_outlined),
+            onPressed: () => context.goNamed('categories'),
+            tooltip: 'Gérer les catégories',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => ref.read(productsProvider.notifier).refresh(),

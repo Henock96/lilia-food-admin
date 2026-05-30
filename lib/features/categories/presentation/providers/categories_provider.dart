@@ -30,14 +30,17 @@ class Categories extends _$Categories {
     });
   }
 
-  Future<void> createCategory(Map<String, dynamic> categoryData) async {
+  /// Retourne la Category créée — utile pour auto-sélection inline depuis
+  /// le form produit (LIL-129).
+  Future<Category> createCategory(Map<String, dynamic> categoryData) async {
     final restaurantId = ref.read(currentRestaurantIdProvider);
     if (restaurantId.isEmpty) {
       throw Exception('Restaurant non chargé. Veuillez réessayer.');
     }
     final service = ref.read(categoryServiceProvider);
-    await service.createCategory(restaurantId, categoryData);
+    final created = await service.createCategory(restaurantId, categoryData);
     await refresh();
+    return created;
   }
 
   Future<void> updateCategory(
