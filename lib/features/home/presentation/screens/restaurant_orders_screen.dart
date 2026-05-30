@@ -22,6 +22,11 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
   late TabController _tabController;
   StreamSubscription<AdminOrderStatusEvent>? _wsSubscription;
 
+  /// LIL-125 : filtre transverse "Pré-commandes du jour" (Brazzaville UTC+1).
+  /// S'applique avant le filtre par statut, pour aider le restaurateur à voir
+  /// les commandes à préparer aujourd'hui en priorité.
+  bool _todayOnly = false;
+
   /// Statuts considérés "actifs" — on s'abonne en WebSocket à chaque
   /// commande dans l'un de ces états. LIVRER et ANNULER sont terminaux,
   /// pas de mise à jour à attendre.
@@ -125,14 +130,41 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
     }
   }
 
+  List<Order> _applyTodayFilter(List<Order> orders) {
+    if (!_todayOnly) return orders;
+    final todayBzv = _brazzavilleDateString(DateTime.now());
+    final filtered = orders
+        .where((o) =>
+            o.isPreorder &&
+            o.scheduledFor != null &&
+            o.status != OrderStatus.annuler &&
+            _brazzavilleDateString(o.scheduledFor!) == todayBzv)
+        .toList();
+    filtered.sort((a, b) => a.scheduledFor!.compareTo(b.scheduledFor!));
+    return filtered;
+  }
+
   List<Order> _filterOrders(List<Order> orders, OrderStatus? status) {
-    if (status == null) return orders;
-    return orders.where((o) => o.status == status).toList();
+    final base = _applyTodayFilter(orders);
+    if (status == null) return base;
+    return base.where((o) => o.status == status).toList();
   }
 
   int _countByStatus(List<Order> orders, OrderStatus? status) {
-    if (status == null) return orders.length;
-    return orders.where((o) => o.status == status).length;
+    final base = _applyTodayFilter(orders);
+    if (status == null) return base.length;
+    return base.where((o) => o.status == status).length;
+  }
+
+  int _todayPreorderCount(List<Order> orders) {
+    final todayBzv = _brazzavilleDateString(DateTime.now());
+    return orders
+        .where((o) =>
+            o.isPreorder &&
+            o.scheduledFor != null &&
+            o.status != OrderStatus.annuler &&
+            _brazzavilleDateString(o.scheduledFor!) == todayBzv)
+        .length;
   }
 
   @override
@@ -147,11 +179,37 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
       next.whenData(_syncSocketSubscriptions);
     });
 
+    final todayPreorderCount = ordersState.maybeWhen(
+      data: (orders) => _todayPreorderCount(orders),
+      orElse: () => 0,
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gestion des Commandes'),
         centerTitle: true,
         actions: [
+          if (todayPreorderCount > 0)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: TextButton.icon(
+                style: TextButton.styleFrom(
+                  foregroundColor: _todayOnly ? Colors.white : Colors.orange[700],
+                  backgroundColor: _todayOnly ? Colors.orange : Colors.orange.shade50,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  minimumSize: const Size(0, 32),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                onPressed: () => setState(() => _todayOnly = !_todayOnly),
+                icon: const Icon(Icons.event_note_outlined, size: 16),
+                label: Text(
+                  'Aujourd\'hui ($todayPreorderCount)',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => ref.invalidate(restaurantOrdersProvider),
@@ -215,18 +273,21 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
             children: _filterStatuses.map((status) {
               final filteredOrders = _filterOrders(orders, status);
               if (filteredOrders.isEmpty) {
+                final emptyMsg = _todayOnly
+                    ? 'Aucune pré-commande programmée pour aujourd\'hui'
+                    : 'Aucune commande ${status != null ? _getStatusLabel(status).toLowerCase() : ''}';
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.inbox_outlined,
+                        _todayOnly ? Icons.event_note_outlined : Icons.inbox_outlined,
                         size: 64,
                         color: Colors.grey[400],
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Aucune commande ${status != null ? _getStatusLabel(status).toLowerCase() : ''}',
+                        emptyMsg,
                         style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                       ),
                     ],
@@ -322,6 +383,24 @@ class _ErrorState extends StatelessWidget {
       ),
     );
   }
+}
+
+/// LIL-125 : conversion d'un DateTime en clé `YYYY-MM-DD` dans le fuseau
+/// Brazzaville (UTC+1, pas de DST). Approche simple : on convertit en UTC
+/// puis on ajoute 1h. Évite de dépendre d'`Intl` pour ce cas trivial.
+String _brazzavilleDateString(DateTime dt) {
+  final bzv = dt.toUtc().add(const Duration(hours: 1));
+  final m = bzv.month.toString().padLeft(2, '0');
+  final d = bzv.day.toString().padLeft(2, '0');
+  return '${bzv.year}-$m-$d';
+}
+
+/// LIL-125 : format compact pour les badges, ex "30 mai à 14:30".
+String _formatScheduledShort(DateTime dt) {
+  final bzv = dt.toUtc().add(const Duration(hours: 1));
+  final day = DateFormat('d MMM', 'fr_FR').format(bzv);
+  final time = DateFormat('HH:mm').format(bzv);
+  return '$day à $time';
 }
 
 class OrderCard extends ConsumerWidget {
@@ -464,6 +543,50 @@ class OrderCard extends ConsumerWidget {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+
+                  // LIL-125 : badge pré-commande au-dessus de la date — bien
+                  // visible pour rappeler le créneau de retrait au restaurateur.
+                  if (order.isPreorder && order.scheduledFor != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.event_note_outlined,
+                            size: 16,
+                            color: Colors.orange[800],
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Programmée pour ',
+                            style: TextStyle(
+                              color: Colors.orange[800],
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            _formatScheduledShort(order.scheduledFor!),
+                            style: TextStyle(
+                              color: Colors.orange[900],
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 8),
                   ],
