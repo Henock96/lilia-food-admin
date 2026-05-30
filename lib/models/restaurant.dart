@@ -1,5 +1,7 @@
 // ignore_for_file: constant_identifier_names
 
+import 'vendor_type.dart';
+
 class Restaurant {
   final String id;
   final String name;
@@ -16,6 +18,16 @@ class Restaurant {
   // Statut d'ouverture
   final bool isOpen;
   final bool manualOverride;
+
+  // LIL-124 : marketplace fields
+  final VendorType vendorType;
+  final bool isActive;
+  final bool adminApproved;
+
+  // LIL-124 : preorder fields (LIL-121)
+  final bool acceptsPreorders;
+  final int? preorderLeadHours;
+  final int? maxOrdersPerDay;
 
   // Operating hours
   final List<OperatingHours> operatingHours;
@@ -44,6 +56,12 @@ class Restaurant {
     this.updatedAt,
     this.isOpen = true,
     this.manualOverride = false,
+    this.vendorType = VendorType.RESTAURANT,
+    this.isActive = true,
+    this.adminApproved = true,
+    this.acceptsPreorders = false,
+    this.preorderLeadHours,
+    this.maxOrdersPerDay,
     this.operatingHours = const [],
     this.deliveryPriceMode = 'FIXED',
     this.fixedDeliveryFee = 500,
@@ -74,6 +92,12 @@ class Restaurant {
           : null,
       isOpen: json['isOpen'] as bool? ?? true,
       manualOverride: json['manualOverride'] as bool? ?? false,
+      vendorType: VendorType.fromString(json['vendorType'] as String?),
+      isActive: json['isActive'] as bool? ?? true,
+      adminApproved: json['adminApproved'] as bool? ?? true,
+      acceptsPreorders: json['acceptsPreorders'] as bool? ?? false,
+      preorderLeadHours: (json['preorderLeadHours'] as num?)?.toInt(),
+      maxOrdersPerDay: (json['maxOrdersPerDay'] as num?)?.toInt(),
       operatingHours: json['operatingHours'] != null
           ? (json['operatingHours'] as List)
                 .map((h) => OperatingHours.fromJson(h as Map<String, dynamic>))
@@ -116,6 +140,12 @@ class Restaurant {
     int? totalReviews,
     bool? isOpen,
     bool? manualOverride,
+    VendorType? vendorType,
+    bool? isActive,
+    bool? adminApproved,
+    bool? acceptsPreorders,
+    int? preorderLeadHours,
+    int? maxOrdersPerDay,
     List<OperatingHours>? operatingHours,
     String? deliveryPriceMode,
     double? fixedDeliveryFee,
@@ -138,6 +168,12 @@ class Restaurant {
       updatedAt: updatedAt,
       isOpen: isOpen ?? this.isOpen,
       manualOverride: manualOverride ?? this.manualOverride,
+      vendorType: vendorType ?? this.vendorType,
+      isActive: isActive ?? this.isActive,
+      adminApproved: adminApproved ?? this.adminApproved,
+      acceptsPreorders: acceptsPreorders ?? this.acceptsPreorders,
+      preorderLeadHours: preorderLeadHours ?? this.preorderLeadHours,
+      maxOrdersPerDay: maxOrdersPerDay ?? this.maxOrdersPerDay,
       operatingHours: operatingHours ?? this.operatingHours,
       deliveryPriceMode: deliveryPriceMode ?? this.deliveryPriceMode,
       fixedDeliveryFee: fixedDeliveryFee ?? this.fixedDeliveryFee,

@@ -30,6 +30,9 @@ class Order {
   final String? customerEmail;
   final String? customerImageUrl;
   final String? customerId;
+  // LIL-124 : pré-commande (LIL-121)
+  final bool isPreorder;
+  final DateTime? scheduledFor;
 
   Order({
     required this.id,
@@ -50,6 +53,8 @@ class Order {
     this.customerEmail,
     this.customerImageUrl,
     this.customerId,
+    this.isPreorder = false,
+    this.scheduledFor,
   });
 
   Order copyWith({OrderStatus? status}) {
@@ -72,6 +77,8 @@ class Order {
       customerEmail: customerEmail,
       customerImageUrl: customerImageUrl,
       customerId: customerId,
+      isPreorder: isPreorder,
+      scheduledFor: scheduledFor,
     );
   }
 
@@ -102,6 +109,10 @@ class Order {
       customerPhone: (json['contactPhone'] as String?) ?? (userMap?['phone'] as String?),
       customerEmail: userMap?['email'] as String?,
       customerImageUrl: userMap?['imageUrl'] as String?,
+      isPreorder: json['isPreorder'] as bool? ?? false,
+      scheduledFor: json['scheduledFor'] != null
+          ? DateTime.parse(json['scheduledFor'] as String)
+          : null,
     );
   }
 
