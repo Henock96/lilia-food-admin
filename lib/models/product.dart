@@ -1,3 +1,6 @@
+import 'product_type.dart';
+import 'stock_mode.dart';
+
 class Product {
   final String id;
   final String name;
@@ -13,6 +16,18 @@ class Product {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  // LIL-124 : marketplace + preorder fields
+  final ProductType productType;
+  final StockMode stockMode;
+  final bool madeToOrder;
+  final String? availableFrom;
+  final String? availableUntil;
+  final bool isActive;
+
+  // LIL-130 : métadonnées fait maison / pâtisserie
+  final String? ingredients;
+  final int? shelfLifeDays;
+
   Product({
     required this.id,
     required this.name,
@@ -27,6 +42,14 @@ class Product {
     this.stockRestant,
     this.createdAt,
     this.updatedAt,
+    this.productType = ProductType.FOOD,
+    this.stockMode = StockMode.DAILY,
+    this.madeToOrder = false,
+    this.availableFrom,
+    this.availableUntil,
+    this.isActive = true,
+    this.ingredients,
+    this.shelfLifeDays,
   });
 
   bool get isAvailable => stockRestant == null || stockRestant! > 0;
@@ -53,6 +76,14 @@ class Product {
           json['createdAt'] != null ? DateTime.parse(json['createdAt'] as String) : null,
       updatedAt:
           json['updatedAt'] != null ? DateTime.parse(json['updatedAt'] as String) : null,
+      productType: ProductType.fromString(json['productType'] as String?),
+      stockMode: StockMode.fromString(json['stockMode'] as String?),
+      madeToOrder: json['madeToOrder'] as bool? ?? false,
+      availableFrom: json['availableFrom'] as String?,
+      availableUntil: json['availableUntil'] as String?,
+      isActive: json['isActive'] as bool? ?? true,
+      ingredients: json['ingredients'] as String?,
+      shelfLifeDays: (json['shelfLifeDays'] as num?)?.toInt(),
     );
   }
 
@@ -64,6 +95,13 @@ class Product {
       'imageUrl': imageUrl,
       'categoryId': categoryId,
       'variants': variants.map((v) => v.toJson()).toList(),
+      'productType': productType.name,
+      'stockMode': stockMode.name,
+      'madeToOrder': madeToOrder,
+      'availableFrom': ?availableFrom,
+      'availableUntil': ?availableUntil,
+      'ingredients': ?ingredients,
+      'shelfLifeDays': ?shelfLifeDays,
     };
   }
 
@@ -77,6 +115,14 @@ class Product {
     String? categoryId,
     Category? category,
     List<ProductVariant>? variants,
+    ProductType? productType,
+    StockMode? stockMode,
+    bool? madeToOrder,
+    String? availableFrom,
+    String? availableUntil,
+    bool? isActive,
+    String? ingredients,
+    int? shelfLifeDays,
   }) {
     return Product(
       id: id ?? this.id,
@@ -90,6 +136,14 @@ class Product {
       variants: variants ?? this.variants,
       createdAt: createdAt,
       updatedAt: updatedAt,
+      productType: productType ?? this.productType,
+      stockMode: stockMode ?? this.stockMode,
+      madeToOrder: madeToOrder ?? this.madeToOrder,
+      availableFrom: availableFrom ?? this.availableFrom,
+      availableUntil: availableUntil ?? this.availableUntil,
+      isActive: isActive ?? this.isActive,
+      ingredients: ingredients ?? this.ingredients,
+      shelfLifeDays: shelfLifeDays ?? this.shelfLifeDays,
     );
   }
 }
