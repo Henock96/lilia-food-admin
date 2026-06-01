@@ -832,6 +832,47 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
             ],
           ),
         ),
+        const SizedBox(height: 16),
+
+        // Galerie photos du restaurant
+        _SectionCard(
+          title: 'Galerie photos',
+          icon: Icons.photo_library_outlined,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'Ajoutez des photos de votre restaurant (façade, salle, plats vedette) pour mettre en valeur votre établissement.',
+                  style: TextStyle(
+                    color: _AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => context.goNamed(
+                  'photos',
+                  queryParameters: {
+                    'entityType': 'vendor',
+                    'parentId': widget.restaurant.id,
+                  },
+                ),
+                icon: const Icon(Icons.photo_library_outlined),
+                label: const Text('Gérer la galerie photos du restaurant'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  side: const BorderSide(color: _AppColors.primary),
+                  foregroundColor: _AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

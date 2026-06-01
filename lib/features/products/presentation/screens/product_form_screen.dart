@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../models/product.dart';
 import '../../../../models/product_type.dart';
@@ -332,6 +333,20 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Modifier le produit' : 'Nouveau produit'),
+        actions: [
+          if (widget.product != null)
+            IconButton(
+              tooltip: 'Gérer les photos',
+              icon: const Icon(Icons.photo_library_outlined),
+              onPressed: () => context.goNamed(
+                'photos',
+                queryParameters: {
+                  'entityType': 'product',
+                  'parentId': widget.product!.id,
+                },
+              ),
+            ),
+        ],
       ),
       body: Form(
         key: _formKey,

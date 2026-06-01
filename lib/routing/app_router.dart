@@ -25,6 +25,7 @@ import 'package:lilia_admin/features/admin/presentation/screens/admin_vendors_sc
 import 'package:lilia_admin/features/deliveries/presentation/screens/delivery_tracking_screen.dart';
 import 'package:lilia_admin/features/incidents/presentation/screens/incidents_screen.dart';
 import 'package:lilia_admin/features/incidents/presentation/screens/incident_detail_screen.dart';
+import 'package:lilia_admin/features/photos/presentation/screens/photos_screen.dart';
 import 'package:lilia_admin/features/restaurant/presentation/providers/restaurant_provider.dart';
 import 'package:lilia_admin/features/auth/user_sync_provider.dart';
 import 'package:lilia_admin/models/role.dart';
@@ -118,6 +119,29 @@ GoRouter router(Ref ref) {
           return MaterialPage(
             child: _AdminOnlyGuard(
               child: DeliveryTrackingScreen(orderId: orderId),
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/photos',
+        name: 'photos',
+        pageBuilder: (context, state) {
+          final entityType = state.uri.queryParameters['entityType'];
+          final parentId = state.uri.queryParameters['parentId'];
+          if (entityType == null || parentId == null || parentId.isEmpty) {
+            return MaterialPage(
+              child: _MissingRouteDataScreen(
+                title: 'Photos indisponibles',
+                message: 'Paramètres manquants pour afficher la galerie.',
+                backRouteName: 'dashboard',
+              ),
+            );
+          }
+          return MaterialPage(
+            child: PhotosScreen(
+              entityTypeString: entityType,
+              parentId: parentId,
             ),
           );
         },
