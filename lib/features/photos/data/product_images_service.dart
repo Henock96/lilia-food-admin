@@ -1,0 +1,125 @@
+import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+
+import 'photo_models.dart';
+
+class ProductImagesService {
+  final String _baseUrl = "https://lilia-backend.onrender.com";
+  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+
+  Future<String?> _getAuthToken() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+    return await user.getIdToken();
+  }
+
+  Future<List<Photo>> list(String productId) async {
+    final token = await _getAuthToken();
+    final response = await http.get(
+      Uri.parse('$_baseUrl/product-images?productId=$productId'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) {
+      final responseData =
+          json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final data = responseData['data'] as List<dynamic>? ?? [];
+      return data
+          .map((j) => Photo.fromJson(j as Map<String, dynamic>))
+          .toList();
+    }
+    throw Exception('Failed to load product images: ${response.body}');
+  }
+
+  Future<Photo> create({
+    required String productId,
+    required String url,
+    required String publicId,
+    String? alt,
+    bool isCover = false,
+  }) async {
+    final token = await _getAuthToken();
+    final response = await http.post(
+      Uri.parse('$_baseUrl/product-images'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'productId': productId,
+        'url': url,
+        'publicId': publicId,
+        if (alt != null) 'alt': alt,
+        'isCover': isCover,
+      }),
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      final responseData =
+          json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final photoJson = responseData['data'] as Map<String, dynamic>?;
+      if (photoJson == null) {
+        throw Exception('Product image data null in response');
+      }
+      return Photo.fromJson(photoJson);
+    }
+    throw Exception('Failed to create product image: ${response.body}');
+  }
+
+  Future<Photo> update(
+    String photoId, {
+    String? alt,
+    bool? isCover,
+    int? displayOrder,
+  }) async {
+    final token = await _getAuthToken();
+    final body = <String, dynamic>{};
+    if (alt != null) body['alt'] = alt;
+    if (isCover != null) body['isCover'] = isCover;
+    if (displayOrder != null) body['displayOrder'] = displayOrder;
+
+    final response = await http.patch(
+      Uri.parse('$_baseUrl/product-images/$photoId'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode(body),
+    );
+    if (response.statusCode == 200) {
+      final responseData =
+          json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final photoJson = responseData['data'] as Map<String, dynamic>?;
+      if (photoJson == null) {
+        throw Exception('Product image data null in response');
+      }
+      return Photo.fromJson(photoJson);
+    }
+    throw Exception('Failed to update product image: ${response.body}');
+  }
+
+  Future<void> delete(String photoId) async {
+    final token = await _getAuthToken();
+    final response = await http.delete(
+      Uri.parse('$_baseUrl/product-images/$photoId'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception('Failed to delete product image: ${response.body}');
+    }
+  }
+
+  Future<void> reorder(String productId, List<String> ids) async {
+    final token = await _getAuthToken();
+    final response = await http.post(
+      Uri.parse('$_baseUrl/product-images/reorder'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({'productId': productId, 'ids': ids}),
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception('Failed to reorder product images: ${response.body}');
+    }
+  }
+}
