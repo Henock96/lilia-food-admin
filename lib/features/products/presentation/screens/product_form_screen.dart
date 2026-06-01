@@ -338,7 +338,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             IconButton(
               tooltip: 'Gérer les photos',
               icon: const Icon(Icons.photo_library_outlined),
-              onPressed: () => context.goNamed(
+              onPressed: () => context.pushNamed(
                 'photos',
                 queryParameters: {
                   'entityType': 'product',

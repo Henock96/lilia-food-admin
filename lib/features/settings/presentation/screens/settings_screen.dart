@@ -852,7 +852,7 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                 ),
               ),
               OutlinedButton.icon(
-                onPressed: () => context.goNamed(
+                onPressed: () => context.pushNamed(
                   'photos',
                   queryParameters: {
                     'entityType': 'vendor',

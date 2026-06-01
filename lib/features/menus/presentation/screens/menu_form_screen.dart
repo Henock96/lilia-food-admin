@@ -193,7 +193,7 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
             IconButton(
               tooltip: 'Gérer les photos',
               icon: const Icon(Icons.photo_library_outlined),
-              onPressed: () => context.goNamed(
+              onPressed: () => context.pushNamed(
                 'photos',
                 queryParameters: {
                   'entityType': 'menu',
