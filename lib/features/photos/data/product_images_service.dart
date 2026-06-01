@@ -21,10 +21,13 @@ class ProductImagesService {
       headers: {'Authorization': 'Bearer $token'},
     );
     if (response.statusCode == 200) {
-      final responseData =
-          json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final data = responseData['data'] as List<dynamic>? ?? [];
-      return data
+      final decoded = json.decode(utf8.decode(response.bodyBytes));
+      final List<dynamic> rawList = decoded is List
+          ? decoded
+          : (decoded is Map<String, dynamic> && decoded['data'] is List)
+              ? decoded['data'] as List<dynamic>
+              : <dynamic>[];
+      return rawList
           .map((j) => Photo.fromJson(j as Map<String, dynamic>))
           .toList();
     }
@@ -54,12 +57,11 @@ class ProductImagesService {
       }),
     );
     if (response.statusCode == 201 || response.statusCode == 200) {
-      final responseData =
+      final decoded =
           json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final photoJson = responseData['data'] as Map<String, dynamic>?;
-      if (photoJson == null) {
-        throw Exception('Product image data null in response');
-      }
+      final photoJson = (decoded['data'] is Map<String, dynamic>)
+          ? decoded['data'] as Map<String, dynamic>
+          : decoded;
       return Photo.fromJson(photoJson);
     }
     throw Exception('Failed to create product image: ${response.body}');
@@ -86,12 +88,11 @@ class ProductImagesService {
       body: json.encode(body),
     );
     if (response.statusCode == 200) {
-      final responseData =
+      final decoded =
           json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final photoJson = responseData['data'] as Map<String, dynamic>?;
-      if (photoJson == null) {
-        throw Exception('Product image data null in response');
-      }
+      final photoJson = (decoded['data'] is Map<String, dynamic>)
+          ? decoded['data'] as Map<String, dynamic>
+          : decoded;
       return Photo.fromJson(photoJson);
     }
     throw Exception('Failed to update product image: ${response.body}');
