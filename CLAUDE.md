@@ -2,7 +2,8 @@
 
 App Flutter pour les **restaurateurs** et **administrateurs** de la plateforme Lilia Food (Brazzaville, Congo).
 
-**Backend URL** : `https://lilia-backend.onrender.com`
+**Backend URL** : `AppConstants.baseUrl` (défaut `https://lilia-backend.onrender.com`,
+override via `--dart-define=API_URL=...`)
 **Rôles** : `RESTAURATEUR` (son restaurant) + `ADMIN` (tous les restaurants, vue globale)
 
 ## Écosystème
@@ -191,15 +192,27 @@ final isAdmin = userProfile?.role == Role.admin;
 
 ## Format des réponses backend
 
-| Endpoint | Format |
+| Endpoint | Format actuel |
 |---|---|
 | `GET /orders/restaurant` | `{ data: [...], count, meta? }` |
-| `GET /orders/:id` | objet plat (Order) |
-| `PATCH /orders/:id/status` | Order avec relations |
+| `GET /orders/:id` | objet plat (Order) → bientôt `{ data: {...} }` (J2) |
+| `PATCH /orders/:id/status` | Order avec relations → bientôt `{ data: {...} }` (J2) |
 | `GET /deliveries/deliverers` | `{ data: [...] }` |
-| `GET /dashboard/*` | objet plat (pas de wrapper) |
+| `GET /dashboard/*` | objet plat → bientôt `{ data: {...} }` (J2) |
 | `GET /admin/clients` | `{ data: [...], count }` |
-| `POST /admin/restaurants` | Restaurant créé |
+| `POST /admin/restaurants` | Restaurant créé → bientôt `{ data: {...} }` (J2) |
+
+### Helper `ApiResponse` (J2 — juin 2026)
+
+`lib/utils/api_response.dart` — tolère raw OU `{ data: ... }` pendant
+la migration backend vers `api-contract-v2`. À utiliser systématiquement :
+
+- `ApiResponse.listOf(decoded)` → `List<dynamic>` (vide si payload inattendu)
+- `ApiResponse.mapOf(decoded)` → `Map<String, dynamic>` (throw sinon)
+
+Photo services (`vendor_photos_service`, `product_images_service`,
+`menu_images_service`) déjà migrés. À étendre aux autres services au fil
+des touches.
 
 ---
 
