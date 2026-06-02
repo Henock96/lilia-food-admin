@@ -45,7 +45,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -148,6 +148,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               ),
             ),
             _AdminMenuTile(
+              icon: Icons.storefront_outlined,
+              iconColor: _AppColors.primary,
+              title: 'Vendeurs marketplace',
+              subtitle: 'Approuver, suspendre, gérer les vendeurs',
+              onTap: () => context.goNamed('admin-vendors'),
+            ),
+            _AdminMenuTile(
               icon: Icons.payments_outlined,
               iconColor: _AppColors.success,
               title: 'Paiements',
@@ -240,6 +247,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 Tab(text: 'Horaires'),
                 Tab(text: 'Livraison'),
                 Tab(text: 'Specialites'),
+                Tab(text: 'Pre-commande'),
               ],
             ),
           ),
@@ -253,6 +261,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             _OperatingHoursTab(restaurant: restaurant),
             _DeliverySettingsTab(restaurant: restaurant),
             _SpecialtiesTab(restaurant: restaurant),
+            _PreorderTab(restaurant: restaurant),
           ],
         ),
         loading: () => const Center(
@@ -820,6 +829,47 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                   ],
                 ),
               ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Galerie photos du restaurant
+        _SectionCard(
+          title: 'Galerie photos',
+          icon: Icons.photo_library_outlined,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'Ajoutez des photos de votre restaurant (façade, salle, plats vedette) pour mettre en valeur votre établissement.',
+                  style: TextStyle(
+                    color: _AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => context.pushNamed(
+                  'photos',
+                  queryParameters: {
+                    'entityType': 'vendor',
+                    'parentId': widget.restaurant.id,
+                  },
+                ),
+                icon: const Icon(Icons.photo_library_outlined),
+                label: const Text('Gérer la galerie photos du restaurant'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  side: const BorderSide(color: _AppColors.primary),
+                  foregroundColor: _AppColors.primary,
+                ),
+              ),
             ],
           ),
         ),
@@ -1968,6 +2018,225 @@ class _SpecialtiesTabState extends ConsumerState<_SpecialtiesTab> {
 }
 
 /// Tuile de navigation du menu d'administration.
+// ============================================================
+// _PreorderTab — LIL-127 pilotage pré-commande (vendor profile)
+// ============================================================
+class _PreorderTab extends ConsumerStatefulWidget {
+  final Restaurant restaurant;
+  const _PreorderTab({required this.restaurant});
+
+  @override
+  ConsumerState<_PreorderTab> createState() => _PreorderTabState();
+}
+
+class _PreorderTabState extends ConsumerState<_PreorderTab> {
+  late bool _acceptsPreorders;
+  late TextEditingController _leadHoursCtrl;
+  late TextEditingController _maxPerDayCtrl;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _acceptsPreorders = widget.restaurant.acceptsPreorders;
+    _leadHoursCtrl = TextEditingController(
+      text: widget.restaurant.preorderLeadHours?.toString() ?? '',
+    );
+    _maxPerDayCtrl = TextEditingController(
+      text: widget.restaurant.maxOrdersPerDay?.toString() ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _leadHoursCtrl.dispose();
+    _maxPerDayCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final leadHoursText = _leadHoursCtrl.text.trim();
+    final maxPerDayText = _maxPerDayCtrl.text.trim();
+    int? leadHours;
+    int? maxPerDay;
+    if (leadHoursText.isNotEmpty) {
+      leadHours = int.tryParse(leadHoursText);
+      if (leadHours == null || leadHours < 1 || leadHours > 168) {
+        _showError('Le délai doit être entre 1 et 168 heures (7 jours).');
+        return;
+      }
+    }
+    if (maxPerDayText.isNotEmpty) {
+      maxPerDay = int.tryParse(maxPerDayText);
+      if (maxPerDay == null || maxPerDay < 1) {
+        _showError('Le plafond doit être ≥ 1 ou vide pour illimité.');
+        return;
+      }
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      await ref.read(restaurantSettingsProvider.notifier).updatePreorderSettings(
+            acceptsPreorders: _acceptsPreorders,
+            preorderLeadHours: leadHours,
+            maxOrdersPerDay: maxPerDay,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Paramètres pré-commande enregistrés.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) _showError('Erreur : $e');
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: _AppColors.danger),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vendor = widget.restaurant.vendorType;
+
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        // Type de vendeur (lecture seule — modifiable seulement par admin)
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _AppColors.cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Text(vendor.emoji, style: const TextStyle(fontSize: 28)),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Type de vendeur',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      vendor.label,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: _AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.lock_outline,
+                  size: 18, color: _AppColors.textSecondary),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Toggle acceptsPreorders
+        Container(
+          decoration: BoxDecoration(
+            color: _AppColors.cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _AppColors.border),
+          ),
+          child: SwitchListTile(
+            value: _acceptsPreorders,
+            onChanged: (v) => setState(() => _acceptsPreorders = v),
+            activeThumbColor: _AppColors.primary,
+            title: const Text(
+              'Accepter les pré-commandes',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: const Text(
+              'Active la possibilité pour les clients de commander à l\'avance '
+              'vos produits marqués "fait sur commande".',
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 4,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Lead time
+        TextField(
+          controller: _leadHoursCtrl,
+          enabled: _acceptsPreorders,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Délai minimum (heures)',
+            helperText: 'Ex: 24 = client doit commander 24h à l\'avance. '
+                'Vide = 24h par défaut.',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.hourglass_top_outlined),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Max per day
+        TextField(
+          controller: _maxPerDayCtrl,
+          enabled: _acceptsPreorders,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Plafond par jour (commandes)',
+            helperText: 'Vide = illimité. Au-delà, les clients verront un message.',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.production_quantity_limits_outlined),
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        FilledButton.icon(
+          onPressed: _isSaving ? null : _save,
+          icon: _isSaving
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.save_outlined),
+          label: Text(_isSaving ? 'Enregistrement...' : 'Enregistrer'),
+          style: FilledButton.styleFrom(
+            backgroundColor: _AppColors.primary,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _AdminMenuTile extends StatelessWidget {
   const _AdminMenuTile({
     required this.icon,
@@ -2045,3 +2314,4 @@ class _AdminMenuTile extends StatelessWidget {
     );
   }
 }
+

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../models/menu.dart';
 import '../../../products/presentation/providers/products_provider.dart';
@@ -187,6 +188,20 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Modifier le menu' : 'Nouveau menu'),
+        actions: [
+          if (isEditing)
+            IconButton(
+              tooltip: 'Gérer les photos',
+              icon: const Icon(Icons.photo_library_outlined),
+              onPressed: () => context.pushNamed(
+                'photos',
+                queryParameters: {
+                  'entityType': 'menu',
+                  'parentId': widget.menu!.id,
+                },
+              ),
+            ),
+        ],
       ),
       body: Form(
         key: _formKey,

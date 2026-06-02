@@ -8,6 +8,10 @@ class AdminPaymentOrder {
   final String? paymentMethod;
   final String? clientNom;
   final String? clientPhone;
+  // LIL-132 : identité du vendeur — affichée sur la carte paiement pour
+  // distinguer rapidement les paiements multi-vendeurs côté admin.
+  final String? restaurantNom;
+  final String? vendorType; // RESTAURANT | HOME_COOK | BAKERY | BEVERAGE_SHOP | GROCERY
 
   AdminPaymentOrder({
     required this.id,
@@ -16,10 +20,13 @@ class AdminPaymentOrder {
     this.paymentMethod,
     this.clientNom,
     this.clientPhone,
+    this.restaurantNom,
+    this.vendorType,
   });
 
   factory AdminPaymentOrder.fromJson(Map<String, dynamic> json) {
     final user = json['user'] as Map<String, dynamic>?;
+    final restaurant = json['restaurant'] as Map<String, dynamic>?;
     return AdminPaymentOrder(
       id: json['id'] as String? ?? '',
       total: (json['total'] as num?)?.toDouble() ?? 0,
@@ -27,6 +34,8 @@ class AdminPaymentOrder {
       paymentMethod: json['paymentMethod'] as String?,
       clientNom: user?['nom'] as String?,
       clientPhone: user?['phone'] as String?,
+      restaurantNom: restaurant?['nom'] as String?,
+      vendorType: restaurant?['vendorType'] as String?,
     );
   }
 }

@@ -56,6 +56,13 @@ class OrderDetailScreen extends ConsumerWidget {
             _buildStatusBanner(context, currentOrder, statusInfo),
             const SizedBox(height: 16),
 
+            // LIL-125 : section pré-commande (avant les infos client, pour
+            // que le créneau soit la 1re info après le statut).
+            if (currentOrder.isPreorder && currentOrder.scheduledFor != null) ...[
+              _buildPreorderSection(context, currentOrder),
+              const SizedBox(height: 16),
+            ],
+
             // Infos client
             _buildCustomerSection(context, currentOrder),
             const SizedBox(height: 16),
@@ -154,6 +161,57 @@ class OrderDetailScreen extends ConsumerWidget {
               backgroundColor: Colors.purple.shade50,
               side: BorderSide.none,
             ),
+        ],
+      ),
+    );
+  }
+
+  /// LIL-125 : carte dédiée pour le créneau de retrait/livraison demandé
+  /// (champs LIL-121). Format complet "Jeudi 30 mai 2026 à 14:30" en Brazzaville.
+  Widget _buildPreorderSection(BuildContext context, Order order) {
+    final bzv = order.scheduledFor!.toUtc().add(const Duration(hours: 1));
+    final full = DateFormat('EEEE d MMMM y', 'fr_FR').format(bzv);
+    final time = DateFormat('HH:mm').format(bzv);
+    // Capitalise la première lettre du jour ("jeudi" → "Jeudi").
+    final fullCap = full.isEmpty ? full : '${full[0].toUpperCase()}${full.substring(1)}';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade300),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.event_note_outlined, color: Colors.orange[800], size: 32),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'PROGRAMMÉE POUR',
+                  style: TextStyle(
+                    color: Colors.orange[800],
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$fullCap à $time',
+                  style: TextStyle(
+                    color: Colors.orange[900],
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

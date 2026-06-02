@@ -131,4 +131,30 @@ class RestaurantSettings extends _$RestaurantSettings {
       return await service.getMyRestaurant();
     });
   }
+
+  // ============ PRÉ-COMMANDE (LIL-127) ============
+
+  /// Met à jour les paramètres pré-commande via PATCH /restaurants/:id.
+  /// Passer `null` pour [preorderLeadHours] ou [maxOrdersPerDay] est traité
+  /// comme "ne pas envoyer le champ" — pour effacer une valeur côté backend,
+  /// il faudrait un endpoint dédié (pas implémenté ici).
+  Future<void> updatePreorderSettings({
+    required bool acceptsPreorders,
+    int? preorderLeadHours,
+    int? maxOrdersPerDay,
+  }) async {
+    final currentRestaurant = state.value;
+    if (currentRestaurant == null) return;
+
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      final service = ref.read(restaurantSettingsServiceProvider);
+      final payload = <String, dynamic>{
+        'acceptsPreorders': acceptsPreorders,
+        'preorderLeadHours': ?preorderLeadHours,
+        'maxOrdersPerDay': ?maxOrdersPerDay,
+      };
+      return await service.updateRestaurant(currentRestaurant.id, payload);
+    });
+  }
 }

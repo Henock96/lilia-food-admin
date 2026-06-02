@@ -35,7 +35,7 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
       final token = next.value;
 
       if (token != null) {
-        debugPrint('Jeton détecté. Synchronisation du profil utilisateur...');
+        debugPrint('Jeton détecté: OK. Synchronisation du profil utilisateur.');
         try {
           // 1. Sync user via POST /users/sync
           final syncResponse = await http.post(
@@ -78,9 +78,7 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
               }
 
               ref.read(currentUserProfileProvider.notifier).setUser(user);
-              debugPrint(
-                'Synchronisation réussie. Restaurant ID: ${user.restaurantId}',
-              );
+              debugPrint('Synchronisation réussie.');
 
               // Contexte Sentry : rattacher les erreurs à l'utilisateur
               // connecté et à son rôle (ADMIN / RESTAURATEUR).
@@ -102,9 +100,7 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
               debugPrint('user est null dans la réponse sync');
             }
           } else {
-            debugPrint(
-              'Erreur sync: ${syncResponse.statusCode} - ${syncResponse.body}',
-            );
+            debugPrint('Erreur sync: status ${syncResponse.statusCode}');
           }
         } catch (e) {
           debugPrint('Erreur lors de la synchronisation: $e');

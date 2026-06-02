@@ -34,6 +34,26 @@ const _paymentMethodColors = <String, Color>{
   'CASH_ON_DELIVERY': Color(0xFF9CA3AF),
 };
 
+/// LIL-132 : emoji par vendorType — local au payments screen pour éviter
+/// d'importer le model VendorType (qui n'existe pas encore côté admin)
+/// et garder l'aperçu auto-contenu.
+String _vendorEmoji(String? vendorType) {
+  switch (vendorType) {
+    case 'RESTAURANT':
+      return '🍽️';
+    case 'HOME_COOK':
+      return '🍲';
+    case 'BAKERY':
+      return '🥐';
+    case 'BEVERAGE_SHOP':
+      return '🥤';
+    case 'GROCERY':
+      return '🛒';
+    default:
+      return '🏬';
+  }
+}
+
 final _xafFormatter = NumberFormat.decimalPattern('fr_FR');
 
 class PaymentsScreen extends ConsumerStatefulWidget {
@@ -350,6 +370,40 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
               ],
             ),
             const SizedBox(height: 6),
+            // LIL-132 : identité du vendeur — emoji + nom — pour distinguer
+            // les paiements multi-vendeurs sans devoir cliquer sur la commande.
+            if (order?.restaurantNom != null) ...[
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _vendorEmoji(order?.vendorType),
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        order!.restaurantNom!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+            ],
             Text(
               order?.clientNom ?? '—',
               style:
