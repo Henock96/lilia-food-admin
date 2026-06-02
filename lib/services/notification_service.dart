@@ -14,6 +14,7 @@ import 'package:lilia_admin/routing/app_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:lilia_admin/constants/app_constants.dart';
 part 'notification_service.g.dart';
 
 /// Provider pour stocker l'ID de la derniere commande notifiee
@@ -78,7 +79,7 @@ class NotificationService {
 
   String? fcmToken;
 
-  static const String _baseUrl = 'https://lilia-backend.onrender.com';
+  static const String _baseUrl = AppConstants.baseUrl;
 
   Future<void> _requestPermission() async {
     NotificationSettings settings = await _fcm.requestPermission(

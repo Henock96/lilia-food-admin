@@ -8,6 +8,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:lilia_admin/constants/app_constants.dart';
 part 'user_sync_provider.g.dart';
 
 /// Provider qui stocke le profil utilisateur complet (incluant le restaurant)
@@ -39,7 +40,7 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
         try {
           // 1. Sync user via POST /users/sync
           final syncResponse = await http.post(
-            Uri.parse('https://lilia-backend.onrender.com/users/sync'),
+            Uri.parse('${AppConstants.baseUrl}/users/sync'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
@@ -56,9 +57,7 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
               // 2. Récupérer le restaurant via GET /restaurants/mine
               try {
                 final restaurantResponse = await http.get(
-                  Uri.parse(
-                    'https://lilia-backend.onrender.com/restaurants/mine',
-                  ),
+                  Uri.parse('${AppConstants.baseUrl}/restaurants/mine'),
                   headers: {'Authorization': 'Bearer $token'},
                 );
 

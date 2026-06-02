@@ -6,7 +6,7 @@ import '../../../constants/app_constants.dart';
 import '../../../models/app_user.dart';
 
 class UserRepository {
-  //final String _baseUrl = 'https://lilia-backend.onrender.com'; // Mettez votre URL de base ici
+  //final String _baseUrl = AppConstants.baseUrl; // Mettez votre URL de base ici
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
   Future<String?> _getIdToken() async {

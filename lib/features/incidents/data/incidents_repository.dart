@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import 'package:lilia_admin/models/incident.dart';
 
+import 'package:lilia_admin/constants/app_constants.dart';
 /// Accès HTTP aux endpoints `/incidents` du backend (ADMIN-only).
 ///
 /// Le backend renvoie :
@@ -12,7 +13,7 @@ import 'package:lilia_admin/models/incident.dart';
 /// - `POST /incidents` → `{ data: Incident }`
 /// - `PATCH /incidents/:id` → `{ data: Incident }` (update status, resolution)
 class IncidentsRepository {
-  final String _baseUrl = 'https://lilia-backend.onrender.com';
+  final String _baseUrl = AppConstants.baseUrl;
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
   Future<String> _getAuthToken() async {
