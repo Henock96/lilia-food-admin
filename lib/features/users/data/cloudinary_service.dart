@@ -34,5 +34,3 @@ class CloudinaryService {
     }
   }
 }
-
-//CLOUDINARY_URL=cloudinary://779627169413964:zhYvHdrvy5xh64DG6DbCiw9JplE@dun9ev7pw

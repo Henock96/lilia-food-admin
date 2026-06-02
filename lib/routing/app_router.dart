@@ -261,32 +261,37 @@ GoRouter router(Ref ref) {
                   GoRoute(
                     path: 'paiements',
                     name: 'admin-payments',
-                    pageBuilder: (context, state) =>
-                        const MaterialPage(child: PaymentsScreen()),
+                    pageBuilder: (context, state) => const MaterialPage(
+                      child: _AdminOnlyGuard(child: PaymentsScreen()),
+                    ),
                   ),
                   GoRoute(
                     path: 'livreurs',
                     name: 'admin-deliverers',
-                    pageBuilder: (context, state) =>
-                        const MaterialPage(child: DeliverersScreen()),
+                    pageBuilder: (context, state) => const MaterialPage(
+                      child: _AdminOnlyGuard(child: DeliverersScreen()),
+                    ),
                   ),
                   GoRoute(
                     path: 'quartiers',
                     name: 'admin-quartiers',
-                    pageBuilder: (context, state) =>
-                        const MaterialPage(child: QuartiersScreen()),
+                    pageBuilder: (context, state) => const MaterialPage(
+                      child: _AdminOnlyGuard(child: QuartiersScreen()),
+                    ),
                   ),
                   GoRoute(
                     path: 'parametres-plateforme',
                     name: 'platform-settings',
-                    pageBuilder: (context, state) =>
-                        const MaterialPage(child: PlatformSettingsScreen()),
+                    pageBuilder: (context, state) => const MaterialPage(
+                      child: _AdminOnlyGuard(child: PlatformSettingsScreen()),
+                    ),
                   ),
                   GoRoute(
                     path: 'vendeurs',
                     name: 'admin-vendors',
-                    pageBuilder: (context, state) =>
-                        const MaterialPage(child: AdminVendorsScreen()),
+                    pageBuilder: (context, state) => const MaterialPage(
+                      child: _AdminOnlyGuard(child: AdminVendorsScreen()),
+                    ),
                   ),
                 ],
               ),
@@ -327,8 +332,9 @@ GoRouter router(Ref ref) {
               GoRoute(
                 path: '/create-restaurant',
                 name: 'create-restaurant',
-                pageBuilder: (context, state) =>
-                    const MaterialPage(child: CreateRestaurantScreen()),
+                pageBuilder: (context, state) => const MaterialPage(
+                  child: _AdminOnlyGuard(child: CreateRestaurantScreen()),
+                ),
               ),
             ],
           ),

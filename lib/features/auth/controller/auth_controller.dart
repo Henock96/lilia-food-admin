@@ -32,8 +32,7 @@ class AuthController extends _$AuthController {
       state = AsyncValue.error(errorMessage, st);
     } catch (e, st) {
       if (kDebugMode) {
-        print('Caught error: $e');
-        print('Runtime type: ${e.runtimeType}');
+        debugPrint('Caught error type: ${e.runtimeType}');
       }
       state = AsyncValue.error(
         "Une erreur inconnue est survenue. Veuillez réessayer.",
