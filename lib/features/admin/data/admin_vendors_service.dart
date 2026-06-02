@@ -6,12 +6,13 @@ import 'package:http/http.dart' as http;
 import '../../../models/restaurant.dart';
 import '../../../models/vendor_type.dart';
 
+import 'package:lilia_admin/constants/app_constants.dart';
 /// Service marketplace admin (LIL-128) — endpoints `/admin/vendors/*`.
 /// Réutilise la classe `Restaurant` côté Flutter ; le backend renvoie un
 /// payload élargi (owner + vendorProfile + _count) mais les seuls champs
 /// dont l'admin a besoin pour la liste/queue/validation sont déjà couverts.
 class AdminVendorsService {
-  final String _baseUrl = 'https://lilia-backend.onrender.com';
+  final String _baseUrl = AppConstants.baseUrl;
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
   Future<String?> _token() async {

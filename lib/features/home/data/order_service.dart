@@ -4,9 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../models/order.dart';
 
+import 'package:lilia_admin/constants/app_constants.dart';
 class OrderService {
   final String _baseUrl =
-      "https://lilia-backend.onrender.com"; // Votre URL de backend
+      AppConstants.baseUrl; // Votre URL de backend
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
   Future<String?> _getAuthToken() async {

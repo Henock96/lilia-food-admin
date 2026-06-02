@@ -12,11 +12,12 @@ import 'package:lilia_admin/models/delivery_status.dart';
 import 'package:lilia_admin/models/paginated.dart';
 import 'package:lilia_admin/models/platform_settings.dart';
 
+import 'package:lilia_admin/constants/app_constants.dart';
 /// Appels HTTP des opérations d'administration transverses :
 /// supervision des paiements, des livreurs et configuration plateforme.
 /// Toutes les routes sont ADMIN-only côté backend.
 class AdminOperationsRepository {
-  final String _baseUrl = 'https://lilia-backend.onrender.com';
+  final String _baseUrl = AppConstants.baseUrl;
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
   Future<String?> _getAuthToken() async {

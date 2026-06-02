@@ -6,8 +6,9 @@ import 'package:lilia_admin/models/client_loyalty.dart';
 import 'package:lilia_admin/models/client_referral.dart';
 import 'package:lilia_admin/models/paginated_clients.dart';
 
+import 'package:lilia_admin/constants/app_constants.dart';
 class ClientRepository {
-  final String _baseUrl = "https://lilia-backend.onrender.com"; // Utiliser 10.0.2.2 pour l'émulateur Android
+  final String _baseUrl = AppConstants.baseUrl; // Utiliser 10.0.2.2 pour l'émulateur Android
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
   Future<String?> _getAuthToken() async {

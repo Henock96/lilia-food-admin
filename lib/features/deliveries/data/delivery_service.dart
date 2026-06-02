@@ -4,8 +4,9 @@ import 'package:http/http.dart' as http;
 
 import '../../../models/app_deliverer.dart';
 
+import 'package:lilia_admin/constants/app_constants.dart';
 class DeliveryService {
-  static const _baseUrl = 'https://lilia-backend.onrender.com';
+  static const _baseUrl = AppConstants.baseUrl;
 
   Future<String?> _token() async => await FirebaseAuth.instance.currentUser?.getIdToken();
 
