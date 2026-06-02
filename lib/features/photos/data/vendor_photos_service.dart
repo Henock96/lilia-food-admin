@@ -1,11 +1,14 @@
 import 'dart:convert';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'package:lilia_admin/constants/app_constants.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 
 import 'photo_models.dart';
 
 class VendorPhotosService {
-  final String _baseUrl = "https://lilia-backend.onrender.com";
+  final String _baseUrl = AppConstants.baseUrl;
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
   Future<String?> _getAuthToken() async {
@@ -22,14 +25,7 @@ class VendorPhotosService {
     );
     if (response.statusCode == 200) {
       final decoded = json.decode(utf8.decode(response.bodyBytes));
-      // Backend retourne du raw array ; certains endpoints historiques
-      // wrappent dans {data: [...]}. On accepte les deux formes.
-      final List<dynamic> rawList = decoded is List
-          ? decoded
-          : (decoded is Map<String, dynamic> && decoded['data'] is List)
-              ? decoded['data'] as List<dynamic>
-              : <dynamic>[];
-      return rawList
+      return ApiResponse.listOf(decoded)
           .map((j) => Photo.fromJson(j as Map<String, dynamic>))
           .toList();
     }
@@ -59,12 +55,8 @@ class VendorPhotosService {
       }),
     );
     if (response.statusCode == 201 || response.statusCode == 200) {
-      final decoded =
-          json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final photoJson = (decoded['data'] is Map<String, dynamic>)
-          ? decoded['data'] as Map<String, dynamic>
-          : decoded;
-      return Photo.fromJson(photoJson);
+      final decoded = json.decode(utf8.decode(response.bodyBytes));
+      return Photo.fromJson(ApiResponse.mapOf(decoded));
     }
     throw Exception('Failed to create vendor photo: ${response.body}');
   }
@@ -90,12 +82,8 @@ class VendorPhotosService {
       body: json.encode(body),
     );
     if (response.statusCode == 200) {
-      final decoded =
-          json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final photoJson = (decoded['data'] is Map<String, dynamic>)
-          ? decoded['data'] as Map<String, dynamic>
-          : decoded;
-      return Photo.fromJson(photoJson);
+      final decoded = json.decode(utf8.decode(response.bodyBytes));
+      return Photo.fromJson(ApiResponse.mapOf(decoded));
     }
     throw Exception('Failed to update vendor photo: ${response.body}');
   }
