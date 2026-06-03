@@ -5,6 +5,7 @@ import 'package:lilia_admin/models/app_user.dart';
 import 'package:lilia_admin/models/client_loyalty.dart';
 import 'package:lilia_admin/models/client_referral.dart';
 import 'package:lilia_admin/models/paginated_clients.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 
 import 'package:lilia_admin/constants/app_constants.dart';
 class ClientRepository {
@@ -32,8 +33,9 @@ class ClientRepository {
     );
 
     if (response.statusCode == 200) {
-      final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
-      final List<dynamic> clientsData = responseData['data'] as List<dynamic>? ?? [];
+      final responseData = json.decode(utf8.decode(response.bodyBytes));
+      // /restaurants/:id/clients double-enveloppé (`{ data: { data: [...], total } }`).
+      final clientsData = ApiResponse.listOf(ApiResponse.mapOf(responseData));
       return clientsData.map((json) => AppUser.fromJson(json as Map<String, dynamic>)).toList();
     } else {
       throw Exception('Échec du chargement des clients: ${response.statusCode} ${response.body}');
@@ -59,16 +61,19 @@ class ClientRepository {
     );
 
     if (response.statusCode == 200) {
-      final Map<String, dynamic> body =
-          json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final List<dynamic> clientsData = body['data'] as List<dynamic>? ?? [];
+      final decoded = json.decode(utf8.decode(response.bodyBytes));
+      // /admin/clients double-enveloppé : `{ data: { data: [...], total, page,
+      // limit } }`. On déballe l'enveloppe externe ; la liste ET la meta de
+      // pagination sont dans la map interne.
+      final inner = ApiResponse.mapOf(decoded);
+      final clientsData = ApiResponse.listOf(inner);
       return PaginatedClients(
         clients: clientsData
             .map((j) => AppUser.fromJson(j as Map<String, dynamic>))
             .toList(),
-        total: body['total'] as int? ?? clientsData.length,
-        page: body['page'] as int? ?? page,
-        limit: body['limit'] as int? ?? 20,
+        total: inner['total'] as int? ?? clientsData.length,
+        page: inner['page'] as int? ?? page,
+        limit: inner['limit'] as int? ?? 20,
       );
     } else {
       throw Exception('Échec du chargement des clients: ${response.statusCode} ${response.body}');
@@ -89,9 +94,10 @@ class ClientRepository {
     );
 
     if (response.statusCode == 200) {
-      final Map<String, dynamic> body =
-          json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final data = body['data'] as Map<String, dynamic>? ?? {};
+      final decoded = json.decode(utf8.decode(response.bodyBytes));
+      // Loyalty double-enveloppé : `{ data: { data: { balance, transactions },
+      // total, page, limit } }`. Deux niveaux à déballer pour l'objet réel.
+      final data = ApiResponse.mapOf(ApiResponse.mapOf(decoded));
       return ClientLoyalty.fromJson(data);
     } else {
       throw Exception('Échec du chargement de la fidélité: ${response.statusCode} ${response.body}');
@@ -112,9 +118,10 @@ class ClientRepository {
     );
 
     if (response.statusCode == 200) {
-      final Map<String, dynamic> body =
-          json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final data = body['data'] as Map<String, dynamic>? ?? {};
+      final decoded = json.decode(utf8.decode(response.bodyBytes));
+      // Referral renvoie `{ data: {...} }` (conforme, simple wrap) ; le double
+      // mapOf reste sûr (no-op si pas de second niveau).
+      final data = ApiResponse.mapOf(ApiResponse.mapOf(decoded));
       return ClientReferral.fromJson(data);
     } else {
       throw Exception('Échec du chargement du parrainage: ${response.statusCode} ${response.body}');

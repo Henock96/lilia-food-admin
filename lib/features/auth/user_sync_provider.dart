@@ -4,6 +4,7 @@ import 'package:lilia_admin/features/auth/repository/firebase_auth_repository.da
 import 'package:lilia_admin/features/auth/app_user_model.dart';
 import 'package:lilia_admin/models/restaurant.dart';
 import 'package:lilia_admin/services/notification_service.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:http/http.dart' as http;
@@ -49,7 +50,10 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
 
           if (syncResponse.statusCode == 200) {
             final syncData = json.decode(utf8.decode(syncResponse.bodyBytes));
-            final userData = syncData['user'] as Map<String, dynamic>?;
+            // /users/sync renvoie `{ user, isNewUser }` → enveloppé
+            // `{ data: { user, isNewUser } }` par l'interceptor backend.
+            final userData =
+                ApiResponse.mapOf(syncData)['user'] as Map<String, dynamic>?;
 
             if (userData != null) {
               var user = AppUser.fromJson(userData);

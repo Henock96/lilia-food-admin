@@ -156,7 +156,7 @@ final class PhotosControllerProvider
   }
 }
 
-String _$photosControllerHash() => r'e86bf3cfd3e1a8aa284298ead4fce819883337c1';
+String _$photosControllerHash() => r'1d7a10001404820a1f245a2f973db8a0ddf2472c';
 
 /// AsyncNotifier paramétré par (EntityType, parentId). Gère la liste des
 /// photos d'une entité + les 5 mutations optimistic.
