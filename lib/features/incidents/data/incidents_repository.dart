@@ -60,15 +60,16 @@ class IncidentsRepository {
       );
     }
 
-    // { data:[...], total } → double-wrappé par l'interceptor : on déballe
-    // l'enveloppe externe, la liste ET `total` sont dans la map interne.
+    // Contrat v2 : `{ data: [...], meta: { total } }`. On tolère aussi l'ancien
+    // `{ data, total }` à plat (fallback racine).
     final body = ApiResponse.mapOf(json.decode(utf8.decode(response.bodyBytes)));
     final list = ApiResponse.listOf(body)
         .map((e) => Incident.fromJson(e as Map<String, dynamic>))
         .toList(growable: false);
+    final meta = body['meta'] as Map<String, dynamic>?;
     return PaginatedIncidents(
       incidents: list,
-      total: (body['total'] as int?) ?? list.length,
+      total: (body['total'] as int?) ?? (meta?['total'] as int?) ?? list.length,
       limit: limit,
       offset: offset,
     );

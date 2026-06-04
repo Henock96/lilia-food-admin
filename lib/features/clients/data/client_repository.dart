@@ -62,18 +62,20 @@ class ClientRepository {
 
     if (response.statusCode == 200) {
       final decoded = json.decode(utf8.decode(response.bodyBytes));
-      // /admin/clients double-enveloppé : `{ data: { data: [...], total, page,
-      // limit } }`. On déballe l'enveloppe externe ; la liste ET la meta de
-      // pagination sont dans la map interne.
+      // Contrat v2 : `{ data: [...], meta: { total, page, limit } }`. On tolère
+      // aussi l'ancien `{ data, total, page, limit }` à plat (fallback racine).
       final inner = ApiResponse.mapOf(decoded);
       final clientsData = ApiResponse.listOf(inner);
+      final meta = inner['meta'] as Map<String, dynamic>?;
+      int read(String key, int fallback) =>
+          (inner[key] as int?) ?? (meta?[key] as int?) ?? fallback;
       return PaginatedClients(
         clients: clientsData
             .map((j) => AppUser.fromJson(j as Map<String, dynamic>))
             .toList(),
-        total: inner['total'] as int? ?? clientsData.length,
-        page: inner['page'] as int? ?? page,
-        limit: inner['limit'] as int? ?? 20,
+        total: read('total', clientsData.length),
+        page: read('page', page),
+        limit: read('limit', 20),
       );
     } else {
       throw Exception('Échec du chargement des clients: ${response.statusCode} ${response.body}');
