@@ -30,6 +30,28 @@ class AdminOperationsRepository {
     return await user.getIdToken();
   }
 
+  /// Extrait `{ items, total, page, limit }` d'une réponse paginée en tolérant :
+  /// - le **double-wrap** de l'`ApiResponseInterceptor` backend (B24) :
+  ///   `{ data: { data: [...], total, page, limit } }`
+  /// - la forme cible `{ data: [...], meta: { total, page, limit } }`
+  /// - la forme historique simple `{ data: [...], total, page, limit }`
+  ({List<dynamic> items, int total, int page, int limit}) _paginated(
+    dynamic decoded,
+    int requestedPage,
+  ) {
+    final pg = ApiResponse.mapOf(decoded); // déballe un éventuel niveau `data`
+    final items = ApiResponse.listOf(pg);
+    final meta = pg['meta'] as Map<String, dynamic>?;
+    int read(String key, int fallback) =>
+        (pg[key] as int?) ?? (meta?[key] as int?) ?? fallback;
+    return (
+      items: items,
+      total: read('total', items.length),
+      page: read('page', requestedPage),
+      limit: read('limit', AppConstants.adminPageSize),
+    );
+  }
+
   /// Paiements paginés (GET /admin/payments).
   /// `status` vide → vue "Tous statuts confondus" (pas de filtre côté backend).
   Future<PaginatedPayments> fetchPayments({
@@ -54,16 +76,17 @@ class AdminOperationsRepository {
     );
 
     if (response.statusCode == 200) {
-      final body = json.decode(utf8.decode(response.bodyBytes))
-          as Map<String, dynamic>;
-      final list = body['data'] as List<dynamic>? ?? [];
+      final p = _paginated(
+        json.decode(utf8.decode(response.bodyBytes)),
+        page,
+      );
       return PaginatedPayments(
-        payments: list
+        payments: p.items
             .map((j) => AdminPayment.fromJson(j as Map<String, dynamic>))
             .toList(),
-        total: body['total'] as int? ?? list.length,
-        page: body['page'] as int? ?? page,
-        limit: body['limit'] as int? ?? AppConstants.adminPageSize,
+        total: p.total,
+        page: p.page,
+        limit: p.limit,
       );
     }
     throw Exception(
@@ -133,16 +156,17 @@ class AdminOperationsRepository {
     );
 
     if (response.statusCode == 200) {
-      final body = json.decode(utf8.decode(response.bodyBytes))
-          as Map<String, dynamic>;
-      final list = body['data'] as List<dynamic>? ?? [];
+      final p = _paginated(
+        json.decode(utf8.decode(response.bodyBytes)),
+        page,
+      );
       return PaginatedDeliverers(
-        deliverers: list
+        deliverers: p.items
             .map((j) => AdminDeliverer.fromJson(j as Map<String, dynamic>))
             .toList(),
-        total: body['total'] as int? ?? list.length,
-        page: body['page'] as int? ?? page,
-        limit: body['limit'] as int? ?? AppConstants.adminPageSize,
+        total: p.total,
+        page: p.page,
+        limit: p.limit,
       );
     }
     throw Exception(
@@ -240,8 +264,9 @@ class AdminOperationsRepository {
       },
     );
     if (response.statusCode == 200) {
-      final body = json.decode(utf8.decode(response.bodyBytes))
-          as Map<String, dynamic>;
+      // Déballe l'éventuel double-wrap de l'interceptor backend avant de passer
+      // à Paginated.fromJson (qui attend `{ data: [...], (meta|root) }`).
+      final body = ApiResponse.mapOf(json.decode(utf8.decode(response.bodyBytes)));
       return Paginated<DeliveryMissionSummary>.fromJson(
         body,
         DeliveryMissionSummary.fromJson,
