@@ -256,7 +256,6 @@ url_launcher: ^6.3.1
 
 1. **Pas de WebSocket admin** alors que le backend offre `/tracking` avec `order:status` broadcast multi-instance. Utile si l'admin gère plusieurs commandes simultanées (pour éviter de dépendre uniquement des push FCM qui peuvent rater).
 2. **Pas de carte live multi-livreurs** côté admin/superviseur.
-3. **`flutter_riverpod: ^3.0.1`** alors que les autres apps sont en `^3.3.1` — aligner.
 
 ---
 

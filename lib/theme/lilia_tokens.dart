@@ -39,10 +39,13 @@ class LiliaColors {
   static const blue500 = Color(0xFF2B4A6B);
 
   // Semantic feedback
+  static const green50   = Color(0xFFDCFCE7); // tint clair succès (bg)
   static const green400  = Color(0xFF27A660);
   static const green500  = Color(0xFF1A8A4A);
+  static const amber50   = Color(0xFFFEF3C7); // tint clair avertissement (bg)
   static const amber300  = Color(0xFFF5C44A);
   static const amber400  = Color(0xFFD4970A);
+  static const red50     = Color(0xFFFEE2E2); // tint clair danger (bg)
   static const red300    = Color(0xFFF4826E);
   static const red400    = Color(0xFFD63F28);
 
@@ -223,12 +226,6 @@ class LiliaOrderStatus {
   };
 }
 
-// ─── formatCurrency ───────────────────────────────────────────────────────────
-
-String liliaFormatPrice(num amount) {
-  final formatted = amount.toInt().toString().replaceAllMapped(
-    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-    (m) => '${m[1]} ',
-  );
-  return '$formatted FCFA';
-}
+// Le formatage des montants est centralisé dans `lib/core/utils/currency.dart`
+// (`formatXaf`). L'ancien `liliaFormatPrice` (dead code, devise « FCFA ») a été
+// retiré au profit de ce helper unique (cf. A15).

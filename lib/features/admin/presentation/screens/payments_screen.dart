@@ -28,10 +28,13 @@ const _paymentMethodLabels = <String, String>{
   'CASH_ON_DELIVERY': 'À la livraison',
 };
 
+// Couleurs d'identité des opérateurs de paiement externes — intentionnellement
+// HORS du design system Lilia (`lilia_tokens.dart`) : ce sont les couleurs de
+// marque MTN / Airtel, pas des tokens de marque Lilia (cf. A19).
 const _paymentMethodColors = <String, Color>{
-  'MTN_MOMO': Color(0xFFFACC15),     // jaune MTN
-  'AIRTEL_MONEY': Color(0xFFEF4444), // rouge Airtel
-  'CASH_ON_DELIVERY': Color(0xFF9CA3AF),
+  'MTN_MOMO': Color(0xFFFACC15),     // jaune marque MTN
+  'AIRTEL_MONEY': Color(0xFFEF4444), // rouge marque Airtel
+  'CASH_ON_DELIVERY': Color(0xFF9CA3AF), // gris neutre (espèces)
 };
 
 /// LIL-132 : emoji par vendorType — local au payments screen pour éviter
@@ -428,7 +431,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    DateFormat('dd/MM/yyyy HH:mm').format(payment.createdAt),
+                    DateFormat('dd/MM/yyyy HH:mm', 'fr_FR').format(payment.createdAt),
                     style: TextStyle(color: Colors.grey[500], fontSize: 12),
                     overflow: TextOverflow.ellipsis,
                   ),

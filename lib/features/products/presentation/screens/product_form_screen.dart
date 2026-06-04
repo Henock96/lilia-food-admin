@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:lilia_admin/core/utils/currency.dart';
 import '../../../../models/product.dart';
 import '../../../../models/product_type.dart';
 import '../../../../models/stock_mode.dart';
@@ -379,7 +380,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             TextFormField(
               controller: _priceController,
               decoration: const InputDecoration(
-                labelText: 'Prix (FCFA) *',
+                labelText: 'Prix (XAF) *',
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.number,
@@ -585,7 +586,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   return Card(
                     child: ListTile(
                       title: Text(variant.label!),
-                      subtitle: Text('${variant.prix.toStringAsFixed(0)} FCFA'),
+                      subtitle: Text(formatXaf(variant.prix)),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -673,7 +674,7 @@ class _VariantDialogState extends State<_VariantDialog> {
           TextField(
             controller: _priceController,
             decoration: const InputDecoration(
-              labelText: 'Prix (FCFA)',
+              labelText: 'Prix (XAF)',
               border: OutlineInputBorder(),
             ),
             keyboardType: TextInputType.number,

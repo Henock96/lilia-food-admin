@@ -183,7 +183,7 @@ class _DelivererDetailScreenState extends ConsumerState<DelivererDetailScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(_Strings.phoneCopied),
-        duration: Duration(seconds: 1),
+        duration: Duration(seconds: 2),
       ),
     );
   }

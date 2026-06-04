@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../models/app_deliverer.dart';
@@ -40,7 +41,9 @@ class DeliveryService {
       try {
         final body = json.decode(response.body);
         if (body['message'] is String) msg = body['message'];
-      } catch (_) {}
+      } catch (e) {
+        if (kDebugMode) debugPrint('[DeliveryService] assign parse error: $e');
+      }
       throw Exception(msg);
     }
   }

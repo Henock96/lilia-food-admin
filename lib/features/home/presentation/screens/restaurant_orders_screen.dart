@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import 'package:lilia_admin/core/utils/currency.dart';
 import '../../../../models/order.dart';
 import '../../../../services/admin_tracking_socket_service.dart';
 import '../../data/order_controller.dart';
@@ -606,6 +607,7 @@ class OrderCard extends ConsumerWidget {
                           Text(
                             DateFormat(
                               'dd/MM/yyyy à HH:mm',
+                              'fr_FR',
                             ).format(order.createdAt),
                             style: TextStyle(
                               color: Colors.grey[600],
@@ -624,7 +626,7 @@ class OrderCard extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Text(
-                          '${order.total.toStringAsFixed(0)} FCFA',
+                          formatXaf(order.total),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: theme.colorScheme.onPrimaryContainer,

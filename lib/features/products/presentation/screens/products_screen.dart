@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lilia_admin/core/utils/currency.dart';
 import '../../../../models/product.dart';
 import '../providers/products_provider.dart';
 import 'product_form_screen.dart';
@@ -151,7 +152,7 @@ class _ProductCard extends ConsumerWidget {
                 style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
             Text(
-              '${product.prixOriginal.toStringAsFixed(0)} FCFA',
+              formatXaf(product.prixOriginal),
               style: const TextStyle(
                 color: Colors.green,
                 fontWeight: FontWeight.w600,

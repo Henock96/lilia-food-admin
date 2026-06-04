@@ -8,4 +8,8 @@ class AppConstants {
     defaultValue: 'https://lilia-backend.onrender.com',
   );
   static const String trackingNamespace = '/tracking';
+
+  /// Taille de page par défaut pour les listes paginées admin
+  /// (paiements, livreurs, missions…).
+  static const int adminPageSize = 20;
 }

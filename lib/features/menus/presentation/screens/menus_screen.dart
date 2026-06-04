@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:lilia_admin/core/utils/currency.dart';
 import '../../../../models/menu.dart';
 import '../providers/menus_provider.dart';
 import 'menu_form_screen.dart';
@@ -109,7 +110,7 @@ class _MenuCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+    final dateFormat = DateFormat('dd/MM/yyyy HH:mm', 'fr_FR');
     final isValid = menu.isCurrentlyValid;
     final isExpired = menu.isExpired;
 
@@ -229,7 +230,7 @@ class _MenuCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${menu.prix.toStringAsFixed(0)} FCFA',
+                  formatXaf(menu.prix),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,

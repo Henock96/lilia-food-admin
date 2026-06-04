@@ -162,7 +162,7 @@ class _DeliverersScreenState extends ConsumerState<DeliverersScreen> {
                 const SizedBox(height: 4),
                 Text(
                   lastDelivery != null
-                      ? '${_Strings.lastDeliveryPrefix}${DateFormat('dd/MM/yyyy').format(lastDelivery.createdAt)}'
+                      ? '${_Strings.lastDeliveryPrefix}${DateFormat('dd/MM/yyyy', 'fr_FR').format(lastDelivery.createdAt)}'
                       : _Strings.noDelivery,
                   style: theme.textTheme.labelSmall
                       ?.copyWith(color: scheme.outline),
