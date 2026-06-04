@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../models/order.dart';
 
 import 'package:lilia_admin/constants/app_constants.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 class OrderService {
   final String _baseUrl =
       AppConstants.baseUrl; // Votre URL de backend
@@ -26,9 +27,9 @@ class OrderService {
     );
 
     if (response.statusCode == 200) {
-      // Le backend renvoie { "data": [...] }
-      final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
-      final List<dynamic> ordersData = responseData['data'] as List<dynamic>? ?? [];
+      // Tolère liste brute / simple wrap / double wrap (interceptor backend).
+      final ordersData =
+          ApiResponse.listOf(json.decode(utf8.decode(response.bodyBytes)));
       return ordersData.map((json) => Order.fromJson(json as Map<String, dynamic>)).toList();
     } else {
       throw Exception('Failed to load orders: ${response.body}');

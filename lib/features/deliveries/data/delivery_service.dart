@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../../../models/app_deliverer.dart';
 
 import 'package:lilia_admin/constants/app_constants.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 class DeliveryService {
   static const _baseUrl = AppConstants.baseUrl;
 
@@ -18,7 +19,7 @@ class DeliveryService {
       headers: {'Authorization': 'Bearer $token'},
     );
     if (response.statusCode == 200) {
-      final data = json.decode(response.body)['data'] as List<dynamic>? ?? [];
+      final data = ApiResponse.listOf(json.decode(response.body));
       return data.map((e) => AppDeliverer.fromJson(e as Map<String, dynamic>)).toList();
     }
     throw Exception('Impossible de charger les livreurs');

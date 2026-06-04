@@ -7,6 +7,7 @@ import '../../../models/restaurant.dart';
 import '../../../models/vendor_type.dart';
 
 import 'package:lilia_admin/constants/app_constants.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 /// Service marketplace admin (LIL-128) — endpoints `/admin/vendors/*`.
 /// Réutilise la classe `Restaurant` côté Flutter ; le backend renvoie un
 /// payload élargi (owner + vendorProfile + _count) mais les seuls champs
@@ -45,8 +46,9 @@ class AdminVendorsService {
     if (response.statusCode != 200) {
       throw Exception('Erreur ${response.statusCode} : ${response.body}');
     }
-    final decoded = json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-    final list = (decoded['data'] as List).cast<Map<String, dynamic>>();
+    // Backend renvoie { data:[...], total } → double-wrappé par l'interceptor.
+    final list = ApiResponse.listOf(json.decode(utf8.decode(response.bodyBytes)))
+        .cast<Map<String, dynamic>>();
     return list.map(AdminVendorItem.fromJson).toList();
   }
 
@@ -60,8 +62,9 @@ class AdminVendorsService {
     if (response.statusCode != 200) {
       throw Exception('Erreur ${response.statusCode} : ${response.body}');
     }
-    final decoded = json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-    final list = (decoded['data'] as List).cast<Map<String, dynamic>>();
+    // /admin/vendors/pending → { data:[...], ... } double-wrappé.
+    final list = ApiResponse.listOf(json.decode(utf8.decode(response.bodyBytes)))
+        .cast<Map<String, dynamic>>();
     return list.map(AdminVendorItem.fromJson).toList();
   }
 

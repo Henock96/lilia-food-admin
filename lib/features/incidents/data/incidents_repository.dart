@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:lilia_admin/models/incident.dart';
 
 import 'package:lilia_admin/constants/app_constants.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 /// Accès HTTP aux endpoints `/incidents` du backend (ADMIN-only).
 ///
 /// Le backend renvoie :
@@ -59,9 +60,10 @@ class IncidentsRepository {
       );
     }
 
-    final body = json.decode(utf8.decode(response.bodyBytes))
-        as Map<String, dynamic>;
-    final list = (body['data'] as List<dynamic>? ?? <dynamic>[])
+    // { data:[...], total } → double-wrappé par l'interceptor : on déballe
+    // l'enveloppe externe, la liste ET `total` sont dans la map interne.
+    final body = ApiResponse.mapOf(json.decode(utf8.decode(response.bodyBytes)));
+    final list = ApiResponse.listOf(body)
         .map((e) => Incident.fromJson(e as Map<String, dynamic>))
         .toList(growable: false);
     return PaginatedIncidents(

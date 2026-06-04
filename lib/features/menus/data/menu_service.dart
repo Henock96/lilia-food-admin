@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../models/menu.dart';
 
 import 'package:lilia_admin/constants/app_constants.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 class MenuService {
   final String _baseUrl = AppConstants.baseUrl;
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -25,9 +26,10 @@ class MenuService {
     );
 
     if (response.statusCode == 200) {
-      // Le backend renvoie { "data": [...], "message": "...", "count": ... }
-      final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
-      final List<dynamic> menusData = responseData['data'] as List<dynamic>? ?? [];
+      // Backend renvoie { data:[...], count } → double-wrappé par l'interceptor.
+      // ApiResponse.listOf tolère liste brute / simple wrap / double wrap.
+      final menusData =
+          ApiResponse.listOf(json.decode(utf8.decode(response.bodyBytes)));
       return menusData.map((json) => MenuDuJour.fromJson(json as Map<String, dynamic>)).toList();
     } else {
       throw Exception('Failed to load menus: ${response.body}');
