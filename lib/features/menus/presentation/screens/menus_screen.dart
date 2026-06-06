@@ -88,7 +88,7 @@ class MenusScreen extends ConsumerWidget {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -96,8 +96,7 @@ class MenusScreen extends ConsumerWidget {
             ),
           );
         },
-        icon: const Icon(Icons.add),
-        label: const Text('Nouveau menu'),
+        child: const Icon(Icons.add),
       ),
     );
   }

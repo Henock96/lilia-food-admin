@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:lilia_admin/core/utils/currency.dart';
+import 'package:lilia_admin/core/utils/date_format.dart';
 import '../../../../models/order.dart';
 import '../../../../models/app_deliverer.dart';
 import '../../../deliveries/data/delivery_service.dart';
@@ -142,7 +143,7 @@ class OrderDetailScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  DateFormat('dd/MM/yyyy à HH:mm', 'fr_FR').format(order.createdAt),
+                  formatBrazzavilleDateTime(order.createdAt),
                   style: TextStyle(color: Colors.grey[600], fontSize: 13),
                 ),
               ],
@@ -170,7 +171,7 @@ class OrderDetailScreen extends ConsumerWidget {
   /// LIL-125 : carte dédiée pour le créneau de retrait/livraison demandé
   /// (champs LIL-121). Format complet "Jeudi 30 mai 2026 à 14:30" en Brazzaville.
   Widget _buildPreorderSection(BuildContext context, Order order) {
-    final bzv = order.scheduledFor!.toUtc().add(const Duration(hours: 1));
+    final bzv = toBrazzaville(order.scheduledFor!);
     final full = DateFormat('EEEE d MMMM y', 'fr_FR').format(bzv);
     final time = DateFormat('HH:mm').format(bzv);
     // Capitalise la première lettre du jour ("jeudi" → "Jeudi").
@@ -557,7 +558,7 @@ class OrderDetailScreen extends ConsumerWidget {
             if (order.serviceFee > 0) ...[
               const SizedBox(height: 8),
               _priceRow(
-                'Frais de service (10%)',
+                'Frais de service',
                 formatXaf(order.serviceFee),
               ),
             ],

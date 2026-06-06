@@ -33,8 +33,13 @@ class CurrentUserProfile extends _$CurrentUserProfile {
 class UserDataSynchronizer extends _$UserDataSynchronizer {
   @override
   Future<void> build() async {
-    ref.listen(firebaseIdTokenProvider, (previous, next) async {
-      final token = next.value;
+    ref.listen(firebaseIdTokenProvider, (previous, next) {
+      // Différé hors de la phase de build : Riverpod interdit qu'un provider
+      // en modifie un autre pendant son initialisation. Or `fireImmediately`
+      // déclenche ce callback dès le build, et la branche déconnectée écrit
+      // synchroniquement dans currentUserProfileProvider.
+      Future.microtask(() async {
+        final token = next.value;
 
       if (token != null) {
         debugPrint('Jeton détecté: OK. Synchronisation du profil utilisateur.');
@@ -114,6 +119,7 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
         await Sentry.configureScope((scope) => scope.setUser(null));
         debugPrint("L'utilisateur est déconnecté, aucun jeton disponible.");
       }
+      });
     }, fireImmediately: true);
   }
 }

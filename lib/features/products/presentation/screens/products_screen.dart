@@ -92,7 +92,7 @@ class ProductsScreen extends ConsumerWidget {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -100,8 +100,7 @@ class ProductsScreen extends ConsumerWidget {
             ),
           );
         },
-        icon: const Icon(Icons.add),
-        label: const Text('Nouveau produit'),
+        child: const Icon(Icons.add),
       ),
     );
   }

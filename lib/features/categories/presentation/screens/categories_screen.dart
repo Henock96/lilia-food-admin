@@ -78,10 +78,9 @@ class CategoriesScreen extends ConsumerWidget {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () => _showCategoryDialog(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Nouvelle catégorie'),
+        child: const Icon(Icons.add),
       ),
     );
   }

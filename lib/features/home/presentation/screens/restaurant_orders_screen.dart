@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:lilia_admin/core/utils/currency.dart';
+import 'package:lilia_admin/core/utils/date_format.dart';
 import '../../../../models/order.dart';
 import '../../../../services/admin_tracking_socket_service.dart';
 import '../../data/order_controller.dart';
@@ -390,7 +391,7 @@ class _ErrorState extends StatelessWidget {
 /// Brazzaville (UTC+1, pas de DST). Approche simple : on convertit en UTC
 /// puis on ajoute 1h. Évite de dépendre d'`Intl` pour ce cas trivial.
 String _brazzavilleDateString(DateTime dt) {
-  final bzv = dt.toUtc().add(const Duration(hours: 1));
+  final bzv = toBrazzaville(dt);
   final m = bzv.month.toString().padLeft(2, '0');
   final d = bzv.day.toString().padLeft(2, '0');
   return '${bzv.year}-$m-$d';
@@ -398,7 +399,7 @@ String _brazzavilleDateString(DateTime dt) {
 
 /// LIL-125 : format compact pour les badges, ex "30 mai à 14:30".
 String _formatScheduledShort(DateTime dt) {
-  final bzv = dt.toUtc().add(const Duration(hours: 1));
+  final bzv = toBrazzaville(dt);
   final day = DateFormat('d MMM', 'fr_FR').format(bzv);
   final time = DateFormat('HH:mm').format(bzv);
   return '$day à $time';
@@ -605,10 +606,7 @@ class OrderCard extends ConsumerWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            DateFormat(
-                              'dd/MM/yyyy à HH:mm',
-                              'fr_FR',
-                            ).format(order.createdAt),
+                            formatBrazzavilleDateTime(order.createdAt),
                             style: TextStyle(
                               color: Colors.grey[600],
                               fontSize: 13,
