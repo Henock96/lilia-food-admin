@@ -30,10 +30,11 @@ class Products extends _$Products {
     });
   }
 
-  Future<void> createProduct(Map<String, dynamic> productData) async {
+  Future<Product> createProduct(Map<String, dynamic> productData) async {
     final service = ref.read(productServiceProvider);
-    await service.createProduct(productData);
+    final created = await service.createProduct(productData);
     await refresh();
+    return created;
   }
 
   Future<void> updateProduct(
