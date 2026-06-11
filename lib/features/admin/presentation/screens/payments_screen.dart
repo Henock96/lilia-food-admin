@@ -219,6 +219,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
       body: Column(
         children: [
           _buildStatsCards(statsAsync),
+          _buildValidationDelayBanner(statsAsync),
           _buildStatusFilter(),
           Expanded(
             child: paymentsAsync.when(
@@ -308,6 +309,104 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
         ),
       ),
     );
+  }
+
+  /// Bandeau « délai moyen de validation » — instrument de mesure de la DoD
+  /// LIL-78 (cible < 10 min). Vert sous le seuil, ambre au-dessus, neutre si
+  /// pas encore de données sur la fenêtre 7 jours.
+  Widget _buildValidationDelayBanner(AsyncValue<PaymentsStats> statsAsync) {
+    return statsAsync.maybeWhen(
+      orElse: () => const SizedBox.shrink(),
+      data: (stats) {
+        final delay = stats.validationDelay;
+        final avg = delay.avgMinutes;
+        final hasData = avg != null && delay.sampleCount > 0;
+        const target = 10.0; // seuil DoD en minutes
+        final withinTarget = hasData && avg <= target;
+
+        final Color accent = !hasData
+            ? Colors.grey
+            : (withinTarget ? Colors.green.shade700 : Colors.orange.shade800);
+        final IconData icon = !hasData
+            ? Icons.timer_outlined
+            : (withinTarget ? Icons.check_circle_outline : Icons.warning_amber);
+
+        final String valueText = hasData
+            ? '${_formatMinutes(avg)} en moyenne'
+            : 'Pas encore de données';
+        final String subText = hasData
+            ? 'sur ${delay.sampleCount} paiement${delay.sampleCount > 1 ? 's' : ''} confirmé${delay.sampleCount > 1 ? 's' : ''} · 7 j · cible < 10 min'
+            : 'Délai mesuré dès les premières confirmations · cible < 10 min';
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: accent.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: accent),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Délai de validation : ',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          Flexible(
+                            child: Text(
+                              valueText,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: accent,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subText,
+                        style: TextStyle(
+                            fontSize: 10.5, color: Colors.grey.shade500),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Formatte un délai en minutes de façon lisible : « 7,5 min » ou « 1 h 05 »
+  /// au-delà de 60 minutes.
+  String _formatMinutes(double minutes) {
+    if (minutes < 60) {
+      final rounded = (minutes * 10).round() / 10;
+      final asText = rounded == rounded.roundToDouble()
+          ? rounded.toStringAsFixed(0)
+          : rounded.toStringAsFixed(1).replaceAll('.', ',');
+      return '$asText min';
+    }
+    final h = minutes ~/ 60;
+    final m = (minutes % 60).round();
+    return '$h h ${m.toString().padLeft(2, '0')}';
   }
 
   Widget _statsSkeleton() {
