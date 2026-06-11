@@ -1,10 +1,16 @@
 # CLAUDE.md — Lilia Admin
 
-App Flutter pour les **restaurateurs** et **administrateurs** de la plateforme Lilia Food (Brazzaville, Congo).
+App Flutter pour les **vendeurs** (restaurateurs, cuisines maison, boulangeries,
+pâtisseries…) et **administrateurs** de la plateforme Lilia Food (Brazzaville,
+Congo).
+
+Lilia Food est devenue une **marketplace locale multi-vendeurs** : un vendeur
+est un `Restaurant` typé par `vendorType`. L'admin valide les nouveaux vendeurs
+non-RESTAURANT avant qu'ils n'apparaissent au catalogue.
 
 **Backend URL** : `AppConstants.baseUrl` (défaut `https://lilia-backend.onrender.com`,
 override via `--dart-define=API_URL=...`)
-**Rôles** : `RESTAURATEUR` (son restaurant) + `ADMIN` (tous les restaurants, vue globale)
+**Rôles** : `RESTAURATEUR` (son vendeur) + `ADMIN` (tous les vendeurs, vue globale)
 
 ## Écosystème
 
@@ -40,8 +46,13 @@ lib/
 │   │   ├── controller/ auth_controller.dart
 │   │   ├── repository/ firebase_auth_repository.dart
 │   │   └── user_sync_provider.dart    # currentUserProfileProvider
-│   ├── admin/          ADMIN only — création restaurants
-│   │   └── presentation/screens/create_restaurant_screen.dart
+│   ├── admin/          ADMIN only — création vendeurs + validation marketplace
+│   │   ├── data/admin_vendors_service.dart
+│   │   └── presentation/
+│   │       ├── screens/create_restaurant_screen.dart
+│   │       ├── screens/admin_vendors_screen.dart   # liste / pending / approve / suspend
+│   │       └── screens/payments_screen.dart
+│   │       └── providers/admin_vendors_provider.dart
 │   ├── banners/        CRUD bannières (ReorderableListView → displayOrder)
 │   ├── categories/     CRUD catégories produits
 │   ├── clients/        Liste + détail (role-aware)
@@ -148,8 +159,25 @@ final isAdmin = userProfile?.role == Role.admin;
 - `UserRepository` : `GET/PATCH /users/me`
 
 ### Admin (admin/)
-- Création restaurant avec propriétaire : `create_restaurant_screen.dart`
+- Création vendeur avec propriétaire : `create_restaurant_screen.dart` (champ `vendorType`)
 - `AdminService` → `POST /admin/restaurants`
+- **Validation marketplace** : `admin_vendors_screen.dart` + `admin_vendors_service.dart`
+  - `GET /admin/vendors?vendorType=&adminApproved=&isActive=` — vue complète
+  - `GET /admin/vendors/pending` — badge « à valider »
+  - `PATCH /admin/vendors/:id/approve` — approuve un vendeur non-RESTAURANT
+  - `PATCH /admin/vendors/:id/suspend { reason }` — `isActive=false` réversible
+- Dashboard vendeurs : `GET /dashboard/vendors` (total / pending / suspended / byType)
+
+### Marketplace — modèles (`lib/models/`)
+- `vendor_type.dart` — enum `VendorType` : RESTAURANT 🍽️ / HOME_COOK (Cuisine maison) 🥧 /
+  BAKERY (Boulangerie) 🥐 / BEVERAGE_SHOP (Boissons) 🥤 / GROCERY (Épicerie) 🛒
+- `product_type.dart` — `ProductType` (FOOD, BEVERAGE, ALCOHOL, PASTRY, GROCERY) +
+  **matrice `VendorType ↔ ProductType` autorisés** (ex : BAKERY → PASTRY+BEVERAGE).
+  `ALCOHOL` présent mais rejeté (pas de vente d'alcool au lancement).
+- `stock_mode.dart` — `StockMode` (DAILY…) ; le reset stock quotidien backend
+  n'affecte que `stockMode == DAILY`.
+- `product_form_screen.dart` étendu : `productType`, `stockMode`, fenêtre de
+  disponibilité, options sur-commande selon le `vendorType` du vendeur.
 
 ### Livreurs (deliveries/)
 - `DeliveryService.getAvailableDeliverers()` → `GET /deliveries/deliverers`
