@@ -71,10 +71,12 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
   // ensuite filtrer sur PENDING pour traiter les confirmations à faire.
   String _status = '';
   int _page = 1;
-  String? _confirmingId;
+  // Id du paiement en cours de traitement (confirmation OU rejet) — désactive
+  // tous les boutons d'action pendant l'appel pour éviter les doubles soumissions.
+  String? _processingId;
 
   Future<void> _confirmPayment(AdminPayment payment) async {
-    setState(() => _confirmingId = payment.id);
+    setState(() => _processingId = payment.id);
     try {
       await ref
           .read(adminOperationsRepositoryProvider)
@@ -97,8 +99,87 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
         ),
       );
     } finally {
-      if (mounted) setState(() => _confirmingId = null);
+      if (mounted) setState(() => _processingId = null);
     }
+  }
+
+  /// Rejet : demande une confirmation (+ raison optionnelle) avant l'appel.
+  /// La commande reste payable — le client est notifié de l'échec.
+  Future<void> _rejectPayment(AdminPayment payment) async {
+    final reason = await _askRejectionReason();
+    if (reason == null) return; // annulé
+
+    setState(() => _processingId = payment.id);
+    try {
+      await ref
+          .read(adminOperationsRepositoryProvider)
+          .rejectPayment(payment.id, reason: reason);
+      if (!mounted) return;
+      ref.invalidate(adminPaymentsProvider);
+      ref.invalidate(adminPaymentsStatsProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Paiement rejeté'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _processingId = null);
+    }
+  }
+
+  /// Retourne la raison saisie (peut être vide), ou `null` si l'admin annule.
+  Future<String?> _askRejectionReason() {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rejeter le paiement ?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'La commande restera en attente de paiement. Le client sera '
+              'notifié de l\'échec et pourra réessayer.',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                labelText: 'Raison (optionnel)',
+                hintText: 'Ex : virement non reçu',
+                border: OutlineInputBorder(),
+              ),
+              maxLength: 120,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Rejeter'),
+          ),
+        ],
+      ),
+    );
   }
 
   Color _statusColor(String status) {
@@ -440,26 +521,44 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
             ),
             if (payment.status == 'PENDING') ...[
               const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _confirmingId == null
-                      ? () => _confirmPayment(payment)
-                      : null,
-                  icon: _confirmingId == payment.id
-                      ? const SizedBox(
-                          height: 16,
-                          width: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.check, size: 18),
-                  label: const Text('Confirmer le paiement'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _processingId == null
+                          ? () => _rejectPayment(payment)
+                          : null,
+                      icon: const Icon(Icons.close, size: 18),
+                      label: const Text('Rejeter'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: _processingId == null
+                          ? () => _confirmPayment(payment)
+                          : null,
+                      icon: _processingId == payment.id
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.check, size: 18),
+                      label: const Text('Confirmer'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ],

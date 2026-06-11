@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/common_widgets/app_cached_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lilia_admin/core/utils/currency.dart';
@@ -144,18 +145,12 @@ class _MenuCard extends ConsumerWidget {
             ClipRRect(
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(12)),
-              child: Image.network(
-                menu.imageUrl!,
+              child: AppCachedImage(
+                imageUrl: menu.imageUrl!,
                 height: 150,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  height: 150,
-                  color: Colors.grey[200],
-                  child: const Center(
-                    child: Icon(Icons.restaurant_menu, size: 48),
-                  ),
-                ),
+                errorIcon: Icons.restaurant_menu,
               ),
             ),
           Padding(

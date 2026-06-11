@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/common_widgets/app_cached_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_admin/core/utils/currency.dart';
@@ -119,17 +120,11 @@ class _ProductCard extends ConsumerWidget {
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: product.imageUrl != null
-              ? Image.network(
-                  product.imageUrl!,
+              ? AppCachedImage(
+                  imageUrl: product.imageUrl!,
                   width: 60,
                   height: 60,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: 60,
-                    height: 60,
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.image_not_supported),
-                  ),
                 )
               : Container(
                   width: 60,

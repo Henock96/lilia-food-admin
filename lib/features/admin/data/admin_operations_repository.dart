@@ -137,6 +137,36 @@ class AdminOperationsRepository {
     }
   }
 
+  /// Rejet manuel d'un paiement (POST /payments/:id/reject).
+  /// `reason` optionnel — virement non retrouvé par défaut côté backend.
+  /// La commande reste EN_ATTENTE : le client pourra réessayer.
+  Future<void> rejectPayment(String paymentId, {String? reason}) async {
+    final token = await _getAuthToken();
+    final response = await http.post(
+      Uri.parse('$_baseUrl/payments/$paymentId/reject'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      }),
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      String message = 'Échec du rejet du paiement';
+      try {
+        final body = json.decode(utf8.decode(response.bodyBytes));
+        if (body is Map && body['message'] is String) {
+          message = body['message'] as String;
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('[AdminOps] rejectPayment parse error: $e');
+      }
+      throw Exception(message);
+    }
+  }
+
   /// Livreurs paginés avec leurs livraisons récentes (GET /admin/deliverers).
   Future<PaginatedDeliverers> fetchDeliverers({int page = 1}) async {
     final token = await _getAuthToken();

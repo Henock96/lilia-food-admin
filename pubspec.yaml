@@ -47,6 +47,8 @@ dependencies:
   iconsax: ^0.0.8
   image_picker: ^1.2.1
   cloudinary_public: ^0.23.1
+  cached_network_image: ^3.4.1
+  flutter_cache_manager: ^3.4.1
   url_launcher: ^6.3.1
   sentry_flutter: ^9.20.0
   socket_io_client: ^3.1.2

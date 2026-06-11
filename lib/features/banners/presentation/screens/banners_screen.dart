@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/common_widgets/app_cached_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../models/banner.dart';
 import '../providers/banners_provider.dart';
@@ -162,15 +163,10 @@ class _BannerTile extends StatelessWidget {
           SizedBox(
             height: 120,
             width: double.infinity,
-            child: Image.network(
-              banner.imageUrl,
+            child: AppCachedImage(
+              imageUrl: banner.imageUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Container(
-                color: Colors.grey[200],
-                child: const Center(
-                  child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
-                ),
-              ),
+              errorIcon: Icons.broken_image,
             ),
           ),
           Padding(

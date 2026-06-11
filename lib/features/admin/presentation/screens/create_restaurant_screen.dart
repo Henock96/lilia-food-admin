@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/common_widgets/app_cached_image.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../users/data/cloudinary_service.dart';
 import '../../data/admin_service.dart';
@@ -304,12 +305,11 @@ class _CreateRestaurantScreenState extends State<CreateRestaurantScreen> {
                           : _restaurantImageUrlController.text.isNotEmpty
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(
-                                    _restaurantImageUrlController.text,
+                                  child: AppCachedImage(
+                                    imageUrl: _restaurantImageUrlController.text,
                                     fit: BoxFit.cover,
                                     width: double.infinity,
-                                    errorBuilder: (_, _, _) =>
-                                        _buildImagePlaceholder(),
+                                    errorWidget: _buildImagePlaceholder(),
                                   ),
                                 )
                               : _buildImagePlaceholder(),
@@ -357,12 +357,12 @@ class _CreateRestaurantScreenState extends State<CreateRestaurantScreen> {
           const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              _restaurantImageUrlController.text,
+            child: AppCachedImage(
+              imageUrl: _restaurantImageUrlController.text,
               height: 100,
               width: double.infinity,
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              errorWidget: const SizedBox.shrink(),
             ),
           ),
         ],
