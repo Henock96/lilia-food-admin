@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:lilia_admin/core/utils/currency.dart';
 import '../../../auth/user_sync_provider.dart';
 import '../../../../models/role.dart';
 import '../providers/dashboard_provider.dart';
@@ -92,7 +93,7 @@ class DashboardScreen extends ConsumerWidget {
       _StatCard(
         title: 'Revenus du jour',
         value: _formatCurrency(overview.revenue.today),
-        subtitle: 'FCFA',
+        subtitle: 'XAF',
         icon: Icons.attach_money,
         color: Colors.green,
       ),
@@ -251,10 +252,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  String _formatCurrency(double amount) {
-    final formatter = NumberFormat('#,###', 'fr_FR');
-    return '${formatter.format(amount)} FCFA';
-  }
+  String _formatCurrency(double amount) => formatXaf(amount);
 }
 
 class _StatCard extends StatelessWidget {
@@ -330,7 +328,7 @@ class _RevenueItem extends StatelessWidget {
           formatter.format(amount),
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        const Text('FCFA', style: TextStyle(fontSize: 10, color: Colors.grey)),
+        const Text('XAF', style: TextStyle(fontSize: 10, color: Colors.grey)),
       ],
     );
   }
@@ -408,7 +406,7 @@ class _TopProductsSection extends ConsumerWidget {
                       title: Text(product.product?.name ?? 'Produit inconnu'),
                       subtitle: Text('${product.totalSold} vendus'),
                       trailing: Text(
-                        '${NumberFormat('#,###', 'fr_FR').format(product.totalRevenue)} FCFA',
+                        formatXaf(product.totalRevenue),
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     );
@@ -508,7 +506,7 @@ class _RestaurantRankingSection extends ConsumerWidget {
                       ),
                       subtitle: Text('${r.orderCount} commandes'),
                       trailing: Text(
-                        '${NumberFormat('#,###', 'fr_FR').format(r.totalRevenue)} F',
+                        formatXaf(r.totalRevenue),
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     );

@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:lilia_admin/models/incident.dart';
 
 import 'package:lilia_admin/constants/app_constants.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 /// Accès HTTP aux endpoints `/incidents` du backend (ADMIN-only).
 ///
 /// Le backend renvoie :
@@ -59,14 +60,16 @@ class IncidentsRepository {
       );
     }
 
-    final body = json.decode(utf8.decode(response.bodyBytes))
-        as Map<String, dynamic>;
-    final list = (body['data'] as List<dynamic>? ?? <dynamic>[])
+    // Contrat v2 : `{ data: [...], meta: { total } }`. On tolère aussi l'ancien
+    // `{ data, total }` à plat (fallback racine).
+    final body = ApiResponse.mapOf(json.decode(utf8.decode(response.bodyBytes)));
+    final list = ApiResponse.listOf(body)
         .map((e) => Incident.fromJson(e as Map<String, dynamic>))
         .toList(growable: false);
+    final meta = body['meta'] as Map<String, dynamic>?;
     return PaginatedIncidents(
       incidents: list,
-      total: (body['total'] as int?) ?? list.length,
+      total: (body['total'] as int?) ?? (meta?['total'] as int?) ?? list.length,
       limit: limit,
       offset: offset,
     );

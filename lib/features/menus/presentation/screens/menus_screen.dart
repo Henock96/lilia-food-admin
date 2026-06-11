@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/common_widgets/app_cached_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:lilia_admin/core/utils/currency.dart';
 import '../../../../models/menu.dart';
 import '../providers/menus_provider.dart';
 import 'menu_form_screen.dart';
@@ -87,7 +89,7 @@ class MenusScreen extends ConsumerWidget {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -95,8 +97,7 @@ class MenusScreen extends ConsumerWidget {
             ),
           );
         },
-        icon: const Icon(Icons.add),
-        label: const Text('Nouveau menu'),
+        child: const Icon(Icons.add),
       ),
     );
   }
@@ -109,7 +110,7 @@ class _MenuCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+    final dateFormat = DateFormat('dd/MM/yyyy HH:mm', 'fr_FR');
     final isValid = menu.isCurrentlyValid;
     final isExpired = menu.isExpired;
 
@@ -144,18 +145,12 @@ class _MenuCard extends ConsumerWidget {
             ClipRRect(
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(12)),
-              child: Image.network(
-                menu.imageUrl!,
+              child: AppCachedImage(
+                imageUrl: menu.imageUrl!,
                 height: 150,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  height: 150,
-                  color: Colors.grey[200],
-                  child: const Center(
-                    child: Icon(Icons.restaurant_menu, size: 48),
-                  ),
-                ),
+                errorIcon: Icons.restaurant_menu,
               ),
             ),
           Padding(
@@ -229,7 +224,7 @@ class _MenuCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${menu.prix.toStringAsFixed(0)} FCFA',
+                  formatXaf(menu.prix),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,

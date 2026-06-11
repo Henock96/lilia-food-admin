@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/common_widgets/app_cached_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../models/banner.dart';
@@ -166,12 +167,11 @@ class _BannerFormScreenState extends ConsumerState<BannerFormScreen> {
                       : _imageUrlController.text.isNotEmpty
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(12),
-                              child: Image.network(
-                                _imageUrlController.text,
+                              child: AppCachedImage(
+                                imageUrl: _imageUrlController.text,
                                 fit: BoxFit.cover,
                                 width: double.infinity,
-                                errorBuilder: (_, _, _) =>
-                                    _buildImagePlaceholder(),
+                                errorWidget: _buildImagePlaceholder(),
                               ),
                             )
                           : _buildImagePlaceholder(),

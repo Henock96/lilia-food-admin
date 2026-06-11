@@ -1,9 +1,16 @@
 # CLAUDE.md — Lilia Admin
 
-App Flutter pour les **restaurateurs** et **administrateurs** de la plateforme Lilia Food (Brazzaville, Congo).
+App Flutter pour les **vendeurs** (restaurateurs, cuisines maison, boulangeries,
+pâtisseries…) et **administrateurs** de la plateforme Lilia Food (Brazzaville,
+Congo).
 
-**Backend URL** : `https://lilia-backend.onrender.com`
-**Rôles** : `RESTAURATEUR` (son restaurant) + `ADMIN` (tous les restaurants, vue globale)
+Lilia Food est devenue une **marketplace locale multi-vendeurs** : un vendeur
+est un `Restaurant` typé par `vendorType`. L'admin valide les nouveaux vendeurs
+non-RESTAURANT avant qu'ils n'apparaissent au catalogue.
+
+**Backend URL** : `AppConstants.baseUrl` (défaut `https://lilia-backend.onrender.com`,
+override via `--dart-define=API_URL=...`)
+**Rôles** : `RESTAURATEUR` (son vendeur) + `ADMIN` (tous les vendeurs, vue globale)
 
 ## Écosystème
 
@@ -39,8 +46,13 @@ lib/
 │   │   ├── controller/ auth_controller.dart
 │   │   ├── repository/ firebase_auth_repository.dart
 │   │   └── user_sync_provider.dart    # currentUserProfileProvider
-│   ├── admin/          ADMIN only — création restaurants
-│   │   └── presentation/screens/create_restaurant_screen.dart
+│   ├── admin/          ADMIN only — création vendeurs + validation marketplace
+│   │   ├── data/admin_vendors_service.dart
+│   │   └── presentation/
+│   │       ├── screens/create_restaurant_screen.dart
+│   │       ├── screens/admin_vendors_screen.dart   # liste / pending / approve / suspend
+│   │       └── screens/payments_screen.dart
+│   │       └── providers/admin_vendors_provider.dart
 │   ├── banners/        CRUD bannières (ReorderableListView → displayOrder)
 │   ├── categories/     CRUD catégories produits
 │   ├── clients/        Liste + détail (role-aware)
@@ -147,8 +159,25 @@ final isAdmin = userProfile?.role == Role.admin;
 - `UserRepository` : `GET/PATCH /users/me`
 
 ### Admin (admin/)
-- Création restaurant avec propriétaire : `create_restaurant_screen.dart`
+- Création vendeur avec propriétaire : `create_restaurant_screen.dart` (champ `vendorType`)
 - `AdminService` → `POST /admin/restaurants`
+- **Validation marketplace** : `admin_vendors_screen.dart` + `admin_vendors_service.dart`
+  - `GET /admin/vendors?vendorType=&adminApproved=&isActive=` — vue complète
+  - `GET /admin/vendors/pending` — badge « à valider »
+  - `PATCH /admin/vendors/:id/approve` — approuve un vendeur non-RESTAURANT
+  - `PATCH /admin/vendors/:id/suspend { reason }` — `isActive=false` réversible
+- Dashboard vendeurs : `GET /dashboard/vendors` (total / pending / suspended / byType)
+
+### Marketplace — modèles (`lib/models/`)
+- `vendor_type.dart` — enum `VendorType` : RESTAURANT 🍽️ / HOME_COOK (Cuisine maison) 🥧 /
+  BAKERY (Boulangerie) 🥐 / BEVERAGE_SHOP (Boissons) 🥤 / GROCERY (Épicerie) 🛒
+- `product_type.dart` — `ProductType` (FOOD, BEVERAGE, ALCOHOL, PASTRY, GROCERY) +
+  **matrice `VendorType ↔ ProductType` autorisés** (ex : BAKERY → PASTRY+BEVERAGE).
+  `ALCOHOL` présent mais rejeté (pas de vente d'alcool au lancement).
+- `stock_mode.dart` — `StockMode` (DAILY…) ; le reset stock quotidien backend
+  n'affecte que `stockMode == DAILY`.
+- `product_form_screen.dart` étendu : `productType`, `stockMode`, fenêtre de
+  disponibilité, options sur-commande selon le `vendorType` du vendeur.
 
 ### Livreurs (deliveries/)
 - `DeliveryService.getAvailableDeliverers()` → `GET /deliveries/deliverers`
@@ -191,15 +220,27 @@ final isAdmin = userProfile?.role == Role.admin;
 
 ## Format des réponses backend
 
-| Endpoint | Format |
+| Endpoint | Format actuel |
 |---|---|
 | `GET /orders/restaurant` | `{ data: [...], count, meta? }` |
-| `GET /orders/:id` | objet plat (Order) |
-| `PATCH /orders/:id/status` | Order avec relations |
+| `GET /orders/:id` | objet plat (Order) → bientôt `{ data: {...} }` (J2) |
+| `PATCH /orders/:id/status` | Order avec relations → bientôt `{ data: {...} }` (J2) |
 | `GET /deliveries/deliverers` | `{ data: [...] }` |
-| `GET /dashboard/*` | objet plat (pas de wrapper) |
+| `GET /dashboard/*` | objet plat → bientôt `{ data: {...} }` (J2) |
 | `GET /admin/clients` | `{ data: [...], count }` |
-| `POST /admin/restaurants` | Restaurant créé |
+| `POST /admin/restaurants` | Restaurant créé → bientôt `{ data: {...} }` (J2) |
+
+### Helper `ApiResponse` (J2 — juin 2026)
+
+`lib/utils/api_response.dart` — tolère raw OU `{ data: ... }` pendant
+la migration backend vers `api-contract-v2`. À utiliser systématiquement :
+
+- `ApiResponse.listOf(decoded)` → `List<dynamic>` (vide si payload inattendu)
+- `ApiResponse.mapOf(decoded)` → `Map<String, dynamic>` (throw sinon)
+
+Photo services (`vendor_photos_service`, `product_images_service`,
+`menu_images_service`) déjà migrés. À étendre aux autres services au fil
+des touches.
 
 ---
 
@@ -243,7 +284,6 @@ url_launcher: ^6.3.1
 
 1. **Pas de WebSocket admin** alors que le backend offre `/tracking` avec `order:status` broadcast multi-instance. Utile si l'admin gère plusieurs commandes simultanées (pour éviter de dépendre uniquement des push FCM qui peuvent rater).
 2. **Pas de carte live multi-livreurs** côté admin/superviseur.
-3. **`flutter_riverpod: ^3.0.1`** alors que les autres apps sont en `^3.3.1` — aligner.
 
 ---
 

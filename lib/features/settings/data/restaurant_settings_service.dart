@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../models/restaurant.dart';
 
 import 'package:lilia_admin/constants/app_constants.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 class RestaurantSettingsService {
   final String _baseUrl = AppConstants.baseUrl;
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -118,7 +119,7 @@ class RestaurantSettingsService {
 
     if (response.statusCode == 200) {
       final data = json.decode(utf8.decode(response.bodyBytes));
-      final specialties = data['data'] as List;
+      final specialties = ApiResponse.listOf(data);
       return specialties.map((s) => Specialty.fromJson(s)).toList();
     } else {
       throw Exception('Failed to load specialties: ${response.body}');
@@ -170,7 +171,7 @@ class RestaurantSettingsService {
 
     if (response.statusCode == 200) {
       final data = json.decode(utf8.decode(response.bodyBytes));
-      final hours = data['data'] as List;
+      final hours = ApiResponse.listOf(data);
       return hours.map((h) => OperatingHours.fromJson(h)).toList();
     } else {
       throw Exception('Failed to load operating hours: ${response.body}');
@@ -194,7 +195,7 @@ class RestaurantSettingsService {
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = json.decode(utf8.decode(response.bodyBytes));
-      final result = data['data'] as List;
+      final result = ApiResponse.listOf(data);
       return result.map((h) => OperatingHours.fromJson(h)).toList();
     } else {
       throw Exception('Failed to set operating hours: ${response.body}');

@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../models/app_deliverer.dart';
 
 import 'package:lilia_admin/constants/app_constants.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 class DeliveryService {
   static const _baseUrl = AppConstants.baseUrl;
 
@@ -17,7 +19,7 @@ class DeliveryService {
       headers: {'Authorization': 'Bearer $token'},
     );
     if (response.statusCode == 200) {
-      final data = json.decode(response.body)['data'] as List<dynamic>? ?? [];
+      final data = ApiResponse.listOf(json.decode(response.body));
       return data.map((e) => AppDeliverer.fromJson(e as Map<String, dynamic>)).toList();
     }
     throw Exception('Impossible de charger les livreurs');
@@ -40,7 +42,9 @@ class DeliveryService {
       try {
         final body = json.decode(response.body);
         if (body['message'] is String) msg = body['message'];
-      } catch (_) {}
+      } catch (e) {
+        if (kDebugMode) debugPrint('[DeliveryService] assign parse error: $e');
+      }
       throw Exception(msg);
     }
   }

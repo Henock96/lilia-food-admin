@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:lilia_admin/core/utils/currency.dart';
 import 'package:lilia_admin/features/clients/presentation/providers/user_orders_provider.dart';
 import 'package:lilia_admin/features/clients/presentation/providers/clients_provider.dart';
 import 'package:lilia_admin/features/auth/user_sync_provider.dart';
@@ -219,7 +220,7 @@ class ClientDetailScreen extends ConsumerWidget {
                         Icon(Icons.calendar_today_outlined, size: 14, color: Colors.grey[400]),
                         const SizedBox(width: 6),
                         Text(
-                          'Inscrit le ${DateFormat('dd/MM/yyyy').format(client.createdAt)}',
+                          'Inscrit le ${DateFormat('dd/MM/yyyy', 'fr_FR').format(client.createdAt)}',
                           style: TextStyle(color: Colors.grey[500], fontSize: 12),
                         ),
                       ],
@@ -267,7 +268,7 @@ class ClientDetailScreen extends ConsumerWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Contact copié'),
-                        duration: Duration(seconds: 1),
+                        duration: Duration(seconds: 2),
                       ),
                     );
                   },
@@ -357,7 +358,7 @@ class ClientDetailScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(left: 28, top: 2),
               child: Text(
-                '≈ ${loyalty.balance * 5} FCFA de réduction disponible',
+                '≈ ${formatXaf(loyalty.balance * 5)} de réduction disponible',
                 style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
             ),
@@ -373,7 +374,7 @@ class ClientDetailScreen extends ConsumerWidget {
                             children: [
                               Text(t.reason, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
                               Text(
-                                DateFormat('dd/MM/yyyy').format(t.createdAt),
+                                DateFormat('dd/MM/yyyy', 'fr_FR').format(t.createdAt),
                                 style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                               ),
                             ],

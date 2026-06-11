@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:lilia_admin/core/utils/currency.dart';
+import '../../../../common_widgets/photo_gallery_editor.dart';
 import '../../../../models/product.dart';
 import '../../../../models/product_type.dart';
 import '../../../../models/stock_mode.dart';
 import '../../../../models/vendor_type.dart';
 import '../../../categories/presentation/providers/categories_provider.dart';
 import '../../../categories/presentation/widgets/create_category_dialog.dart';
+import '../../../photos/application/photos_controller.dart';
+import '../../../photos/data/photo_models.dart';
 import '../../../restaurant/presentation/providers/restaurant_provider.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
-import '../../../users/data/cloudinary_service.dart';
 import '../providers/products_provider.dart';
+import '../widgets/product_image_buffer.dart';
+import '../widgets/product_image_buffer_field.dart';
 
 class ProductFormScreen extends ConsumerStatefulWidget {
   final Product? product;
@@ -27,14 +30,13 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _priceController;
-  late TextEditingController _imageUrlController;
   late TextEditingController _stockController;
   late TextEditingController _ingredientsController;
   late TextEditingController _shelfLifeController;
   String? _selectedCategoryId;
   List<ProductVariant> _variants = [];
   bool _isLoading = false;
-  bool _isUploading = false;
+  final ProductImageBuffer _imageBuffer = ProductImageBuffer();
 
   // LIL-126 : champs marketplace + pré-commande
   ProductType? _productType;
@@ -51,8 +53,6 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         TextEditingController(text: widget.product?.description ?? '');
     _priceController = TextEditingController(
         text: widget.product?.prixOriginal.toStringAsFixed(0) ?? '');
-    _imageUrlController =
-        TextEditingController(text: widget.product?.imageUrl ?? '');
     _stockController = TextEditingController(
         text: widget.product?.stockQuotidien?.toString() ?? '');
     _ingredientsController =
@@ -71,51 +71,11 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     _nameController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
-    _imageUrlController.dispose();
     _stockController.dispose();
     _ingredientsController.dispose();
     _shelfLifeController.dispose();
+    _imageBuffer.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickAndUploadImage() async {
-    final picker = ImagePicker();
-    final image = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1920,
-      maxHeight: 1080,
-      imageQuality: 85,
-    );
-
-    if (image == null) return;
-
-    setState(() => _isUploading = true);
-
-    try {
-      final cloudinary = CloudinaryService();
-      final url = await cloudinary.uploadImage(image);
-
-      if (url != null && mounted) {
-        setState(() {
-          _imageUrlController.text = url;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Image uploadée avec succès')),
-        );
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Erreur lors de l'upload")),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isUploading = false);
-    }
   }
 
   /// LIL-129 : champ catégorie qui s'adapte au cas où la liste est vide
@@ -203,20 +163,6 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     }
   }
 
-  Widget _buildImagePlaceholder() {
-    return const Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.add_photo_alternate_outlined, size: 48, color: Colors.grey),
-        SizedBox(height: 8),
-        Text(
-          'Appuyez pour ajouter une image',
-          style: TextStyle(color: Colors.grey),
-        ),
-      ],
-    );
-  }
-
   Future<void> _saveProduct() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedCategoryId == null) {
@@ -239,13 +185,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       final stockText = _stockController.text.trim();
       final ingredientsText = _ingredientsController.text.trim();
       final shelfLifeText = _shelfLifeController.text.trim();
-      final productData = {
+      final productData = <String, dynamic>{
         'nom': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
         'prixOriginal': double.parse(_priceController.text.trim()),
-        'imageUrl': _imageUrlController.text.trim().isEmpty
-            ? null
-            : _imageUrlController.text.trim(),
         'categoryId': _selectedCategoryId,
         'restaurantId': restaurantId,
         'variants': _variants.map((v) => v.toJson()).toList(),
@@ -259,11 +202,27 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       };
 
       if (isEditing) {
+        // En édition, la galerie embarquée gère les images en live (et la
+        // couverture pilote imageUrl côté backend). On n'envoie pas imageUrl.
         await ref
             .read(productsProvider.notifier)
             .updateProduct(widget.product!.id, productData);
       } else {
-        await ref.read(productsProvider.notifier).createProduct(productData);
+        // Création : la couverture du buffer alimente imageUrl, puis on
+        // rattache chaque image bufferisée au produit fraîchement créé.
+        productData['imageUrl'] = _imageBuffer.coverUrl;
+        final created = await ref
+            .read(productsProvider.notifier)
+            .createProduct(productData);
+        final failures = await _attachBufferedImages(created.id);
+        if (mounted && failures > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Produit créé, mais $failures photo(s) n\'ont pas pu être ajoutées — réessayez depuis l\'édition.'),
+            ),
+          );
+        }
       }
 
       if (mounted) {
@@ -285,6 +244,28 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  /// POST chaque image du buffer vers /product-images dans l'ordre. Renvoie le
+  /// nombre d'échecs (les images sont secondaires : pas de rollback produit).
+  Future<int> _attachBufferedImages(String productId) async {
+    final facade = ref.read(photosFacadeProvider);
+    final drafts = _imageBuffer.drafts;
+    var failures = 0;
+    for (final d in drafts) {
+      try {
+        await facade.create(
+          EntityType.product,
+          productId,
+          url: d.url,
+          publicId: d.publicId,
+          isCover: d.isCover,
+        );
+      } catch (_) {
+        failures++;
+      }
+    }
+    return failures;
   }
 
   void _addVariant() {
@@ -333,20 +314,6 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Modifier le produit' : 'Nouveau produit'),
-        actions: [
-          if (widget.product != null)
-            IconButton(
-              tooltip: 'Gérer les photos',
-              icon: const Icon(Icons.photo_library_outlined),
-              onPressed: () => context.pushNamed(
-                'photos',
-                queryParameters: {
-                  'entityType': 'product',
-                  'parentId': widget.product!.id,
-                },
-              ),
-            ),
-        ],
       ),
       body: Form(
         key: _formKey,
@@ -379,7 +346,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             TextFormField(
               controller: _priceController,
               decoration: const InputDecoration(
-                labelText: 'Prix (FCFA) *',
+                labelText: 'Prix (XAF) *',
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.number,
@@ -412,46 +379,17 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               },
             ),
             const SizedBox(height: 16),
-            // Aperçu image
-            GestureDetector(
-              onTap: _isUploading ? null : _pickAndUploadImage,
-              child: Container(
-                height: 180,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[300]!),
+            // Galerie photos : buffer en création, galerie live en édition.
+            if (isEditing)
+              SizedBox(
+                height: 360,
+                child: PhotoGalleryEditor(
+                  entityType: EntityType.product,
+                  parentId: widget.product!.id,
                 ),
-                child: _isUploading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _imageUrlController.text.isNotEmpty
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              _imageUrlController.text,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              errorBuilder: (_, _, _) =>
-                                  _buildImagePlaceholder(),
-                            ),
-                          )
-                        : _buildImagePlaceholder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _imageUrlController,
-              readOnly: true,
-              decoration: InputDecoration(
-                labelText: 'URL de l\'image',
-                border: const OutlineInputBorder(),
-                hintText: 'Uploadez une image ci-dessus',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.upload),
-                  onPressed: _isUploading ? null : _pickAndUploadImage,
-                ),
-              ),
-            ),
+              )
+            else
+              ProductImageBufferField(buffer: _imageBuffer),
             const SizedBox(height: 16),
             categoriesAsync.when(
               data: (categories) => _buildCategoryField(categories),
@@ -585,7 +523,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   return Card(
                     child: ListTile(
                       title: Text(variant.label!),
-                      subtitle: Text('${variant.prix.toStringAsFixed(0)} FCFA'),
+                      subtitle: Text(formatXaf(variant.prix)),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -673,7 +611,7 @@ class _VariantDialogState extends State<_VariantDialog> {
           TextField(
             controller: _priceController,
             decoration: const InputDecoration(
-              labelText: 'Prix (FCFA)',
+              labelText: 'Prix (XAF)',
               border: OutlineInputBorder(),
             ),
             keyboardType: TextInputType.number,

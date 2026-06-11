@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:lilia_admin/utils/api_response.dart';
 import 'package:lilia_admin/models/admin_payment.dart';
 import 'package:lilia_admin/models/payments_stats.dart';
 import 'package:lilia_admin/models/admin_deliverer.dart';
@@ -28,6 +30,28 @@ class AdminOperationsRepository {
     return await user.getIdToken();
   }
 
+  /// Extrait `{ items, total, page, limit }` d'une réponse paginée en tolérant :
+  /// - le **double-wrap** de l'`ApiResponseInterceptor` backend (B24) :
+  ///   `{ data: { data: [...], total, page, limit } }`
+  /// - la forme cible `{ data: [...], meta: { total, page, limit } }`
+  /// - la forme historique simple `{ data: [...], total, page, limit }`
+  ({List<dynamic> items, int total, int page, int limit}) _paginated(
+    dynamic decoded,
+    int requestedPage,
+  ) {
+    final pg = ApiResponse.mapOf(decoded); // déballe un éventuel niveau `data`
+    final items = ApiResponse.listOf(pg);
+    final meta = pg['meta'] as Map<String, dynamic>?;
+    int read(String key, int fallback) =>
+        (pg[key] as int?) ?? (meta?[key] as int?) ?? fallback;
+    return (
+      items: items,
+      total: read('total', items.length),
+      page: read('page', requestedPage),
+      limit: read('limit', AppConstants.adminPageSize),
+    );
+  }
+
   /// Paiements paginés (GET /admin/payments).
   /// `status` vide → vue "Tous statuts confondus" (pas de filtre côté backend).
   Future<PaginatedPayments> fetchPayments({
@@ -38,7 +62,7 @@ class AdminOperationsRepository {
     final url = Uri.parse('$_baseUrl/admin/payments').replace(
       queryParameters: {
         'page': '$page',
-        'limit': '20',
+        'limit': '${AppConstants.adminPageSize}',
         if (status.isNotEmpty) 'status': status,
       },
     );
@@ -52,20 +76,21 @@ class AdminOperationsRepository {
     );
 
     if (response.statusCode == 200) {
-      final body = json.decode(utf8.decode(response.bodyBytes))
-          as Map<String, dynamic>;
-      final list = body['data'] as List<dynamic>? ?? [];
+      final p = _paginated(
+        json.decode(utf8.decode(response.bodyBytes)),
+        page,
+      );
       return PaginatedPayments(
-        payments: list
+        payments: p.items
             .map((j) => AdminPayment.fromJson(j as Map<String, dynamic>))
             .toList(),
-        total: body['total'] as int? ?? list.length,
-        page: body['page'] as int? ?? page,
-        limit: body['limit'] as int? ?? 20,
+        total: p.total,
+        page: p.page,
+        limit: p.limit,
       );
     }
     throw Exception(
-        'Échec du chargement des paiements: ${response.statusCode} ${response.body}');
+        _parseError(response, 'Échec du chargement des paiements'));
   }
 
   /// KPI paiements agrégés (GET /admin/payments/stats).
@@ -79,10 +104,8 @@ class AdminOperationsRepository {
       },
     );
     if (response.statusCode == 200) {
-      final body = json.decode(utf8.decode(response.bodyBytes))
-          as Map<String, dynamic>;
-      // Le backend renvoie l'objet plat (pas wrappé) — on tolère les 2 formes.
-      final data = body['data'] as Map<String, dynamic>? ?? body;
+      // Tolère objet plat OU enveloppe `{ data: ... }` via le helper partagé.
+      final data = ApiResponse.mapOf(json.decode(utf8.decode(response.bodyBytes)));
       return PaymentsStats.fromJson(data);
     }
     throw Exception(_parseError(
@@ -107,7 +130,39 @@ class AdminOperationsRepository {
         if (body is Map && body['message'] is String) {
           message = body['message'] as String;
         }
-      } catch (_) {}
+      } catch (e) {
+        if (kDebugMode) debugPrint('[AdminOps] confirmPayment parse error: $e');
+      }
+      throw Exception(message);
+    }
+  }
+
+  /// Rejet manuel d'un paiement (POST /payments/:id/reject).
+  /// `reason` optionnel — virement non retrouvé par défaut côté backend.
+  /// La commande reste EN_ATTENTE : le client pourra réessayer.
+  Future<void> rejectPayment(String paymentId, {String? reason}) async {
+    final token = await _getAuthToken();
+    final response = await http.post(
+      Uri.parse('$_baseUrl/payments/$paymentId/reject'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      }),
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      String message = 'Échec du rejet du paiement';
+      try {
+        final body = json.decode(utf8.decode(response.bodyBytes));
+        if (body is Map && body['message'] is String) {
+          message = body['message'] as String;
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('[AdminOps] rejectPayment parse error: $e');
+      }
       throw Exception(message);
     }
   }
@@ -116,7 +171,10 @@ class AdminOperationsRepository {
   Future<PaginatedDeliverers> fetchDeliverers({int page = 1}) async {
     final token = await _getAuthToken();
     final url = Uri.parse('$_baseUrl/admin/deliverers').replace(
-      queryParameters: {'page': '$page', 'limit': '20'},
+      queryParameters: {
+        'page': '$page',
+        'limit': '${AppConstants.adminPageSize}',
+      },
     );
 
     final response = await http.get(
@@ -128,20 +186,21 @@ class AdminOperationsRepository {
     );
 
     if (response.statusCode == 200) {
-      final body = json.decode(utf8.decode(response.bodyBytes))
-          as Map<String, dynamic>;
-      final list = body['data'] as List<dynamic>? ?? [];
+      final p = _paginated(
+        json.decode(utf8.decode(response.bodyBytes)),
+        page,
+      );
       return PaginatedDeliverers(
-        deliverers: list
+        deliverers: p.items
             .map((j) => AdminDeliverer.fromJson(j as Map<String, dynamic>))
             .toList(),
-        total: body['total'] as int? ?? list.length,
-        page: body['page'] as int? ?? page,
-        limit: body['limit'] as int? ?? 20,
+        total: p.total,
+        page: p.page,
+        limit: p.limit,
       );
     }
     throw Exception(
-        'Échec du chargement des livreurs: ${response.statusCode} ${response.body}');
+        _parseError(response, 'Échec du chargement des livreurs'));
   }
 
   /// Configuration plateforme (GET /admin/platform-settings).
@@ -162,7 +221,7 @@ class AdminOperationsRepository {
       return PlatformSettings.fromJson(data);
     }
     throw Exception(
-        'Échec du chargement de la configuration: ${response.statusCode} ${response.body}');
+        _parseError(response, 'Échec du chargement de la configuration'));
   }
 
   /// Mise à jour de la configuration plateforme
@@ -185,16 +244,8 @@ class AdminOperationsRepository {
       final data = body['data'] as Map<String, dynamic>? ?? {};
       return PlatformSettings.fromJson(data);
     }
-    String message = 'Échec de la mise à jour de la configuration';
-    try {
-      final body = json.decode(utf8.decode(response.bodyBytes));
-      if (body is Map && body['message'] is String) {
-        message = body['message'] as String;
-      } else if (body is Map && body['message'] is List) {
-        message = (body['message'] as List).join(', ');
-      }
-    } catch (_) {}
-    throw Exception(message);
+    throw Exception(
+        _parseError(response, 'Échec de la mise à jour de la configuration'));
   }
 
   // ─── Fiche livreur détaillée (LIL-84) ────────────────────────────────────
@@ -243,8 +294,9 @@ class AdminOperationsRepository {
       },
     );
     if (response.statusCode == 200) {
-      final body = json.decode(utf8.decode(response.bodyBytes))
-          as Map<String, dynamic>;
+      // Déballe l'éventuel double-wrap de l'interceptor backend avant de passer
+      // à Paginated.fromJson (qui attend `{ data: [...], (meta|root) }`).
+      final body = ApiResponse.mapOf(json.decode(utf8.decode(response.bodyBytes)));
       return Paginated<DeliveryMissionSummary>.fromJson(
         body,
         DeliveryMissionSummary.fromJson,
@@ -265,9 +317,8 @@ class AdminOperationsRepository {
       },
     );
     if (response.statusCode == 200) {
-      final body = json.decode(utf8.decode(response.bodyBytes))
-          as Map<String, dynamic>;
-      final data = body['data'] as Map<String, dynamic>? ?? body;
+      // Tolère objet plat OU enveloppe `{ data: ... }` via le helper partagé.
+      final data = ApiResponse.mapOf(json.decode(utf8.decode(response.bodyBytes)));
       return Delivery.fromJson(data);
     }
     throw Exception(_parseError(
@@ -295,9 +346,15 @@ class AdminOperationsRepository {
   }
 
   /// Lookup linéaire dans `GET /admin/deliverers` (paginé).
+  ///
+  /// Garde-fou : borne le scan à [_maxLookupPages] pages pour éviter toute
+  /// boucle longue si `total` est incohérent (cf. A24/A11 — à remplacer par un
+  /// endpoint backend dédié `GET /admin/deliverers/:id`).
+  static const int _maxLookupPages = 50;
+
   Future<AdminDeliverer> _findDelivererInList(String id) async {
     var page = 1;
-    while (true) {
+    while (page <= _maxLookupPages) {
       final paginated = await fetchDeliverers(page: page);
       final match =
           paginated.deliverers.where((d) => d.id == id).cast<AdminDeliverer?>();
@@ -308,6 +365,7 @@ class AdminOperationsRepository {
       }
       page += 1;
     }
+    throw Exception('Livreur introuvable (limite de recherche atteinte)');
   }
 
   /// Mission en cours = première `EN_TRANSIT`, sinon première `ASSIGNER`.
@@ -341,7 +399,9 @@ class AdminOperationsRepository {
       if (body is Map && body['message'] is List) {
         return (body['message'] as List).join(', ');
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('[AdminOps] _parseError decode failed: $e');
+    }
     return '$fallback (${response.statusCode})';
   }
 }

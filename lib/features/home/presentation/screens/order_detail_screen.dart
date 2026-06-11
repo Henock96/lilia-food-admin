@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:lilia_admin/core/utils/currency.dart';
+import 'package:lilia_admin/core/utils/date_format.dart';
 import '../../../../models/order.dart';
 import '../../../../models/app_deliverer.dart';
 import '../../../deliveries/data/delivery_service.dart';
@@ -141,7 +143,7 @@ class OrderDetailScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  DateFormat('dd/MM/yyyy à HH:mm').format(order.createdAt),
+                  formatBrazzavilleDateTime(order.createdAt),
                   style: TextStyle(color: Colors.grey[600], fontSize: 13),
                 ),
               ],
@@ -169,7 +171,7 @@ class OrderDetailScreen extends ConsumerWidget {
   /// LIL-125 : carte dédiée pour le créneau de retrait/livraison demandé
   /// (champs LIL-121). Format complet "Jeudi 30 mai 2026 à 14:30" en Brazzaville.
   Widget _buildPreorderSection(BuildContext context, Order order) {
-    final bzv = order.scheduledFor!.toUtc().add(const Duration(hours: 1));
+    final bzv = toBrazzaville(order.scheduledFor!);
     final full = DateFormat('EEEE d MMMM y', 'fr_FR').format(bzv);
     final time = DateFormat('HH:mm').format(bzv);
     // Capitalise la première lettre du jour ("jeudi" → "Jeudi").
@@ -330,7 +332,7 @@ class OrderDetailScreen extends ConsumerWidget {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Numéro copié'),
-                            duration: Duration(seconds: 1),
+                            duration: Duration(seconds: 2),
                           ),
                         );
                       },
@@ -394,7 +396,7 @@ class OrderDetailScreen extends ConsumerWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Adresse copiée'),
-                        duration: Duration(seconds: 1),
+                        duration: Duration(seconds: 2),
                       ),
                     );
                   },
@@ -519,7 +521,7 @@ class OrderDetailScreen extends ConsumerWidget {
                       ),
                     ),
                     Text(
-                      '${(item.prix * item.quantite).toStringAsFixed(0)} FCFA',
+                      formatXaf(item.prix * item.quantite),
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         color: Colors.grey[700],
@@ -546,18 +548,18 @@ class OrderDetailScreen extends ConsumerWidget {
           children: [
             _priceRow(
               'Sous-total',
-              '${order.subTotal.toStringAsFixed(0)} FCFA',
+              formatXaf(order.subTotal),
             ),
             const SizedBox(height: 8),
             _priceRow(
               order.isDelivery ? 'Frais de livraison' : 'Retrait (gratuit)',
-              '${order.deliveryFee.toStringAsFixed(0)} FCFA',
+              formatXaf(order.deliveryFee),
             ),
             if (order.serviceFee > 0) ...[
               const SizedBox(height: 8),
               _priceRow(
-                'Frais de service (10%)',
-                '${order.serviceFee.toStringAsFixed(0)} FCFA',
+                'Frais de service',
+                formatXaf(order.serviceFee),
               ),
             ],
             const Divider(height: 20),
@@ -578,7 +580,7 @@ class OrderDetailScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    '${order.total.toStringAsFixed(0)} FCFA',
+                    formatXaf(order.total),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,

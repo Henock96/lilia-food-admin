@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../models/banner.dart';
 
 import 'package:lilia_admin/constants/app_constants.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 class BannerService {
   final String _baseUrl = AppConstants.baseUrl;
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -30,9 +31,9 @@ class BannerService {
     );
 
     if (response.statusCode == 200) {
-      final Map<String, dynamic> responseData =
-          json.decode(utf8.decode(response.bodyBytes));
-      final List<dynamic> data = responseData['data'] as List<dynamic>? ?? [];
+      // Tolère liste brute / simple wrap / double wrap (interceptor backend).
+      final data =
+          ApiResponse.listOf(json.decode(utf8.decode(response.bodyBytes)));
       return data
           .map((json) => AppBanner.fromJson(json as Map<String, dynamic>))
           .toList();

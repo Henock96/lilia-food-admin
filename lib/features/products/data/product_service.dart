@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../models/product.dart';
 
 import 'package:lilia_admin/constants/app_constants.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 class ProductService {
   final String _baseUrl = AppConstants.baseUrl;
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -25,9 +26,9 @@ class ProductService {
     );
 
     if (response.statusCode == 200) {
-      // Le backend renvoie { "data": [...], "meta": {...} }
-      final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
-      final List<dynamic> productsData = responseData['data'] as List<dynamic>? ?? [];
+      // Tolère liste brute / simple wrap / double wrap (interceptor backend).
+      final productsData =
+          ApiResponse.listOf(json.decode(utf8.decode(response.bodyBytes)));
       return productsData.map((json) => Product.fromJson(json as Map<String, dynamic>)).toList();
     } else {
       throw Exception('Failed to load products: ${response.body}');

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:lilia_admin/models/order.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 
 import 'package:lilia_admin/constants/app_constants.dart';
 class UserRepository {
@@ -34,9 +35,9 @@ class UserRepository {
     );
 
     if (response.statusCode == 200) {
-      // Le backend renvoie { "data": [...], "message": "..." }
-      final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
-      final List<dynamic> ordersData = responseData['data'] as List<dynamic>? ?? [];
+      // Possiblement double-enveloppé (`{ data: { data: [...], ... } }`).
+      final responseData = json.decode(utf8.decode(response.bodyBytes));
+      final ordersData = ApiResponse.listOf(ApiResponse.mapOf(responseData));
       return ordersData.map((json) => Order.fromJson(json as Map<String, dynamic>)).toList();
     } else {
       throw Exception(
@@ -60,10 +61,8 @@ class UserRepository {
     );
 
     if (response.statusCode == 200) {
-      final Map<String, dynamic> responseData =
-          json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final List<dynamic> ordersData =
-          responseData['data'] as List<dynamic>? ?? [];
+      final responseData = json.decode(utf8.decode(response.bodyBytes));
+      final ordersData = ApiResponse.listOf(ApiResponse.mapOf(responseData));
       return ordersData
           .map((json) => Order.fromJson(json as Map<String, dynamic>))
           .toList();

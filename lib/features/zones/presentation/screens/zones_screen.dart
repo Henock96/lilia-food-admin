@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:lilia_admin/core/utils/currency.dart';
 import '../providers/zones_provider.dart';
 import '../../data/zones_service.dart';
 
@@ -61,8 +61,6 @@ class _ZonesContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final formatter = NumberFormat('#,###', 'fr_FR');
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -99,7 +97,7 @@ class _ZonesContent extends ConsumerWidget {
                             ),
                             if (data.deliveryPriceMode == 'FIXED')
                               Text(
-                                'Prix fixe: ${formatter.format(data.fixedDeliveryFee)} FCFA',
+                                'Prix fixe: ${formatXaf(data.fixedDeliveryFee)}',
                                 style: TextStyle(color: Colors.grey[600]),
                               ),
                           ],
@@ -189,8 +187,6 @@ class _ZoneCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final formatter = NumberFormat('#,###', 'fr_FR');
-
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ExpansionTile(
@@ -199,7 +195,7 @@ class _ZoneCard extends ConsumerWidget {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
-          '${formatter.format(zone.fee)} FCFA - ${zone.quartiers.length} quartier(s)',
+          '${formatXaf(zone.fee)} - ${zone.quartiers.length} quartier(s)',
         ),
         leading: CircleAvatar(
           backgroundColor: Theme.of(
@@ -354,9 +350,9 @@ class _CreateZoneDialogState extends ConsumerState<_CreateZoneDialog> {
               TextField(
                 controller: _feeController,
                 decoration: const InputDecoration(
-                  labelText: 'Frais de livraison (FCFA)',
+                  labelText: 'Frais de livraison (XAF)',
                   border: OutlineInputBorder(),
-                  suffixText: 'FCFA',
+                  suffixText: 'XAF',
                 ),
                 keyboardType: TextInputType.number,
               ),
@@ -509,9 +505,9 @@ class _EditZoneDialogState extends ConsumerState<_EditZoneDialog> {
               TextField(
                 controller: _feeController,
                 decoration: const InputDecoration(
-                  labelText: 'Frais de livraison (FCFA)',
+                  labelText: 'Frais de livraison (XAF)',
                   border: OutlineInputBorder(),
-                  suffixText: 'FCFA',
+                  suffixText: 'XAF',
                 ),
                 keyboardType: TextInputType.number,
               ),

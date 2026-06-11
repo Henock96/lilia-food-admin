@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/common_widgets/app_cached_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:lilia_admin/core/utils/currency.dart';
 import '../../../../models/menu.dart';
 import '../../../products/presentation/providers/products_provider.dart';
 import '../providers/menus_provider.dart';
@@ -183,7 +185,7 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
   @override
   Widget build(BuildContext context) {
     final productsAsync = ref.watch(productsProvider);
-    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+    final dateFormat = DateFormat('dd/MM/yyyy HH:mm', 'fr_FR');
 
     return Scaffold(
       appBar: AppBar(
@@ -298,7 +300,7 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
             TextFormField(
               controller: _priceController,
               decoration: const InputDecoration(
-                labelText: 'Prix (FCFA) *',
+                labelText: 'Prix (XAF) *',
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.number,
@@ -428,8 +430,7 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
                     children: [
                       ...products.map((product) => CheckboxListTile(
                             title: Text(product.name),
-                            subtitle: Text(
-                                '${product.prixOriginal.toStringAsFixed(0)} FCFA'),
+                            subtitle: Text(formatXaf(product.prixOriginal)),
                             value: _selectedProductIds.contains(product.id),
                             onChanged: (value) {
                               setState(() {
@@ -443,18 +444,12 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
                             secondary: product.imageUrl != null
                                 ? ClipRRect(
                                     borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      product.imageUrl!,
+                                    child: AppCachedImage(
+                                      imageUrl: product.imageUrl!,
                                       width: 50,
                                       height: 50,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) =>
-                                          Container(
-                                        width: 50,
-                                        height: 50,
-                                        color: Colors.grey[200],
-                                        child: const Icon(Icons.fastfood),
-                                      ),
+                                      errorIcon: Icons.fastfood,
                                     ),
                                   )
                                 : Container(

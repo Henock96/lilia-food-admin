@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../models/product.dart';
 
 import 'package:lilia_admin/constants/app_constants.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 class CategoryService {
   final String _baseUrl = AppConstants.baseUrl;
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -25,9 +26,10 @@ class CategoryService {
     );
 
     if (response.statusCode == 200) {
-      // Le backend renvoie { "data": [...], "count": ... }
-      final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
-      final List<dynamic> categoriesData = responseData['data'] as List<dynamic>? ?? [];
+      // Backend renvoie { data:[...], count } → double-wrappé par l'interceptor.
+      // ApiResponse.listOf tolère liste brute / simple wrap / double wrap.
+      final categoriesData =
+          ApiResponse.listOf(json.decode(utf8.decode(response.bodyBytes)));
       return categoriesData.map((json) => Category.fromJson(json as Map<String, dynamic>)).toList();
     } else {
       throw Exception('Failed to load categories: ${response.body}');

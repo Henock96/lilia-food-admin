@@ -16,11 +16,11 @@ class _AppColors {
   static const primary = LiliaColors.orange500;
   static const primaryLight = LiliaColors.orange50;
   static const success = LiliaColors.green400;
-  static const successLight = Color(0xFFDCFCE7);
+  static const successLight = LiliaColors.green50;
   static const danger = LiliaColors.red400;
-  static const dangerLight = Color(0xFFFEE2E2);
+  static const dangerLight = LiliaColors.red50;
   static const warning = LiliaColors.amber400;
-  static const warningLight = Color(0xFFFEF3C7);
+  static const warningLight = LiliaColors.amber50;
   static const surface = LiliaColors.cream100;
   static const cardBg = Colors.white;
   static const textPrimary = LiliaColors.charcoal700;
@@ -1533,7 +1533,7 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
             child: _StyledTextField(
               controller: _deliveryFeeController,
               label: 'Frais de livraison',
-              suffix: 'FCFA',
+              suffix: 'XAF',
               prefixIcon: Icons.monetization_on_outlined,
               keyboardType: TextInputType.number,
             ),
@@ -1575,7 +1575,7 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
                 _StyledTextField(
                   controller: _deliveryFeeController,
                   label: 'Prix par defaut (quartier non configure)',
-                  suffix: 'FCFA',
+                  suffix: 'XAF',
                   prefixIcon: Icons.monetization_on_outlined,
                   keyboardType: TextInputType.number,
                   hint: 'Applique si le quartier n\'a pas de zone',
@@ -1645,7 +1645,7 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
           child: _StyledTextField(
             controller: _minOrderController,
             label: 'Montant minimum de commande',
-            suffix: 'FCFA',
+            suffix: 'XAF',
             prefixIcon: Icons.monetization_on_outlined,
             keyboardType: TextInputType.number,
             hint: '0 = pas de minimum',

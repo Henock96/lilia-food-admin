@@ -28,10 +28,13 @@ const _paymentMethodLabels = <String, String>{
   'CASH_ON_DELIVERY': 'À la livraison',
 };
 
+// Couleurs d'identité des opérateurs de paiement externes — intentionnellement
+// HORS du design system Lilia (`lilia_tokens.dart`) : ce sont les couleurs de
+// marque MTN / Airtel, pas des tokens de marque Lilia (cf. A19).
 const _paymentMethodColors = <String, Color>{
-  'MTN_MOMO': Color(0xFFFACC15),     // jaune MTN
-  'AIRTEL_MONEY': Color(0xFFEF4444), // rouge Airtel
-  'CASH_ON_DELIVERY': Color(0xFF9CA3AF),
+  'MTN_MOMO': Color(0xFFFACC15),     // jaune marque MTN
+  'AIRTEL_MONEY': Color(0xFFEF4444), // rouge marque Airtel
+  'CASH_ON_DELIVERY': Color(0xFF9CA3AF), // gris neutre (espèces)
 };
 
 /// LIL-132 : emoji par vendorType — local au payments screen pour éviter
@@ -68,10 +71,12 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
   // ensuite filtrer sur PENDING pour traiter les confirmations à faire.
   String _status = '';
   int _page = 1;
-  String? _confirmingId;
+  // Id du paiement en cours de traitement (confirmation OU rejet) — désactive
+  // tous les boutons d'action pendant l'appel pour éviter les doubles soumissions.
+  String? _processingId;
 
   Future<void> _confirmPayment(AdminPayment payment) async {
-    setState(() => _confirmingId = payment.id);
+    setState(() => _processingId = payment.id);
     try {
       await ref
           .read(adminOperationsRepositoryProvider)
@@ -94,8 +99,87 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
         ),
       );
     } finally {
-      if (mounted) setState(() => _confirmingId = null);
+      if (mounted) setState(() => _processingId = null);
     }
+  }
+
+  /// Rejet : demande une confirmation (+ raison optionnelle) avant l'appel.
+  /// La commande reste payable — le client est notifié de l'échec.
+  Future<void> _rejectPayment(AdminPayment payment) async {
+    final reason = await _askRejectionReason();
+    if (reason == null) return; // annulé
+
+    setState(() => _processingId = payment.id);
+    try {
+      await ref
+          .read(adminOperationsRepositoryProvider)
+          .rejectPayment(payment.id, reason: reason);
+      if (!mounted) return;
+      ref.invalidate(adminPaymentsProvider);
+      ref.invalidate(adminPaymentsStatsProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Paiement rejeté'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _processingId = null);
+    }
+  }
+
+  /// Retourne la raison saisie (peut être vide), ou `null` si l'admin annule.
+  Future<String?> _askRejectionReason() {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rejeter le paiement ?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'La commande restera en attente de paiement. Le client sera '
+              'notifié de l\'échec et pourra réessayer.',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                labelText: 'Raison (optionnel)',
+                hintText: 'Ex : virement non reçu',
+                border: OutlineInputBorder(),
+              ),
+              maxLength: 120,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Rejeter'),
+          ),
+        ],
+      ),
+    );
   }
 
   Color _statusColor(String status) {
@@ -135,6 +219,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
       body: Column(
         children: [
           _buildStatsCards(statsAsync),
+          _buildValidationDelayBanner(statsAsync),
           _buildStatusFilter(),
           Expanded(
             child: paymentsAsync.when(
@@ -224,6 +309,104 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
         ),
       ),
     );
+  }
+
+  /// Bandeau « délai moyen de validation » — instrument de mesure de la DoD
+  /// LIL-78 (cible < 10 min). Vert sous le seuil, ambre au-dessus, neutre si
+  /// pas encore de données sur la fenêtre 7 jours.
+  Widget _buildValidationDelayBanner(AsyncValue<PaymentsStats> statsAsync) {
+    return statsAsync.maybeWhen(
+      orElse: () => const SizedBox.shrink(),
+      data: (stats) {
+        final delay = stats.validationDelay;
+        final avg = delay.avgMinutes;
+        final hasData = avg != null && delay.sampleCount > 0;
+        const target = 10.0; // seuil DoD en minutes
+        final withinTarget = hasData && avg <= target;
+
+        final Color accent = !hasData
+            ? Colors.grey
+            : (withinTarget ? Colors.green.shade700 : Colors.orange.shade800);
+        final IconData icon = !hasData
+            ? Icons.timer_outlined
+            : (withinTarget ? Icons.check_circle_outline : Icons.warning_amber);
+
+        final String valueText = hasData
+            ? '${_formatMinutes(avg)} en moyenne'
+            : 'Pas encore de données';
+        final String subText = hasData
+            ? 'sur ${delay.sampleCount} paiement${delay.sampleCount > 1 ? 's' : ''} confirmé${delay.sampleCount > 1 ? 's' : ''} · 7 j · cible < 10 min'
+            : 'Délai mesuré dès les premières confirmations · cible < 10 min';
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: accent.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: accent),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Délai de validation : ',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          Flexible(
+                            child: Text(
+                              valueText,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: accent,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subText,
+                        style: TextStyle(
+                            fontSize: 10.5, color: Colors.grey.shade500),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Formatte un délai en minutes de façon lisible : « 7,5 min » ou « 1 h 05 »
+  /// au-delà de 60 minutes.
+  String _formatMinutes(double minutes) {
+    if (minutes < 60) {
+      final rounded = (minutes * 10).round() / 10;
+      final asText = rounded == rounded.roundToDouble()
+          ? rounded.toStringAsFixed(0)
+          : rounded.toStringAsFixed(1).replaceAll('.', ',');
+      return '$asText min';
+    }
+    final h = minutes ~/ 60;
+    final m = (minutes % 60).round();
+    return '$h h ${m.toString().padLeft(2, '0')}';
   }
 
   Widget _statsSkeleton() {
@@ -428,7 +611,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    DateFormat('dd/MM/yyyy HH:mm').format(payment.createdAt),
+                    DateFormat('dd/MM/yyyy HH:mm', 'fr_FR').format(payment.createdAt),
                     style: TextStyle(color: Colors.grey[500], fontSize: 12),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -437,26 +620,44 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
             ),
             if (payment.status == 'PENDING') ...[
               const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _confirmingId == null
-                      ? () => _confirmPayment(payment)
-                      : null,
-                  icon: _confirmingId == payment.id
-                      ? const SizedBox(
-                          height: 16,
-                          width: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.check, size: 18),
-                  label: const Text('Confirmer le paiement'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _processingId == null
+                          ? () => _rejectPayment(payment)
+                          : null,
+                      icon: const Icon(Icons.close, size: 18),
+                      label: const Text('Rejeter'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: _processingId == null
+                          ? () => _confirmPayment(payment)
+                          : null,
+                      icon: _processingId == payment.id
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.check, size: 18),
+                      label: const Text('Confirmer'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ],

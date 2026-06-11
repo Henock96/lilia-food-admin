@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/common_widgets/app_cached_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -329,13 +330,10 @@ class _PhotoTile extends StatelessWidget {
               SizedBox(
                 width: 110,
                 height: 110,
-                child: Image.network(
-                  photo.url,
+                child: AppCachedImage(
+                  imageUrl: photo.url,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.broken_image, size: 32),
-                  ),
+                  errorIcon: Icons.broken_image,
                 ),
               ),
               if (photo.isCover)

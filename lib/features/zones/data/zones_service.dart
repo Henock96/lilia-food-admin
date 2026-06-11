@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:lilia_admin/constants/app_constants.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 class ZonesService {
   final String _baseUrl = AppConstants.baseUrl;
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -23,7 +24,7 @@ class ZonesService {
 
     if (response.statusCode == 200) {
       final data = json.decode(utf8.decode(response.bodyBytes));
-      final quartiers = data['data'] as List;
+      final quartiers = ApiResponse.listOf(data);
       return quartiers.map((q) => Quartier.fromJson(q)).toList();
     } else {
       throw Exception('Failed to load quartiers: ${response.body}');
@@ -40,7 +41,9 @@ class ZonesService {
 
     if (response.statusCode == 200) {
       final data = json.decode(utf8.decode(response.bodyBytes));
-      return DeliveryZonesData.fromJson(data);
+      // /quartiers/my-zones renvoie { data:[...], restaurantId, ... } →
+      // double-wrappé par l'interceptor : on déballe l'enveloppe externe.
+      return DeliveryZonesData.fromJson(ApiResponse.mapOf(data));
     } else {
       throw Exception('Failed to load delivery zones: ${response.body}');
     }
@@ -69,7 +72,7 @@ class ZonesService {
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = json.decode(utf8.decode(response.bodyBytes));
-      return DeliveryZone.fromJson(data['data']);
+      return DeliveryZone.fromJson(ApiResponse.mapOf(data));
     } else {
       throw Exception('Failed to create delivery zone: ${response.body}');
     }
@@ -99,7 +102,7 @@ class ZonesService {
 
     if (response.statusCode == 200) {
       final data = json.decode(utf8.decode(response.bodyBytes));
-      return DeliveryZone.fromJson(data['data']);
+      return DeliveryZone.fromJson(ApiResponse.mapOf(data));
     } else {
       throw Exception('Failed to update delivery zone: ${response.body}');
     }
@@ -151,7 +154,7 @@ class DeliveryZonesData {
 
   factory DeliveryZonesData.fromJson(Map<String, dynamic> json) {
     return DeliveryZonesData(
-      zones: (json['data'] as List).map((z) => DeliveryZone.fromJson(z)).toList(),
+      zones: ApiResponse.listOf(json).map((z) => DeliveryZone.fromJson(z)).toList(),
       restaurantId: json['restaurantId'],
       deliveryPriceMode: json['deliveryPriceMode'] ?? 'FIXED',
       fixedDeliveryFee: (json['fixedDeliveryFee'] as num?)?.toDouble() ?? 500,
