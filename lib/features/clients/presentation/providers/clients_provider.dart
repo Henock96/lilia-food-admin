@@ -4,12 +4,13 @@ import 'package:lilia_admin/models/app_user.dart';
 import 'package:lilia_admin/models/client_loyalty.dart';
 import 'package:lilia_admin/models/client_referral.dart';
 import 'package:lilia_admin/models/paginated_clients.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 
 part 'clients_provider.g.dart';
 
 @riverpod
 ClientRepository clientRepository(Ref ref) {
-  return ClientRepository();
+  return ClientRepository(ref.watch(apiClientProvider));
 }
 
 /// Clients d'un restaurant (vue restaurateur).

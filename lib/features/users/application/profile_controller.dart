@@ -6,12 +6,13 @@ import '../../../models/app_user.dart';
 import '../../auth/repository/firebase_auth_repository.dart';
 import '../data/cloudinary_service.dart';
 import '../data/user_repository.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 
 part 'profile_controller.g.dart';
 
 @riverpod
 UserRepository userRepository(Ref ref) {
-  return UserRepository();
+  return UserRepository(ref.watch(apiClientProvider));
 }
 
 @riverpod

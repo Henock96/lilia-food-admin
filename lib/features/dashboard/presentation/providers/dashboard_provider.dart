@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../data/dashboard_service.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 
 part 'dashboard_provider.g.dart';
 
-final dashboardServiceProvider = Provider((ref) => DashboardService());
+final dashboardServiceProvider =
+    Provider((ref) => DashboardService(ref.watch(apiClientProvider)));
 
 @riverpod
 Future<DashboardOverview> dashboardOverview(Ref ref) async {
