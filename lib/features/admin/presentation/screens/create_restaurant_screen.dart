@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_admin/common_widgets/app_cached_image.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../users/data/cloudinary_service.dart';
 import '../../data/admin_service.dart';
 
-class CreateRestaurantScreen extends StatefulWidget {
+class CreateRestaurantScreen extends ConsumerStatefulWidget {
   const CreateRestaurantScreen({super.key});
 
   @override
-  State<CreateRestaurantScreen> createState() => _CreateRestaurantScreenState();
+  ConsumerState<CreateRestaurantScreen> createState() =>
+      _CreateRestaurantScreenState();
 }
 
-class _CreateRestaurantScreenState extends State<CreateRestaurantScreen> {
+class _CreateRestaurantScreenState extends ConsumerState<CreateRestaurantScreen> {
   int _currentStep = 0;
   final _formKeyStep0 = GlobalKey<FormState>();
   final _formKeyStep1 = GlobalKey<FormState>();
@@ -87,7 +90,7 @@ class _CreateRestaurantScreenState extends State<CreateRestaurantScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final adminService = AdminService();
+      final adminService = AdminService(ref.read(apiClientProvider));
       await adminService.createRestaurantWithOwner(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),

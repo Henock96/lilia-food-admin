@@ -4,12 +4,13 @@ import 'package:lilia_admin/models/admin_payment.dart';
 import 'package:lilia_admin/models/admin_deliverer.dart';
 import 'package:lilia_admin/models/payments_stats.dart';
 import 'package:lilia_admin/models/platform_settings.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 
 part 'admin_operations_provider.g.dart';
 
 @riverpod
 AdminOperationsRepository adminOperationsRepository(Ref ref) {
-  return AdminOperationsRepository();
+  return AdminOperationsRepository(ref.watch(apiClientProvider));
 }
 
 /// Paiements paginés (ADMIN). `status` vide → vue "Tous statuts confondus".

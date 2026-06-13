@@ -2,12 +2,13 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:lilia_admin/features/incidents/data/incidents_repository.dart';
 import 'package:lilia_admin/models/incident.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 
 part 'incidents_provider.g.dart';
 
 @riverpod
 IncidentsRepository incidentsRepository(Ref ref) {
-  return IncidentsRepository();
+  return IncidentsRepository(ref.watch(apiClientProvider));
 }
 
 /// Liste paginée + filtrable des incidents (ADMIN).

@@ -1,26 +1,18 @@
-import 'dart:convert';
-
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:http/http.dart' as http;
+import 'package:lilia_admin/core/network/api_client.dart';
 
 import '../../../models/restaurant.dart';
 import '../../../models/vendor_type.dart';
 
-import 'package:lilia_admin/constants/app_constants.dart';
 import 'package:lilia_admin/utils/api_response.dart';
+
 /// Service marketplace admin (LIL-128) — endpoints `/admin/vendors/*`.
 /// Réutilise la classe `Restaurant` côté Flutter ; le backend renvoie un
 /// payload élargi (owner + vendorProfile + _count) mais les seuls champs
 /// dont l'admin a besoin pour la liste/queue/validation sont déjà couverts.
 class AdminVendorsService {
-  final String _baseUrl = AppConstants.baseUrl;
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  final ApiClient _api;
 
-  Future<String?> _token() async {
-    final user = _firebaseAuth.currentUser;
-    if (user == null) throw Exception('User not authenticated');
-    return await user.getIdToken();
-  }
+  AdminVendorsService(this._api);
 
   /// GET /admin/vendors?vendorType=&adminApproved=&isActive=
   Future<List<AdminVendorItem>> listVendors({
@@ -30,70 +22,37 @@ class AdminVendorsService {
     int page = 1,
     int limit = 50,
   }) async {
-    final token = await _token();
-    final params = <String, String>{
+    final res = await _api.getJson('/admin/vendors', query: {
       'page': page.toString(),
       'limit': limit.toString(),
       if (vendorType != null) 'vendorType': vendorType.name,
       if (adminApproved != null) 'adminApproved': adminApproved.toString(),
       if (isActive != null) 'isActive': isActive.toString(),
-    };
-    final uri = Uri.parse('$_baseUrl/admin/vendors').replace(queryParameters: params);
-    final response = await http.get(
-      uri,
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    if (response.statusCode != 200) {
-      throw Exception('Erreur ${response.statusCode} : ${response.body}');
-    }
+    });
     // Backend renvoie { data:[...], total } → double-wrappé par l'interceptor.
-    final list = ApiResponse.listOf(json.decode(utf8.decode(response.bodyBytes)))
-        .cast<Map<String, dynamic>>();
+    final list = ApiResponse.listOf(res.data).cast<Map<String, dynamic>>();
     return list.map(AdminVendorItem.fromJson).toList();
   }
 
   /// GET /admin/vendors/pending — raccourci badge "à valider".
   Future<List<AdminVendorItem>> listPending() async {
-    final token = await _token();
-    final response = await http.get(
-      Uri.parse('$_baseUrl/admin/vendors/pending'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    if (response.statusCode != 200) {
-      throw Exception('Erreur ${response.statusCode} : ${response.body}');
-    }
+    final res = await _api.getJson('/admin/vendors/pending');
     // /admin/vendors/pending → { data:[...], ... } double-wrappé.
-    final list = ApiResponse.listOf(json.decode(utf8.decode(response.bodyBytes)))
-        .cast<Map<String, dynamic>>();
+    final list = ApiResponse.listOf(res.data).cast<Map<String, dynamic>>();
     return list.map(AdminVendorItem.fromJson).toList();
   }
 
   /// PATCH /admin/vendors/:id/approve
   Future<void> approveVendor(String restaurantId) async {
-    final token = await _token();
-    final response = await http.patch(
-      Uri.parse('$_baseUrl/admin/vendors/$restaurantId/approve'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    if (response.statusCode != 200) {
-      throw Exception('Erreur ${response.statusCode} : ${response.body}');
-    }
+    await _api.patchJson('/admin/vendors/$restaurantId/approve');
   }
 
   /// PATCH /admin/vendors/:id/suspend body { reason }
   Future<void> suspendVendor(String restaurantId, String reason) async {
-    final token = await _token();
-    final response = await http.patch(
-      Uri.parse('$_baseUrl/admin/vendors/$restaurantId/suspend'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({'reason': reason}),
+    await _api.patchJson(
+      '/admin/vendors/$restaurantId/suspend',
+      body: {'reason': reason},
     );
-    if (response.statusCode != 200) {
-      throw Exception('Erreur ${response.statusCode} : ${response.body}');
-    }
   }
 }
 

@@ -55,7 +55,7 @@ final class AdminOperationsRepositoryProvider
 }
 
 String _$adminOperationsRepositoryHash() =>
-    r'5c58ae7be403969ed9c3b15bb6bf6d9a3c176c4a';
+    r'6bea5cac2925b43fba3fddff7e628475420ba791';
 
 /// Paiements paginés (ADMIN). `status` vide → vue "Tous statuts confondus".
 
