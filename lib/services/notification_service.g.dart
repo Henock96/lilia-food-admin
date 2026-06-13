@@ -55,4 +55,4 @@ final class NotificationServiceProvider
 }
 
 String _$notificationServiceHash() =>
-    r'5b84df7f6e0b28c9d3f729a5c4a9286222eaacb2';
+    r'b39b10228c65bab1693253a137a80cdfc7d3efab';

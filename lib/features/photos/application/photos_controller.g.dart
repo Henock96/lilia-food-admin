@@ -52,7 +52,7 @@ final class PhotosFacadeProvider
   }
 }
 
-String _$photosFacadeHash() => r'2f6bc2749395e3ac8641fb2278e30d6efbc9d589';
+String _$photosFacadeHash() => r'bc225d677b747ccd18ee8e1e17f0e8a8bdb86bf5';
 
 /// Provider du service Cloudinary — overridable dans les tests.
 

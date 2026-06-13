@@ -1,3 +1,5 @@
+import 'package:lilia_admin/core/network/api_client.dart';
+
 import 'menu_images_service.dart';
 import 'photo_models.dart';
 import 'product_images_service.dart';
@@ -12,12 +14,13 @@ class PhotosFacade {
   final MenuImagesService _menu;
 
   PhotosFacade({
+    required ApiClient api,
     VendorPhotosService? vendor,
     ProductImagesService? product,
     MenuImagesService? menu,
-  })  : _vendor = vendor ?? VendorPhotosService(),
-        _product = product ?? ProductImagesService(),
-        _menu = menu ?? MenuImagesService();
+  })  : _vendor = vendor ?? VendorPhotosService(api),
+        _product = product ?? ProductImagesService(api),
+        _menu = menu ?? MenuImagesService(api);
 
   Future<List<Photo>> list(EntityType type, String parentId) {
     switch (type) {

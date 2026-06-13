@@ -6,15 +6,13 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/legacy.dart';
-import 'package:lilia_admin/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_admin/features/home/data/order_controller.dart';
 import 'package:lilia_admin/features/incidents/presentation/providers/incidents_provider.dart';
 import 'package:lilia_admin/firebase_options.dart';
 import 'package:lilia_admin/routing/app_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:http/http.dart' as http;
+import 'package:lilia_admin/core/network/api_client.dart';
 
-import 'package:lilia_admin/constants/app_constants.dart';
 part 'notification_service.g.dart';
 
 /// Provider pour stocker l'ID de la derniere commande notifiee
@@ -67,7 +65,7 @@ class NotificationService {
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
-  final FirebaseAuthenticationRepository _authRepository;
+  final ApiClient _api;
   final Ref _ref;
 
   StreamSubscription<RemoteMessage>? _onMessageSubscription;
@@ -75,11 +73,9 @@ class NotificationService {
   StreamSubscription<String>? _onTokenRefreshSubscription;
   bool _isDisposed = false;
 
-  NotificationService(this._authRepository, this._ref);
+  NotificationService(this._api, this._ref);
 
   String? fcmToken;
-
-  static const String _baseUrl = AppConstants.baseUrl;
 
   Future<void> _requestPermission() async {
     NotificationSettings settings = await _fcm.requestPermission(
@@ -346,36 +342,14 @@ class NotificationService {
 
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        final idToken = await _authRepository.getIdToken();
-        if (idToken == null) {
-          debugPrint('[ADMIN NOTIF] ID Token Firebase null, auth impossible');
-          return;
-        }
-
-        final url = Uri.parse('$_baseUrl/notifications/register-token');
-
-        final response = await http
-            .post(
-              url,
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer $idToken',
-              },
-              body: jsonEncode({'token': fcmToken}),
-            )
-            .timeout(const Duration(seconds: 35));
-
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          debugPrint(
-            '[ADMIN NOTIF] Token FCM enregistre sur le serveur avec succes',
-          );
-          return;
-        } else {
-          debugPrint(
-            '[ADMIN NOTIF] Echec enregistrement token (tentative $attempt/$maxRetries). '
-            'Status: ${response.statusCode}',
-          );
-        }
+        await _api.postJson(
+          '/notifications/register-token',
+          body: {'token': fcmToken},
+        );
+        debugPrint(
+          '[ADMIN NOTIF] Token FCM enregistre sur le serveur avec succes',
+        );
+        return;
       } catch (e) {
         debugPrint(
           '[ADMIN NOTIF] Erreur enregistrement token (tentative $attempt/$maxRetries): $e',
@@ -412,8 +386,7 @@ class NotificationService {
 
 @Riverpod(keepAlive: true)
 NotificationService notificationService(Ref ref) {
-  final authRepository = ref.watch(authRepositoryProvider);
-  final service = NotificationService(authRepository, ref);
+  final service = NotificationService(ref.watch(apiClientProvider), ref);
 
   ref.onDispose(() {
     service.dispose();

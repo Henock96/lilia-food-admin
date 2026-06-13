@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/core/utils/currency.dart';
 import 'package:lilia_admin/core/utils/date_format.dart';
 import '../../../../models/order.dart';
@@ -1063,7 +1064,8 @@ class _AssignDelivererSheet extends StatefulWidget {
 }
 
 class _AssignDelivererSheetState extends State<_AssignDelivererSheet> {
-  final _service = DeliveryService();
+  late final DeliveryService _service =
+      DeliveryService(widget.ref.read(apiClientProvider));
   List<AppDeliverer>? _deliverers;
   bool _loading = true;
   String? _error;
