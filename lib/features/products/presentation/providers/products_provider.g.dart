@@ -48,7 +48,7 @@ final class ProductServiceProvider
   }
 }
 
-String _$productServiceHash() => r'0473fdd2a61f1b9401fe8cd8815ed49e7139952a';
+String _$productServiceHash() => r'585339dce0c6b80a447b8653aa1234e2a81e2317';
 
 @ProviderFor(Products)
 final productsProvider = ProductsProvider._();
@@ -74,7 +74,7 @@ final class ProductsProvider
   Products create() => Products();
 }
 
-String _$productsHash() => r'46da9fa279bf8714979d76ab26936052b0fb7e0e';
+String _$productsHash() => r'd45cbda1dbc6d08960b4fa742cb76273fddb9ef5';
 
 abstract class _$Products extends $AsyncNotifier<List<Product>> {
   FutureOr<List<Product>> build();

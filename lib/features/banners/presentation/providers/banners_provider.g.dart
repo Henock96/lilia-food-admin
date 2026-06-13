@@ -48,7 +48,7 @@ final class BannerServiceProvider
   }
 }
 
-String _$bannerServiceHash() => r'4e30d5537c7dc9e3fe742c79c4af41791b7ac0dd';
+String _$bannerServiceHash() => r'80ca72f34fb7396c7004c877b01cbb218bf3383b';
 
 @ProviderFor(Banners)
 final bannersProvider = BannersProvider._();

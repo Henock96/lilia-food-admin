@@ -49,7 +49,7 @@ final class OrderServiceRepositoryProvider
 }
 
 String _$orderServiceRepositoryHash() =>
-    r'9aa390137ae3c42bec5ccf5dbbea95bca28144de';
+    r'a6deabd3562a64c9ebf57900cce5d3aa40671b25';
 
 @ProviderFor(RestaurantOrders)
 final restaurantOrdersProvider = RestaurantOrdersProvider._();

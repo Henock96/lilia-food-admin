@@ -48,7 +48,7 @@ final class MenuServiceProvider
   }
 }
 
-String _$menuServiceHash() => r'708a4075ded35b5aa254625dc5c3f0e574d4abf8';
+String _$menuServiceHash() => r'171945dbf23db445a91697c137fbfa9bf21252e0';
 
 @ProviderFor(Menus)
 final menusProvider = MenusProvider._();

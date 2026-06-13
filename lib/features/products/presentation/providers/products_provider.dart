@@ -2,12 +2,13 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../models/product.dart';
 import '../../../restaurant/presentation/providers/restaurant_provider.dart';
 import '../../data/product_service.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 
 part 'products_provider.g.dart';
 
 @riverpod
 ProductService productService(Ref ref) {
-  return ProductService();
+  return ProductService(ref.watch(apiClientProvider));
 }
 
 @riverpod

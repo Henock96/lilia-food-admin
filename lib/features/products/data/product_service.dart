@@ -1,118 +1,55 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 
 import '../../../models/product.dart';
 
-import 'package:lilia_admin/constants/app_constants.dart';
-import 'package:lilia_admin/utils/api_response.dart';
 class ProductService {
-  final String _baseUrl = AppConstants.baseUrl;
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  final ApiClient _api;
 
-  Future<String?> _getAuthToken() async {
-    final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      throw Exception('User not authenticated');
-    }
-    return await user.getIdToken();
-  }
+  ProductService(this._api);
 
   Future<List<Product>> getProducts(String restaurantId) async {
-    final token = await _getAuthToken();
-    final response = await http.get(
-      Uri.parse('$_baseUrl/products?restaurantId=$restaurantId'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode == 200) {
-      // Tolère liste brute / simple wrap / double wrap (interceptor backend).
-      final productsData =
-          ApiResponse.listOf(json.decode(utf8.decode(response.bodyBytes)));
-      return productsData.map((json) => Product.fromJson(json as Map<String, dynamic>)).toList();
-    } else {
-      throw Exception('Failed to load products: ${response.body}');
-    }
+    final res =
+        await _api.getJson('/products', query: {'restaurantId': restaurantId});
+    // Tolère liste brute / simple wrap / double wrap (interceptor backend).
+    final productsData = ApiResponse.listOf(res.data);
+    return productsData
+        .map((json) => Product.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   Future<Product> getProduct(String productId) async {
-    final token = await _getAuthToken();
-    final response = await http.get(
-      Uri.parse('$_baseUrl/products/$productId'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode == 200) {
-      // Le backend renvoie { "data": {...} }
-      final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
-      final productData = responseData['data'] as Map<String, dynamic>?;
-      if (productData == null) {
-        throw Exception('Product data is null');
-      }
-      return Product.fromJson(productData);
-    } else {
-      throw Exception('Failed to load product: ${response.body}');
+    final res = await _api.getJson('/products/$productId');
+    final productData =
+        (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>?;
+    if (productData == null) {
+      throw Exception('Product data is null');
     }
+    return Product.fromJson(productData);
   }
 
   Future<Product> createProduct(Map<String, dynamic> productData) async {
-    final token = await _getAuthToken();
-    final response = await http.post(
-      Uri.parse('$_baseUrl/products'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode(productData),
-    );
-
-    if (response.statusCode == 201 || response.statusCode == 200) {
-      // Le backend renvoie { "message": "...", "data": {...} }
-      final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
-      final productJson = responseData['data'] as Map<String, dynamic>?;
-      if (productJson == null) {
-        throw Exception('Product data is null in response');
-      }
-      return Product.fromJson(productJson);
-    } else {
-      throw Exception('Failed to create product: ${response.body}');
+    final res = await _api.postJson('/products', body: productData);
+    final productJson =
+        (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>?;
+    if (productJson == null) {
+      throw Exception('Product data is null in response');
     }
+    return Product.fromJson(productJson);
   }
 
   Future<Product> updateProduct(
       String productId, Map<String, dynamic> productData) async {
-    final token = await _getAuthToken();
-    final response = await http.patch(
-      Uri.parse('$_baseUrl/products/$productId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode(productData),
-    );
-
-    if (response.statusCode == 200) {
-      // Le backend renvoie { "message": "...", "data": {...} }
-      final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
-      final productJson = responseData['data'] as Map<String, dynamic>?;
-      if (productJson == null) {
-        throw Exception('Product data is null in response');
-      }
-      return Product.fromJson(productJson);
-    } else {
-      throw Exception('Failed to update product: ${response.body}');
+    final res = await _api.patchJson('/products/$productId', body: productData);
+    final productJson =
+        (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>?;
+    if (productJson == null) {
+      throw Exception('Product data is null in response');
     }
+    return Product.fromJson(productJson);
   }
 
   Future<void> deleteProduct(String productId) async {
-    final token = await _getAuthToken();
-    final response = await http.delete(
-      Uri.parse('$_baseUrl/products/$productId'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception('Failed to delete product: ${response.body}');
-    }
+    await _api.deleteJson('/products/$productId');
   }
 }

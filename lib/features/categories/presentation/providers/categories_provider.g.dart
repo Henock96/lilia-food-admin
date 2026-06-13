@@ -49,7 +49,7 @@ final class CategoryServiceProvider
   }
 }
 
-String _$categoryServiceHash() => r'f9a6e61a2351b07fc9508fe6db7d0f0259102fea';
+String _$categoryServiceHash() => r'67d5d8c71ccfea387031346dd1763cc0e359be1b';
 
 @ProviderFor(Categories)
 final categoriesProvider = CategoriesProvider._();

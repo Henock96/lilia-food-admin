@@ -1,77 +1,32 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 import '../../../models/restaurant.dart';
 
-import 'package:lilia_admin/constants/app_constants.dart';
-import 'package:lilia_admin/utils/api_response.dart';
 class RestaurantSettingsService {
-  final String _baseUrl = AppConstants.baseUrl;
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  final ApiClient _api;
 
-  Future<String?> _getAuthToken() async {
-    final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      throw Exception('User not authenticated');
-    }
-    return await user.getIdToken();
-  }
+  RestaurantSettingsService(this._api);
 
   /// Récupère le restaurant du propriétaire connecté
   Future<Restaurant> getMyRestaurant() async {
-    final token = await _getAuthToken();
-    final response = await http.get(
-      Uri.parse('$_baseUrl/restaurants/mine'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      final restaurantData = data['data'] as Map<String, dynamic>;
-      return Restaurant.fromJson(restaurantData);
-    } else {
-      throw Exception('Failed to load restaurant: ${response.body}');
-    }
+    final res = await _api.getJson('/restaurants/mine');
+    final restaurantData = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+    return Restaurant.fromJson(restaurantData);
   }
 
   /// Met à jour les informations générales du restaurant
   Future<Restaurant> updateRestaurant(String restaurantId, Map<String, dynamic> data) async {
-    final token = await _getAuthToken();
-    final response = await http.patch(
-      Uri.parse('$_baseUrl/restaurants/$restaurantId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode(data),
-    );
-
-    if (response.statusCode == 200) {
-      final responseData = json.decode(utf8.decode(response.bodyBytes));
-      return Restaurant.fromJson(responseData['data']);
-    } else {
-      throw Exception('Failed to update restaurant: ${response.body}');
-    }
+    final res = await _api.patchJson('/restaurants/$restaurantId', body: data);
+    return Restaurant.fromJson((res.data as Map<String, dynamic>)['data']);
   }
 
   /// Met à jour le statut ouvert/fermé du restaurant
   Future<Restaurant> updateOpenStatus(String restaurantId, bool isOpen) async {
-    final token = await _getAuthToken();
-    final response = await http.patch(
-      Uri.parse('$_baseUrl/restaurants/$restaurantId/open-status'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({'isOpen': isOpen}),
+    final res = await _api.patchJson(
+      '/restaurants/$restaurantId/open-status',
+      body: {'isOpen': isOpen},
     );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      return Restaurant.fromJson(data['data']);
-    } else {
-      throw Exception('Failed to update open status: ${response.body}');
-    }
+    return Restaurant.fromJson((res.data as Map<String, dynamic>)['data']);
   }
 
   /// Met à jour les paramètres de livraison
@@ -83,8 +38,6 @@ class RestaurantSettingsService {
     double? minimumOrderAmount,
     String? deliveryPriceMode,
   }) async {
-    final token = await _getAuthToken();
-
     final data = <String, dynamic>{};
     if (fixedDeliveryFee != null) data['fixedDeliveryFee'] = fixedDeliveryFee;
     if (estimatedDeliveryTimeMin != null) data['estimatedDeliveryTimeMin'] = estimatedDeliveryTimeMin;
@@ -92,90 +45,41 @@ class RestaurantSettingsService {
     if (minimumOrderAmount != null) data['minimumOrderAmount'] = minimumOrderAmount;
     if (deliveryPriceMode != null) data['deliveryPriceMode'] = deliveryPriceMode;
 
-    final response = await http.patch(
-      Uri.parse('$_baseUrl/restaurants/$restaurantId/delivery-settings'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode(data),
+    final res = await _api.patchJson(
+      '/restaurants/$restaurantId/delivery-settings',
+      body: data,
     );
-
-    if (response.statusCode == 200) {
-      final responseData = json.decode(utf8.decode(response.bodyBytes));
-      return Restaurant.fromJson(responseData['data']);
-    } else {
-      throw Exception('Failed to update delivery settings: ${response.body}');
-    }
+    return Restaurant.fromJson((res.data as Map<String, dynamic>)['data']);
   }
 
   /// Récupère les spécialités du restaurant
   Future<List<Specialty>> getSpecialties(String restaurantId) async {
-    final token = await _getAuthToken();
-    final response = await http.get(
-      Uri.parse('$_baseUrl/restaurants/$restaurantId/specialties'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      final specialties = ApiResponse.listOf(data);
-      return specialties.map((s) => Specialty.fromJson(s)).toList();
-    } else {
-      throw Exception('Failed to load specialties: ${response.body}');
-    }
+    final res = await _api.getJson('/restaurants/$restaurantId/specialties');
+    final specialties = ApiResponse.listOf(res.data);
+    return specialties.map((s) => Specialty.fromJson(s)).toList();
   }
 
   /// Ajoute une spécialité au restaurant
   Future<Specialty> addSpecialty(String restaurantId, String name) async {
-    final token = await _getAuthToken();
-    final response = await http.post(
-      Uri.parse('$_baseUrl/restaurants/$restaurantId/specialties'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({'name': name}),
+    final res = await _api.postJson(
+      '/restaurants/$restaurantId/specialties',
+      body: {'name': name},
     );
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      return Specialty.fromJson(data['data']);
-    } else {
-      throw Exception('Failed to add specialty: ${response.body}');
-    }
+    return Specialty.fromJson((res.data as Map<String, dynamic>)['data']);
   }
 
   /// Supprime une spécialité du restaurant
   Future<void> removeSpecialty(String restaurantId, String specialtyId) async {
-    final token = await _getAuthToken();
-    final response = await http.delete(
-      Uri.parse('$_baseUrl/restaurants/$restaurantId/specialties/$specialtyId'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception('Failed to remove specialty: ${response.body}');
-    }
+    await _api.deleteJson('/restaurants/$restaurantId/specialties/$specialtyId');
   }
 
   // ============ HORAIRES D'OUVERTURE ============
 
   /// Récupère les horaires d'ouverture du restaurant
   Future<List<OperatingHours>> getOperatingHours(String restaurantId) async {
-    final token = await _getAuthToken();
-    final response = await http.get(
-      Uri.parse('$_baseUrl/restaurants/$restaurantId/operating-hours'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      final hours = ApiResponse.listOf(data);
-      return hours.map((h) => OperatingHours.fromJson(h)).toList();
-    } else {
-      throw Exception('Failed to load operating hours: ${response.body}');
-    }
+    final res = await _api.getJson('/restaurants/$restaurantId/operating-hours');
+    final hours = ApiResponse.listOf(res.data);
+    return hours.map((h) => OperatingHours.fromJson(h)).toList();
   }
 
   /// Définit les horaires de la semaine (bulk upsert)
@@ -183,23 +87,12 @@ class RestaurantSettingsService {
     String restaurantId,
     List<Map<String, dynamic>> hours,
   ) async {
-    final token = await _getAuthToken();
-    final response = await http.put(
-      Uri.parse('$_baseUrl/restaurants/$restaurantId/operating-hours'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({'hours': hours}),
+    final res = await _api.putJson(
+      '/restaurants/$restaurantId/operating-hours',
+      body: {'hours': hours},
     );
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      final result = ApiResponse.listOf(data);
-      return result.map((h) => OperatingHours.fromJson(h)).toList();
-    } else {
-      throw Exception('Failed to set operating hours: ${response.body}');
-    }
+    final result = ApiResponse.listOf(res.data);
+    return result.map((h) => OperatingHours.fromJson(h)).toList();
   }
 
   /// Met à jour les horaires d'un seul jour
@@ -208,21 +101,10 @@ class RestaurantSettingsService {
     String dayOfWeek,
     Map<String, dynamic> data,
   ) async {
-    final token = await _getAuthToken();
-    final response = await http.patch(
-      Uri.parse('$_baseUrl/restaurants/$restaurantId/operating-hours/$dayOfWeek'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode(data),
+    final res = await _api.patchJson(
+      '/restaurants/$restaurantId/operating-hours/$dayOfWeek',
+      body: data,
     );
-
-    if (response.statusCode == 200) {
-      final responseData = json.decode(utf8.decode(response.bodyBytes));
-      return OperatingHours.fromJson(responseData['data']);
-    } else {
-      throw Exception('Failed to update operating hour: ${response.body}');
-    }
+    return OperatingHours.fromJson((res.data as Map<String, dynamic>)['data']);
   }
 }

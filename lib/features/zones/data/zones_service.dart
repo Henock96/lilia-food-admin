@@ -1,52 +1,24 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:firebase_auth/firebase_auth.dart';
-
-import 'package:lilia_admin/constants/app_constants.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/utils/api_response.dart';
-class ZonesService {
-  final String _baseUrl = AppConstants.baseUrl;
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
-  Future<String?> _getAuthToken() async {
-    final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      throw Exception('User not authenticated');
-    }
-    return await user.getIdToken();
-  }
+class ZonesService {
+  final ApiClient _api;
+
+  ZonesService(this._api);
 
   /// Récupère tous les quartiers disponibles
   Future<List<Quartier>> getAllQuartiers() async {
-    final response = await http.get(
-      Uri.parse('$_baseUrl/quartiers'),
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      final quartiers = ApiResponse.listOf(data);
-      return quartiers.map((q) => Quartier.fromJson(q)).toList();
-    } else {
-      throw Exception('Failed to load quartiers: ${response.body}');
-    }
+    final res = await _api.getJson('/quartiers');
+    final quartiers = ApiResponse.listOf(res.data);
+    return quartiers.map((q) => Quartier.fromJson(q)).toList();
   }
 
   /// Récupère les zones de livraison du restaurant connecté
   Future<DeliveryZonesData> getMyDeliveryZones() async {
-    final token = await _getAuthToken();
-    final response = await http.get(
-      Uri.parse('$_baseUrl/quartiers/my-zones'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      // /quartiers/my-zones renvoie { data:[...], restaurantId, ... } →
-      // double-wrappé par l'interceptor : on déballe l'enveloppe externe.
-      return DeliveryZonesData.fromJson(ApiResponse.mapOf(data));
-    } else {
-      throw Exception('Failed to load delivery zones: ${response.body}');
-    }
+    final res = await _api.getJson('/quartiers/my-zones');
+    // /quartiers/my-zones renvoie { data:[...], restaurantId, ... } →
+    // double-wrappé par l'interceptor : on déballe l'enveloppe externe.
+    return DeliveryZonesData.fromJson(ApiResponse.mapOf(res.data));
   }
 
   /// Crée une nouvelle zone de livraison
@@ -56,26 +28,15 @@ class ZonesService {
     double fee,
     List<String> quartierIds,
   ) async {
-    final token = await _getAuthToken();
-    final response = await http.post(
-      Uri.parse('$_baseUrl/quartiers/zones/$restaurantId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({
+    final res = await _api.postJson(
+      '/quartiers/zones/$restaurantId',
+      body: {
         'zoneName': zoneName,
         'fee': fee,
         'quartierIds': quartierIds,
-      }),
+      },
     );
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      return DeliveryZone.fromJson(ApiResponse.mapOf(data));
-    } else {
-      throw Exception('Failed to create delivery zone: ${response.body}');
-    }
+    return DeliveryZone.fromJson(ApiResponse.mapOf(res.data));
   }
 
   /// Met à jour une zone de livraison
@@ -85,40 +46,18 @@ class ZonesService {
     double? fee,
     List<String>? quartierIds,
   }) async {
-    final token = await _getAuthToken();
     final body = <String, dynamic>{};
     if (zoneName != null) body['zoneName'] = zoneName;
     if (fee != null) body['fee'] = fee;
     if (quartierIds != null) body['quartierIds'] = quartierIds;
 
-    final response = await http.patch(
-      Uri.parse('$_baseUrl/quartiers/zones/$zoneId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode(body),
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      return DeliveryZone.fromJson(ApiResponse.mapOf(data));
-    } else {
-      throw Exception('Failed to update delivery zone: ${response.body}');
-    }
+    final res = await _api.patchJson('/quartiers/zones/$zoneId', body: body);
+    return DeliveryZone.fromJson(ApiResponse.mapOf(res.data));
   }
 
   /// Supprime une zone de livraison
   Future<void> deleteDeliveryZone(String zoneId) async {
-    final token = await _getAuthToken();
-    final response = await http.delete(
-      Uri.parse('$_baseUrl/quartiers/zones/$zoneId'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception('Failed to delete delivery zone: ${response.body}');
-    }
+    await _api.deleteJson('/quartiers/zones/$zoneId');
   }
 }
 

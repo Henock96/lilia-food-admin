@@ -1,12 +1,13 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../models/menu.dart';
 import '../../data/menu_service.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 
 part 'menus_provider.g.dart';
 
 @riverpod
 MenuService menuService(Ref ref) {
-  return MenuService();
+  return MenuService(ref.watch(apiClientProvider));
 }
 
 @riverpod
