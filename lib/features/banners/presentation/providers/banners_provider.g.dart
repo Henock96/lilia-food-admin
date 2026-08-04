@@ -80,7 +80,7 @@ abstract class _$Banners extends $AsyncNotifier<List<AppBanner>> {
   FutureOr<List<AppBanner>> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<List<AppBanner>>, List<AppBanner>>;
     final element =
         ref.element
@@ -90,6 +90,6 @@ abstract class _$Banners extends $AsyncNotifier<List<AppBanner>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

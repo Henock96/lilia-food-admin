@@ -49,7 +49,7 @@ abstract class _$AdminVendorsList
   FutureOr<List<AdminVendorItem>> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref
             as $Ref<AsyncValue<List<AdminVendorItem>>, List<AdminVendorItem>>;
@@ -64,7 +64,7 @@ abstract class _$AdminVendorsList
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }
 

@@ -80,7 +80,7 @@ abstract class _$Menus extends $AsyncNotifier<List<MenuDuJour>> {
   FutureOr<List<MenuDuJour>> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref as $Ref<AsyncValue<List<MenuDuJour>>, List<MenuDuJour>>;
     final element =
@@ -91,6 +91,6 @@ abstract class _$Menus extends $AsyncNotifier<List<MenuDuJour>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

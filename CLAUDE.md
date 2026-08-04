@@ -280,6 +280,36 @@ url_launcher: ^6.3.1
 1. ✅ **SSE cleanup complet** : `flutter_client_sse` retiré du pubspec, `restaurant_orders_screen.dart` nettoyé (~90 lignes : imports + `_sseSubscription` + `_subscribeToOrderEvents` + `_handleOrderEvent`)
 2. ✅ **FCM est désormais le seul canal temps réel** : `notification_service.dart::_handleNotificationData` invalide `restaurantOrdersProvider` à la réception d'un push avec `orderId`
 
+## Remédiation audit (août 2026 — `AUDIT_2026-08-01.md`)
+
+1. ✅ **Signature release réactivée** (M-6, `android/app/build.gradle.kts`). Le
+   bloc `signingConfigs` était **commenté** et `release` pointait sur
+   `signingConfigs.getByName("debug")` : l'AAB produit était signé avec la clé de
+   debug Android — inpubliable sur le Play Store, et cette clé étant publique,
+   n'importe qui pouvait produire une mise à jour acceptée par les appareils.
+   Le bloc est rétabli, mais **conditionné à la présence de
+   `android/key.properties`** : sans lui on retombe sur debug avec un
+   `logger.warn("NE PAS PUBLIER cet artefact")`, pour qu'un `flutter run
+   --release` local n'échoue pas au chargement Gradle.
+   ⚠️ **Reste à faire** : créer `android/key.properties` sur la machine de
+   release (il est gitignoré).
+2. ✅ **`.gitignore` durci** (C-1) : `*.jks`, `*.keystore`,
+   `/android/key.properties`, `/android/local.properties`, `/android/build/`,
+   `/android/app/build/`. Le `/build/` ancré à la racine ne couvrait pas les
+   artefacts Android.
+3. ✅ **Garde `context.mounted`** (`photo_gallery_editor.dart`) — le sélecteur
+   d'image est asynchrone, l'écran pouvait être quitté pendant la sélection.
+4. ✅ **Dépendances alignées** sur les 3 apps Flutter (`firebase_core ^4.10.0`,
+   `firebase_auth ^6.5.2`, `flutter_riverpod ^3.3.2`, `riverpod_annotation
+   ^4.0.3`, `go_router ^17.3.0`, `dio ^5.9.2`), `build_runner` régénéré.
+5. ✅ **Uploads** : l'app utilise déjà `POST /upload/image` authentifié. C'est
+   l'**admin web** (`lilia-food-web/apps/admin`) qui uploadait en direct
+   Cloudinary via preset unsigned — corrigé de son côté.
+
+Résultat : `flutter analyze` **0 erreur / 0 warning**, tests **43/43**.
+
+---
+
 ## Dettes techniques restantes
 
 1. **Pas de WebSocket admin** alors que le backend offre `/tracking` avec `order:status` broadcast multi-instance. Utile si l'admin gère plusieurs commandes simultanées (pour éviter de dépendre uniquement des push FCM qui peuvent rater).

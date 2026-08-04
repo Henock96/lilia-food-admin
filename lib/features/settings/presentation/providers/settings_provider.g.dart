@@ -40,7 +40,7 @@ abstract class _$RestaurantSettings extends $AsyncNotifier<Restaurant> {
   FutureOr<Restaurant> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<Restaurant>, Restaurant>;
     final element =
         ref.element
@@ -50,6 +50,6 @@ abstract class _$RestaurantSettings extends $AsyncNotifier<Restaurant> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

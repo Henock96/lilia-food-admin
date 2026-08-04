@@ -200,7 +200,7 @@ abstract class _$PhotosController extends $AsyncNotifier<List<Photo>> {
   FutureOr<List<Photo>> build(EntityType type, String parentId);
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<List<Photo>>, List<Photo>>;
     final element =
         ref.element
@@ -210,6 +210,6 @@ abstract class _$PhotosController extends $AsyncNotifier<List<Photo>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args.$1, _$args.$2));
+    return element.handleCreate(ref, () => build(_$args.$1, _$args.$2));
   }
 }
