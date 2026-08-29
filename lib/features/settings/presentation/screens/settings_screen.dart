@@ -7,6 +7,7 @@ import '../../../../models/role.dart';
 import '../providers/settings_provider.dart';
 import '../../../../models/restaurant.dart';
 import 'package:lilia_admin/theme/lilia_tokens.dart';
+import '../../../admin/data/refunds_service.dart';
 
 // ============================================================
 // Couleurs du theme
@@ -160,6 +161,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               title: 'Paiements',
               subtitle: 'Superviser et confirmer les paiements',
               onTap: () => context.goNamed('admin-payments'),
+            ),
+            // Remboursements : le backend ouvre une ligne à chaque annulation
+            // de commande payée. Le badge dit combien attendent — sans lui,
+            // l'entrée serait aussi invisible que la file l'était.
+            Consumer(
+              builder: (context, ref, _) {
+                final pending = ref
+                    .watch(pendingRefundsCountProvider)
+                    .maybeWhen(data: (n) => n, orElse: () => 0);
+                return _AdminMenuTile(
+                  icon: Icons.currency_exchange,
+                  iconColor: _AppColors.warning,
+                  title: pending > 0
+                      ? 'Remboursements ($pending à traiter)'
+                      : 'Remboursements',
+                  subtitle: 'Commandes annulées après paiement',
+                  onTap: () => context.goNamed('admin-refunds'),
+                );
+              },
+            ),
+            _AdminMenuTile(
+              icon: Icons.history_outlined,
+              iconColor: _AppColors.textSecondary,
+              title: 'Journal d\'audit',
+              subtitle: 'Rôles, bannissements, décisions de paiement',
+              onTap: () => context.goNamed('admin-audit-log'),
             ),
             _AdminMenuTile(
               icon: Icons.report_problem_outlined,

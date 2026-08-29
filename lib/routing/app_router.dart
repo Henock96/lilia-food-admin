@@ -34,6 +34,9 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../features/auth/repository/firebase_auth_repository.dart';
 import '../features/users/user_screen.dart';
 import 'go_router_refresh_stream.dart';
+import '../features/auth/presentation/access_denied_screen.dart';
+import '../features/admin/presentation/screens/refunds_screen.dart';
+import '../features/admin/presentation/screens/audit_log_screen.dart';
 
 part 'app_router.g.dart';
 
@@ -148,7 +151,16 @@ GoRouter router(Ref ref) {
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
-          return BottomNavigationPage(navigationShell: navigationShell);
+          // Garde de rôle (29/08/2026). `AppUser.isRestaurateurOrAdmin`
+          // existait depuis longtemps mais n'était appelé nulle part : un
+          // compte CLIENT connecté ici voyait toute l'interface, vide, chaque
+          // appel étant refusé en 403 par le backend.
+          //
+          // Le contrôle vit dans le `builder` du shell plutôt que dans
+          // `redirect` parce que le profil arrive de façon ASYNCHRONE, après
+          // `POST /users/sync` : un `redirect` évalué à la navigation
+          // laisserait passer l'utilisateur puis ne serait plus rejoué.
+          return _RoleGuard(child: BottomNavigationPage(navigationShell: navigationShell));
         },
         branches: [
           StatefulShellBranch(
@@ -293,6 +305,26 @@ GoRouter router(Ref ref) {
                       child: _AdminOnlyGuard(child: AdminVendorsScreen()),
                     ),
                   ),
+                  // File des remboursements dus après annulation d'une
+                  // commande payée. Le backend les crée automatiquement ;
+                  // sans cet écran, personne ne les voyait.
+                  GoRoute(
+                    path: 'remboursements',
+                    name: 'admin-refunds',
+                    pageBuilder: (context, state) => const MaterialPage(
+                      child: _AdminOnlyGuard(child: RefundsScreen()),
+                    ),
+                  ),
+                  // Journal d'audit : rôles modifiés, bannissements,
+                  // suspensions, décisions de paiement. Alimenté depuis le
+                  // 28/08, sans consultation possible jusqu'ici.
+                  GoRoute(
+                    path: 'journal-audit',
+                    name: 'admin-audit-log',
+                    pageBuilder: (context, state) => const MaterialPage(
+                      child: _AdminOnlyGuard(child: AuditLogScreen()),
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -409,5 +441,31 @@ class _MissingRouteDataScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+
+/// Refuse l'accès à l'app vendeur aux comptes qui n'en relèvent pas.
+///
+/// Trois états, et la nuance compte :
+///  - profil **non encore chargé** (`null`) → on laisse passer. Le sync est
+///    asynchrone ; bloquer ici déconnecterait un ADMIN légitime pendant le
+///    chargement.
+///  - profil chargé et rôle autorisé → l'app.
+///  - profil chargé et rôle non autorisé → écran d'explication.
+class _RoleGuard extends ConsumerWidget {
+  const _RoleGuard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(currentUserProfileProvider);
+
+    if (profile != null && !profile.isRestaurateurOrAdmin) {
+      return const AccessDeniedScreen();
+    }
+
+    return child;
   }
 }

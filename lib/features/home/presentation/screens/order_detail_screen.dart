@@ -771,7 +771,10 @@ class OrderDetailScreen extends ConsumerWidget {
       );
     }
 
-    final availableStatuses = _getAvailableStatuses(order.status);
+    final availableStatuses = _getAvailableStatuses(
+      order.status,
+      isDelivery: order.isDelivery,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -888,7 +891,25 @@ class OrderDetailScreen extends ConsumerWidget {
     }
   }
 
-  List<OrderStatus> _getAvailableStatuses(OrderStatus current) {
+  /// Transitions que le backend acceptera réellement, pour ce vendeur et cette
+  /// commande.
+  ///
+  /// Doit rester le miroir d'`ORDER_TRANSITION_MATRIX` côté backend, restreint
+  /// au rôle vendeur : proposer un bouton que l'API refusera par un 403
+  /// n'apprend rien au vendeur, sinon que l'application est cassée.
+  ///
+  /// Deux absences sont volontaires :
+  ///  - **`EN_ROUTE` n'est jamais proposé.** Ce statut annonce au client
+  ///    « votre livreur est en chemin » ; seul le livreur peut l'établir, en
+  ///    confirmant la récupération. Le backend le refuse au vendeur depuis
+  ///    l'audit du 29/08/2026.
+  ///  - **`LIVRER` n'apparaît que sur les commandes à emporter** : là, le
+  ///    vendeur remet le sac en main propre, il est donc le mieux placé pour
+  ///    clôturer. Sur une livraison, c'est le livreur qui constate.
+  List<OrderStatus> _getAvailableStatuses(
+    OrderStatus current, {
+    required bool isDelivery,
+  }) {
     switch (current) {
       case OrderStatus.enattente:
         return [
@@ -901,10 +922,14 @@ class OrderDetailScreen extends ConsumerWidget {
       case OrderStatus.enpreparation:
         return [OrderStatus.pret, OrderStatus.annuler];
       case OrderStatus.pret:
-        // Pour les livraisons, le livreur marque livré après réception
-        return [OrderStatus.annuler];
+        // Retrait au comptoir : sans ce bouton, la commande n'avait aucune
+        // sortie autre que l'annulation et restait « Prête » indéfiniment.
+        return [
+          if (!isDelivery) OrderStatus.livrer,
+          OrderStatus.annuler,
+        ];
       case OrderStatus.enRoute:
-        // Le livreur est en transit, l'admin ne peut qu'annuler en cas d'urgence
+        // Le livreur est en transit : le vendeur n'a plus la main.
         return [];
       default:
         return [];

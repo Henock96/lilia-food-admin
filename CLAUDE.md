@@ -205,6 +205,27 @@ final isAdmin = userProfile?.role == Role.admin;
 
 ⚠️ Le statut `EN_ROUTE` et la transition vers `LIVRER` sont déclenchés par l'app livreur, **pas par l'admin**. L'admin reçoit juste les notifs FCM (pas de broadcast WS aujourd'hui car non branché).
 
+### Transitions proposées au vendeur (29/08/2026)
+
+`_getAvailableStatuses` doit rester le miroir d'`ORDER_TRANSITION_MATRIX` côté
+backend, restreint au rôle vendeur : un bouton que l'API refusera par un 403
+n'apprend rien, sinon que l'application est cassée.
+
+- **`EN_ROUTE` n'est jamais proposé.** Il annonce au client « votre livreur est
+  en chemin » ; seul le livreur peut l'établir, en confirmant la récupération.
+  Le backend le refuse au vendeur.
+- **`LIVRER` n'apparaît que si `order.isDelivery == false`** (retrait au
+  comptoir) : le vendeur remet le sac en main propre, il est le mieux placé
+  pour clôturer. Sans ce bouton, une commande à emporter n'avait aucune sortie
+  autre que l'annulation.
+
+### Remboursements — pagination (29/08/2026)
+
+`RefundsService.list()` envoie `page` + `limit` et rend un `RefundPage` porteur
+du **total serveur**. Le badge lit `page.total`, pas `items.length` : il
+comptait les éléments reçus et plafonnait donc à la taille d'une page — l'admin
+voyait « 20 » alors que cinquante clients attendaient leur argent.
+
 ---
 
 ## Push Notifications FCM (revu août 2026)
