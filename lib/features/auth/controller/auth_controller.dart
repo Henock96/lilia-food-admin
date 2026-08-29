@@ -5,6 +5,7 @@ import 'package:lilia_admin/features/auth/repository/firebase_auth_error_handler
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_admin/features/auth/app_user_model.dart';
 import 'package:lilia_admin/features/auth/repository/firebase_auth_repository.dart';
+import 'package:lilia_admin/services/notification_service.dart';
 
 part 'auth_controller.g.dart';
 
@@ -44,6 +45,13 @@ class AuthController extends _$AuthController {
   Future<bool> signOut() async {
     try {
       final authRepository = ref.read(authRepositoryProvider);
+
+      // Détacher le device du compte AVANT le signOut Firebase : le DELETE
+      // est authentifié, il ne passerait plus une fois le token révoqué.
+      // Sans lui, l'appareil déconnecté reste rattaché à l'utilisateur et
+      // continue de recevoir ses pushs de commandes.
+      await ref.read(notificationServiceProvider).removeToken();
+
       await authRepository.signOut();
 
       // Invalider les providers pour vider le cache utilisateur

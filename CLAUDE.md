@@ -67,7 +67,10 @@ lib/
 │   └── zones/          CRUD zones livraison par quartier
 ├── models/             order.dart, product.dart, app_user.dart…
 ├── routing/            app_router.dart (go_router role-aware)
-├── services/           notification_service.dart (FCM)
+├── services/
+│   ├── notification_service.dart   # FCM — colle Firebase
+│   ├── notification_router.dart    # payload FCM → action (pur, testé)
+│   └── fcm_token_registrar.dart    # cycle de vie du token (pur, testé)
 └── main.dart
 ```
 
@@ -93,8 +96,8 @@ final isAdmin = userProfile?.role == Role.admin;
 ### Commandes (home/)
 
 **Temps réel via FCM uniquement** (mai 2026) :
-- `notification_service.dart::_handleNotificationData` reçoit les push FCM avec `data.orderId`
-- → invalidate `restaurantOrdersProvider` + set `latestOrderNotificationProvider`
+- `notification_router.dart` traduit le push en action, `notification_service.dart::_handleNotificationData` l'applique
+- Tout payload portant un `orderId` → invalidate `restaurantOrdersProvider`
 - Plus de SSE (endpoint supprimé du backend, package `flutter_client_sse` retiré du pubspec)
 
 - `restaurant_orders_screen.dart` : tabs par statut (Toutes / En attente / Payée / En préparation / Prête / Livrée / Annulée)
@@ -204,17 +207,62 @@ final isAdmin = userProfile?.role == Role.admin;
 
 ---
 
-## Push Notifications FCM
+## Push Notifications FCM (revu août 2026)
 
-`lib/services/notification_service.dart`
+Trois fichiers, dont deux purs et testés :
+
+| Fichier | Rôle |
+|---|---|
+| `services/notification_service.dart` | colle Firebase / plugin local |
+| `services/notification_router.dart` | payload FCM → `NotificationAction` (**pur, testé**) |
+| `services/fcm_token_registrar.dart` | token : register / remove (**pur, testé**) |
+
+Le service touche `FirebaseMessaging.instance` dès sa construction, donc il
+n'est pas instanciable en test unitaire. Toute logique décidable en est
+extraite. **Y ajouter de la logique = l'ajouter dans un des deux fichiers
+purs.**
 
 - `Firebase.initializeApp()` AVANT `ProviderScope`
-- Top-level `firebaseMessagingBackgroundHandler`
 - Handlers `onMessage` + `onMessageOpenedApp` + `getInitialMessage`
+- ⚠️ `_setupMessageHandlers()` doit rester **avant** `getToken()` dans
+  `init()` : un échec APNS emportait sinon tous les handlers dans le `catch`
 - Canal Android : `high_importance_channel`
-- Token enregistré via `POST /notifications/register-token` après login
-- Supprimé au logout via `DELETE /notifications/token`
-- Quand `data.type == 'new_order'` ou `data.orderId` → invalidate `restaurantOrdersProvider`
+- Token enregistré via `POST /notifications/register-token` après login.
+  `registerTokenOnServer()` redemande le token à FCM à chaque appel — après
+  un logout le registrar n'en a plus en mémoire
+- Supprimé au logout via `DELETE /notifications/token`, **dans
+  `AuthController.signOut()` avant le signOut Firebase** — après, le DELETE
+  authentifié ne passerait plus
+- ⚠️ **Le handler background n'affiche rien** : Android affiche déjà la notif
+  lui-même (bloc `notification` backend + `default_notification_channel_id` au
+  manifest). Un `show()` dedans en produisait une seconde, identique
+- iOS : `_fetchFcmToken()` retente pendant 10s tant qu'APNS répond
+  `apns-token-not-set`
+
+### Table de routage (`notification_router.dart`)
+
+| `data.type` backend | Rafraîchit | Ouvre (tap seulement) |
+|---|---|---|
+| `incident` + `incidentId` | `incidentsListProvider` | `incident-detail` |
+| `vendor_pending_approval` | `adminPendingVendors` + `adminVendorsList` | `admin-vendors` |
+| `vendor_approved` | `userDataSynchronizer` (profil + `adminApproved`) | — |
+| `preorder_reminder` | `restaurantOrdersProvider` | — |
+| tout payload avec `orderId` | `restaurantOrdersProvider` | — |
+
+**La navigation n'a lieu qu'au tap.** En foreground on rafraîchit sans
+déplacer l'utilisateur : un incident reçu pendant qu'il remplit un formulaire
+le projetait sur l'écran de détail sans qu'il ait rien touché.
+
+### iOS — entitlements requis
+
+`ios/Runner/Runner.entitlements` (Debug + Profile) et `RunnerRelease.entitlements`
+portent `aps-environment`, câblés via `CODE_SIGN_ENTITLEMENTS` sur les 3 build
+configs, avec `DEVELOPMENT_TEAM` sur les trois. Sans eux, `getToken()` échoue
+et **aucun push n'arrive, même sur iPhone physique**.
+`UIBackgroundModes: remote-notification` est dans `Info.plist`.
+
+⚠️ Les deux fichiers sont sur `development`. À basculer sur `production` avant
+la première distribution TestFlight / App Store.
 
 ---
 

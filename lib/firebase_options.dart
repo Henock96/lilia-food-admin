@@ -57,7 +57,6 @@ class DefaultFirebaseOptions {
     projectId: 'lilia-app-d8f6f',
     storageBucket: 'lilia-app-d8f6f.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBA6a-vecaUYvvMviHFmxso4k8CcDC1GvU',
     appId: '1:79838517894:ios:8101c0ce1a5ad875c08f07',
@@ -68,7 +67,6 @@ class DefaultFirebaseOptions {
     iosClientId: '79838517894-lj43q2clth4t8fqr3p0t1s209l0qu6ij.apps.googleusercontent.com',
     iosBundleId: 'com.dreesis.liliaAdmin',
   );
-
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyBA6a-vecaUYvvMviHFmxso4k8CcDC1GvU',
     appId: '1:79838517894:ios:8101c0ce1a5ad875c08f07',
@@ -89,5 +87,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'lilia-app-d8f6f.firebasestorage.app',
     measurementId: 'G-F3GSKFET0Y',
   );
-
 }

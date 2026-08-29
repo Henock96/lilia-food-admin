@@ -96,6 +96,15 @@ class OrderDetailScreen extends ConsumerWidget {
             _buildPaymentInfo(context, currentOrder),
             const SizedBox(height: 24),
 
+            // État réel de la course. La commande reste PRET tant que le
+            // livreur n'a pas récupéré le repas : sans cette carte, le vendeur
+            // verrait « assignez un livreur » alors qu'un livreur a déjà
+            // accepté et arrive.
+            if (currentOrder.isDelivery) ...[
+              _DeliveryStateCard(orderId: currentOrder.id),
+              const SizedBox(height: 16),
+            ],
+
             // Assignation livreur (commande PRET en livraison)
             if (currentOrder.status == OrderStatus.pret &&
                 currentOrder.isDelivery)
@@ -1312,6 +1321,81 @@ class _AssignDelivererSheetState extends State<_AssignDelivererSheet> {
             ),
         ],
       ),
+    );
+  }
+}
+
+
+/// État de la course, du point de vue du vendeur.
+///
+/// Le statut de la commande ne suffit pas : entre « le livreur a accepté » et
+/// « le livreur est parti avec le repas », la commande reste `PRET`. C'est
+/// exact — elle est encore au comptoir — mais le vendeur a besoin de savoir
+/// qu'un livreur est engagé et arrive.
+class _DeliveryStateCard extends ConsumerWidget {
+  const _DeliveryStateCard({required this.orderId});
+
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stateAsync = ref.watch(orderDeliveryStateProvider(orderId));
+
+    return stateAsync.maybeWhen(
+      orElse: () => const SizedBox.shrink(),
+      data: (state) {
+        // Aucune livraison créée : le bloc d'assignation habituel suffit.
+        if (state == null || state.status == null) {
+          return const SizedBox.shrink();
+        }
+
+        final (color, icon) = switch (state.status) {
+          'ASSIGNER' => (Colors.orange, Icons.hourglass_empty),
+          'ACCEPTER' => (Colors.blue, Icons.directions_bike),
+          'EN_TRANSIT' => (Colors.indigo, Icons.delivery_dining),
+          'LIVRER' => (Colors.green, Icons.check_circle),
+          'ECHEC' => (Colors.red, Icons.error_outline),
+          _ => (Colors.grey, Icons.info_outline),
+        };
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.35)),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      state.label,
+                      style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (state.delivererNom != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        state.delivererNom!,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

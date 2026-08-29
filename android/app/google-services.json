@@ -47,10 +47,10 @@
               "client_type": 3
             },
             {
-              "client_id": "79838517894-f7i2ke4ge16lhq6peh2t8nrdr2j4j35e.apps.googleusercontent.com",
+              "client_id": "79838517894-1sq81lg479vdser05i7f9r3m9ef1gpqr.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.dreesis.lilia.liliaApp"
+                "bundle_id": "com.dreesis.liliaFoodDelivery"
               }
             }
           ]
@@ -65,6 +65,14 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "79838517894-kjddg1nj6phfenbpport3vag3dph6mem.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dreesis.lilia_admin",
+            "certificate_hash": "f09482342c0d607a17c1fc8b4bebc3ebce044ed6"
+          }
+        },
         {
           "client_id": "79838517894-m230oii5h7jh47da9st180kgmt63dh6g.apps.googleusercontent.com",
           "client_type": 3
@@ -83,10 +91,54 @@
               "client_type": 3
             },
             {
-              "client_id": "79838517894-f7i2ke4ge16lhq6peh2t8nrdr2j4j35e.apps.googleusercontent.com",
+              "client_id": "79838517894-1sq81lg479vdser05i7f9r3m9ef1gpqr.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.dreesis.lilia.liliaApp"
+                "bundle_id": "com.dreesis.liliaFoodDelivery"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:79838517894:android:ef3d51aaee12d5f1c08f07",
+        "android_client_info": {
+          "package_name": "com.dreesis.lilia_food_delivery"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "79838517894-200k223dm52etfkdmpitqjf3ne7f6skk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dreesis.lilia_food_delivery",
+            "certificate_hash": "f09482342c0d607a17c1fc8b4bebc3ebce044ed6"
+          }
+        },
+        {
+          "client_id": "79838517894-m230oii5h7jh47da9st180kgmt63dh6g.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVTMt0Gv2t0D6kUycVVhB4tgWn-IMQa2Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "79838517894-m230oii5h7jh47da9st180kgmt63dh6g.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "79838517894-1sq81lg479vdser05i7f9r3m9ef1gpqr.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.dreesis.liliaFoodDelivery"
               }
             }
           ]

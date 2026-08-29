@@ -9,6 +9,53 @@ part of 'notification_service.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 
+@ProviderFor(fcmTokenRegistrar)
+final fcmTokenRegistrarProvider = FcmTokenRegistrarProvider._();
+
+final class FcmTokenRegistrarProvider
+    extends
+        $FunctionalProvider<
+          FcmTokenRegistrar,
+          FcmTokenRegistrar,
+          FcmTokenRegistrar
+        >
+    with $Provider<FcmTokenRegistrar> {
+  FcmTokenRegistrarProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'fcmTokenRegistrarProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$fcmTokenRegistrarHash();
+
+  @$internal
+  @override
+  $ProviderElement<FcmTokenRegistrar> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  FcmTokenRegistrar create(Ref ref) {
+    return fcmTokenRegistrar(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(FcmTokenRegistrar value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<FcmTokenRegistrar>(value),
+    );
+  }
+}
+
+String _$fcmTokenRegistrarHash() => r'daea2bd1dd3d0edff940d7a7285b0a278d07f1a9';
+
 @ProviderFor(notificationService)
 final notificationServiceProvider = NotificationServiceProvider._();
 
@@ -55,4 +102,4 @@ final class NotificationServiceProvider
 }
 
 String _$notificationServiceHash() =>
-    r'b39b10228c65bab1693253a137a80cdfc7d3efab';
+    r'de99bb6727b9def293281e1a4acdc60eb25ba616';

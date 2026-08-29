@@ -91,6 +91,9 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
           debugPrint('Erreur lors de la synchronisation: $e');
         }
       } else {
+        // NB : le détachement du device (DELETE /notifications/token) se fait
+        // dans `AuthController.signOut()`, pendant que le token Firebase est
+        // encore valide — ici il est déjà révoqué.
         ref.read(currentUserProfileProvider.notifier).clear();
         // Purger le contexte Sentry au logout.
         await Sentry.configureScope((scope) => scope.setUser(null));

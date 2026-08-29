@@ -63,3 +63,6 @@ ios/Runner.xcworkspace/xcshareddata/swiftpm
 
 # Clés APNs Apple (.p8) — un secret, jamais versionné
 *.p8
+
+# Log du CLI Firebase (firepit) — bruit local, aucune valeur en revue
+firepit-log.txt
