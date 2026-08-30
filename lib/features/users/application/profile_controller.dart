@@ -51,7 +51,7 @@ class ProfileController extends _$ProfileController {
 
   Future<void> updateProfilePicture() async {
     final picker = ImagePicker();
-    final cloudinaryService = CloudinaryService();
+    final cloudinaryService = CloudinaryService(ref.read(apiClientProvider));
 
     // 1. Sélectionner l'image
     debugPrint("1. Ouverture de la galerie...");

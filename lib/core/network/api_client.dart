@@ -86,6 +86,23 @@ class ApiClient {
       _run(() =>
           dio.post<dynamic>(path, data: body, options: Options(headers: headers)));
 
+  /// Envoi multipart — upload de fichiers vers `POST /upload/image`.
+  ///
+  /// Passe par le même `dio` que le reste : l'intercepteur d'authentification y
+  /// pose le token Firebase, et l'intercepteur de retry couvre les coupures
+  /// réseau. Un client HTTP séparé pour les uploads perdrait les deux.
+  Future<Response<dynamic>> postForm(
+    String path,
+    FormData form, {
+    Map<String, dynamic>? query,
+  }) =>
+      _run(() => dio.post<dynamic>(
+            path,
+            data: form,
+            queryParameters: query,
+            options: Options(contentType: 'multipart/form-data'),
+          ));
+
   Future<Response<dynamic>> patchJson(String path, {Object? body}) =>
       _run(() => dio.patch<dynamic>(path, data: body));
 

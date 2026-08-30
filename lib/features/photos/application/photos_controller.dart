@@ -15,7 +15,8 @@ PhotosFacade photosFacade(Ref ref) =>
 
 /// Provider du service Cloudinary — overridable dans les tests.
 @riverpod
-CloudinaryService cloudinaryServiceForPhotos(Ref ref) => CloudinaryService();
+CloudinaryService cloudinaryServiceForPhotos(Ref ref) =>
+    CloudinaryService(ref.watch(apiClientProvider));
 
 /// AsyncNotifier paramétré par (EntityType, parentId). Gère la liste des
 /// photos d'une entité + les 5 mutations optimistic.

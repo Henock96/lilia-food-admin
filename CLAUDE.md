@@ -161,9 +161,28 @@ final isAdmin = userProfile?.role == Role.admin;
 - Upload photo via **Cloudinary** (`cloudinary_service.dart`)
 - `UserRepository` : `GET/PATCH /users/me`
 
-### Admin (admin/)
-- Création vendeur avec propriétaire : `create_restaurant_screen.dart` (champ `vendorType`)
-- `AdminService` → `POST /admin/restaurants`
+### Admin (admin/) — onboarding vendeur (30/08/2026)
+
+**Créé ≠ prêt ≠ ouvert.** Une boutique naît `DRAFT`, invisible et fermée ;
+l'activation est un geste explicite, refusé tant que la checklist serveur n'est
+pas satisfaite.
+
+- `create_restaurant_screen.dart` — étape 1 : compte + boutique. **Aucun champ
+  mot de passe** : le backend envoie une invitation d'activation, le vendeur
+  choisit son secret. `Idempotency-Key` par écran contre le double-envoi.
+- `vendor_onboarding_screen.dart` — les 8 étapes (identité, visuels,
+  localisation, horaires, livraison, commercial, catalogue, vérification).
+  L'état vit **en base** : fermer l'écran ne perd rien.
+- `vendor_onboarding_service.dart` → `POST /admin/vendors`,
+  `PATCH /vendors/:id/*`, `POST /admin/vendors/:id/activate`.
+- La progression et le droit d'activer viennent de `GET /vendors/:id/onboarding`.
+  **Ne jamais recalculer `isReady` côté Flutter** : c'est le serveur qui accepte
+  ou refuse, et une interface qui déciderait seule proposerait un bouton menant
+  à un 409.
+
+⚠️ `PATCH /admin/vendors/:id/unsuspend` lève une suspension ;
+`POST /admin/vendors/:id/activate` publie une boutique configurée. Deux gestes
+distincts — l'ancien `/activate` en `PATCH` a été renommé.
 - **Validation marketplace** : `admin_vendors_screen.dart` + `admin_vendors_service.dart`
   - `GET /admin/vendors?vendorType=&adminApproved=&isActive=` — vue complète
   - `GET /admin/vendors/pending` — badge « à valider »
@@ -371,9 +390,13 @@ url_launcher: ^6.3.1
 4. ✅ **Dépendances alignées** sur les 3 apps Flutter (`firebase_core ^4.10.0`,
    `firebase_auth ^6.5.2`, `flutter_riverpod ^3.3.2`, `riverpod_annotation
    ^4.0.3`, `go_router ^17.3.0`, `dio ^5.9.2`), `build_runner` régénéré.
-5. ✅ **Uploads** : l'app utilise déjà `POST /upload/image` authentifié. C'est
-   l'**admin web** (`lilia-food-web/apps/admin`) qui uploadait en direct
-   Cloudinary via preset unsigned — corrigé de son côté.
+5. ⚠️ **Uploads — cette affirmation était fausse.** Il était écrit ici que
+   l'app utilisait « déjà » `POST /upload/image`. Vérification faite (audit du
+   30/08/2026) : **aucune occurrence** de cette route n'existait dans `lib/`.
+   Les quatre appelants passaient par `CloudinaryPublic('dun9ev7pw',
+   'ml_default')` — un preset *unsigned*, sans limite de taille, sans contrôle
+   MIME, sans rôle ni dossier imposé. Corrigé le 30/08/2026 : `CloudinaryService`
+   prend un `ApiClient` et poste sur `/upload/image`.
 
 Résultat : `flutter analyze` **0 erreur / 0 warning**, tests **43/43**.
 

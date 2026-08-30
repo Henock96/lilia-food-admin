@@ -42,6 +42,22 @@ class Restaurant {
   // Specialties
   final List<Specialty> specialties;
 
+  // Onboarding (août 2026). `onboardingStatus` répond à « la boutique est-elle
+  // configurée » — question distincte de `adminApproved` (validation
+  // marketplace) et de `isActive` (suspension). Les trois doivent être vraies
+  // pour qu'un client voie le vendeur.
+  final String onboardingStatus; // DRAFT | READY | ACTIVATED
+  final String? contactEmail;
+  final String? imagePublicId;
+  final String? quartierId;
+  final double? latitude;
+  final double? longitude;
+  final String? deliveryInstructions;
+  final bool supportsDelivery;
+  final bool supportsPickup;
+  /// `null` = taux plateforme. Modifiable par l'ADMIN uniquement.
+  final double? commissionPercent;
+
   Restaurant({
     required this.id,
     required this.name,
@@ -69,6 +85,19 @@ class Restaurant {
     this.estimatedDeliveryTimeMax = 30,
     this.minimumOrderAmount = 0,
     this.specialties = const [],
+    // Défaut ACTIVATED : les vendeurs antérieurs à l'onboarding sont en
+    // production, et un payload sans le champ ne doit pas les faire passer
+    // pour des brouillons dans l'interface.
+    this.onboardingStatus = 'ACTIVATED',
+    this.contactEmail,
+    this.imagePublicId,
+    this.quartierId,
+    this.latitude,
+    this.longitude,
+    this.deliveryInstructions,
+    this.supportsDelivery = true,
+    this.supportsPickup = true,
+    this.commissionPercent,
   });
 
   factory Restaurant.fromJson(Map<String, dynamic> json) {
@@ -115,8 +144,25 @@ class Restaurant {
                 .map((s) => Specialty.fromJson(s as Map<String, dynamic>))
                 .toList()
           : [],
+      onboardingStatus: json['onboardingStatus'] as String? ?? 'ACTIVATED',
+      contactEmail: json['email'] as String?,
+      imagePublicId: json['imagePublicId'] as String?,
+      quartierId: json['quartierId'] as String?,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      deliveryInstructions: json['deliveryInstructions'] as String?,
+      supportsDelivery: json['supportsDelivery'] as bool? ?? true,
+      supportsPickup: json['supportsPickup'] as bool? ?? true,
+      commissionPercent: (json['commissionPercent'] as num?)?.toDouble(),
     );
   }
+
+  /// La boutique est-elle encore en configuration ?
+  bool get isDraft => onboardingStatus != 'ACTIVATED';
+
+  /// Visible d'un client : les trois dimensions doivent être satisfaites.
+  bool get isVisibleToClients =>
+      onboardingStatus == 'ACTIVATED' && adminApproved && isActive;
 
   Map<String, dynamic> toJson() {
     return {

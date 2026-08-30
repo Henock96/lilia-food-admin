@@ -54,6 +54,17 @@ class AdminVendorsService {
       body: {'reason': reason},
     );
   }
+
+  /// PATCH /admin/vendors/:id/unsuspend — lève une suspension.
+  ///
+  /// Manquait côté Flutter : un vendeur suspendu depuis cette app ne pouvait
+  /// être réactivé que depuis l'admin web. À ne pas confondre avec
+  /// `POST /admin/vendors/:id/activate`, qui publie une boutique dont
+  /// l'onboarding est terminé — annuler une sanction et mettre en ligne sont
+  /// deux gestes différents.
+  Future<void> unsuspendVendor(String restaurantId) async {
+    await _api.patchJson('/admin/vendors/$restaurantId/unsuspend');
+  }
 }
 
 /// Représentation enrichie pour la liste admin — `Restaurant` + owner + counts.
