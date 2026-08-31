@@ -618,7 +618,33 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 ),
               ],
             ),
-            if (payment.status == 'PENDING') ...[
+            // Confirmer ou rejeter à la main n'a de sens que sur un **virement
+            // manuel** — un transfert que le client a fait lui-même et que
+            // l'administrateur vient de retrouver.
+            //
+            // ⚠️ Sur un encaissement confié à un prestataire, ces gestes sont
+            // refusés par le serveur (409 `PAYMENT_NOT_MANUAL`) : confirmer un
+            // dépôt encore en vol déclarerait payée une commande pour laquelle
+            // rien n'a été débité, et le refus qui arriverait ensuite ne
+            // pourrait plus rien défaire. Le discriminant est le provider
+            // stocké sur la ligne, pas le mode courant de la plateforme.
+            if (payment.status == 'PENDING' && payment.provider != 'MANUAL') ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(Icons.sync, size: 15, color: Colors.grey[500]),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Encaissement automatique — l’opérateur confirme, '
+                      'aucune validation manuelle n’est possible.',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (payment.status == 'PENDING' && payment.provider == 'MANUAL') ...[
               const SizedBox(height: 10),
               Row(
                 children: [

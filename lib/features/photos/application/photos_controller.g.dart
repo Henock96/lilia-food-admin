@@ -106,7 +106,7 @@ final class CloudinaryServiceForPhotosProvider
 }
 
 String _$cloudinaryServiceForPhotosHash() =>
-    r'ed1504a4a79badfa83c2795749a34b21a4fd52f5';
+    r'406ea2dcf77f1de52eb5019b9e96791c31ced556';
 
 /// AsyncNotifier paramétré par (EntityType, parentId). Gère la liste des
 /// photos d'une entité + les 5 mutations optimistic.

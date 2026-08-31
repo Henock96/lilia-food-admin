@@ -8,10 +8,27 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/core/utils/currency.dart';
 import 'package:lilia_admin/core/utils/date_format.dart';
+import 'package:lilia_admin/features/admin/presentation/widgets/order_payout_card.dart';
+import 'package:lilia_admin/features/auth/user_sync_provider.dart';
+import 'package:lilia_admin/models/role.dart';
 import '../../../../models/order.dart';
 import '../../../../models/app_deliverer.dart';
 import '../../../deliveries/data/delivery_service.dart';
 import '../../data/order_controller.dart';
+
+/// L'utilisateur peut-il voir — et déclencher — le paiement du restaurant ?
+///
+/// Double condition : le rôle (ADMIN uniquement) et l'avancement de la commande
+/// (à partir de `PRET`). Le contrôle d'accès réel est côté serveur
+/// (`@Roles('ADMIN')`) ; celui-ci évite seulement de promettre une action
+/// impossible et d'exposer la marge à un vendeur.
+bool _canSeePayout(WidgetRef ref, Order order) {
+  final isAdmin = ref.watch(currentUserProfileProvider)?.role == Role.admin;
+  if (!isAdmin) return false;
+  return order.status == OrderStatus.pret ||
+      order.status == OrderStatus.enRoute ||
+      order.status == OrderStatus.livrer;
+}
 
 class OrderDetailScreen extends ConsumerWidget {
   final Order order;
@@ -94,7 +111,21 @@ class OrderDetailScreen extends ConsumerWidget {
 
             // Infos paiement
             _buildPaymentInfo(context, currentOrder),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+
+            // Paiement du restaurant — encaisser le client et payer le vendeur
+            // sont deux décisions distinctes. La carte n'apparaît qu'à partir
+            // de PRET : avant, il n'y a rien à décider, et l'afficher grisée
+            // n'apprendrait rien.
+            //
+            // ⚠️ Réservée à l'ADMIN. Un RESTAURATEUR consulte la même fiche :
+            // lui montrer le bouton lui promettrait une action que le backend
+            // lui refuse (403), et lui exposerait la marge de la plateforme.
+            if (_canSeePayout(ref, currentOrder)) ...[
+              OrderPayoutCard(orderId: currentOrder.id),
+              const SizedBox(height: 16),
+            ],
+            const SizedBox(height: 8),
 
             // État réel de la course. La commande reste PRET tant que le
             // livreur n'a pas récupéré le repas : sans cette carte, le vendeur

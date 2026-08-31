@@ -10,6 +10,7 @@ import 'package:lilia_admin/models/delivery_mission_summary.dart';
 import 'package:lilia_admin/models/delivery_status.dart';
 import 'package:lilia_admin/models/paginated.dart';
 import 'package:lilia_admin/models/platform_settings.dart';
+import 'package:lilia_admin/models/order_financials.dart';
 
 import 'package:lilia_admin/constants/app_constants.dart';
 
@@ -223,5 +224,62 @@ class AdminOperationsRepository {
       // Dégradation gracieuse : pas de mission en cours plutôt qu'échec total.
       return null;
     }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Reversements vendeurs (payouts)
+  //
+  // ⚠️ Aucun montant n'est envoyé au backend : il recalcule tout à partir de la
+  // commande et du taux en vigueur. L'application affiche, elle ne décide pas.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /// Récapitulatif financier d'une commande + éligibilité au reversement
+  /// (GET /admin/orders/:orderId/financials).
+  Future<OrderFinancials> fetchOrderFinancials(String orderId) async {
+    final res = await _api.getJson('/admin/orders/$orderId/financials');
+    return OrderFinancials.fromJson(ApiResponse.mapOf(res.data));
+  }
+
+  /// Déclenche le reversement du vendeur (POST /admin/orders/:orderId/payout).
+  ///
+  /// Le backend rejoue **toutes** les vérifications d'éligibilité : afficher le
+  /// bouton ne l'autorise pas. Un 409 porte un `code` exploitable
+  /// (`PAYOUT_ALREADY_COMPLETED`, `VENDOR_PAYOUT_ACCOUNT_MISSING`…).
+  Future<void> requestPayout(String orderId, {String? note}) async {
+    await _api.postJson(
+      '/admin/orders/$orderId/payout',
+      body: {if (note != null && note.isNotEmpty) 'note': note},
+    );
+  }
+
+  /// Nouvelle tentative après échec (POST /admin/orders/:orderId/payout/retry).
+  ///
+  /// Refusée par le backend tant que le reversement est `PENDING` ou `SUCCESS` :
+  /// réessayer un virement peut-être déjà parti est le seul moyen de payer deux
+  /// fois un vendeur.
+  Future<void> retryPayout(String orderId, {String? note}) async {
+    await _api.postJson(
+      '/admin/orders/$orderId/payout/retry',
+      body: {if (note != null && note.isNotEmpty) 'note': note},
+    );
+  }
+
+  /// Enregistre le compte Mobile Money de reversement d'un vendeur
+  /// (PATCH /admin/vendors/:id/payout-account).
+  Future<void> updateVendorPayoutAccount({
+    required String restaurantId,
+    required String phoneNumber,
+    required String provider,
+    String? accountName,
+  }) async {
+    await _api.patchJson(
+      '/admin/vendors/$restaurantId/payout-account',
+      body: {
+        'payoutPhoneNumber': phoneNumber,
+        'payoutProvider': provider,
+        if (accountName != null && accountName.isNotEmpty)
+          'payoutAccountName': accountName,
+      },
+    );
   }
 }

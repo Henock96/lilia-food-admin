@@ -8,14 +8,16 @@ part of 'deliverer_rating_service.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// `GET /delivery-reviews/deliverer/:id/stats` — route publique côté backend
+/// `GET /delivery-reviews/deliverer/:id/stats` — authentifiée côté backend
+/// (la note d'un livreur est une évaluation de personne, pas une vitrine).
 /// (c'est une information d'affichage, sans identité de client ni détail de
 /// course).
 
 @ProviderFor(delivererRating)
 final delivererRatingProvider = DelivererRatingFamily._();
 
-/// `GET /delivery-reviews/deliverer/:id/stats` — route publique côté backend
+/// `GET /delivery-reviews/deliverer/:id/stats` — authentifiée côté backend
+/// (la note d'un livreur est une évaluation de personne, pas une vitrine).
 /// (c'est une information d'affichage, sans identité de client ni détail de
 /// course).
 
@@ -27,7 +29,8 @@ final class DelivererRatingProvider
           FutureOr<DelivererRating>
         >
     with $FutureModifier<DelivererRating>, $FutureProvider<DelivererRating> {
-  /// `GET /delivery-reviews/deliverer/:id/stats` — route publique côté backend
+  /// `GET /delivery-reviews/deliverer/:id/stats` — authentifiée côté backend
+  /// (la note d'un livreur est une évaluation de personne, pas une vitrine).
   /// (c'est une information d'affichage, sans identité de client ni détail de
   /// course).
   DelivererRatingProvider._({
@@ -76,7 +79,8 @@ final class DelivererRatingProvider
 
 String _$delivererRatingHash() => r'7bfa20003360aecf68a402c544a126b51923d5c8';
 
-/// `GET /delivery-reviews/deliverer/:id/stats` — route publique côté backend
+/// `GET /delivery-reviews/deliverer/:id/stats` — authentifiée côté backend
+/// (la note d'un livreur est une évaluation de personne, pas une vitrine).
 /// (c'est une information d'affichage, sans identité de client ni détail de
 /// course).
 
@@ -91,7 +95,8 @@ final class DelivererRatingFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// `GET /delivery-reviews/deliverer/:id/stats` — route publique côté backend
+  /// `GET /delivery-reviews/deliverer/:id/stats` — authentifiée côté backend
+  /// (la note d'un livreur est une évaluation de personne, pas une vitrine).
   /// (c'est une information d'affichage, sans identité de client ni détail de
   /// course).
 
