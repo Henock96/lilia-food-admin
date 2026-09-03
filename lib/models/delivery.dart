@@ -1,3 +1,4 @@
+import 'location_precision.dart';
 import 'package:lilia_admin/models/delivery_status.dart';
 
 /// Représente une livraison côté admin (entité Prisma `Delivery`), mappée
@@ -36,9 +37,14 @@ class Delivery {
   final DateTime? lastPositionAt;
   final DateTime? estimatedArrival;
 
-  // Coords destination (adresse client)
+  // Coords destination (adresse client), résolues par le serveur à la
+  // commande — plus le GPS du téléphone du client au moment de payer.
   final double? destinationLatitude;
   final double? destinationLongitude;
+
+  /// Fiabilité de la destination. Sans elle, un centroïde de quartier
+  /// s'affichait comme une porte posée à la main.
+  final LocationPrecision destinationPrecision;
 
   // Restaurant de la commande
   final String? restaurantId;
@@ -66,6 +72,7 @@ class Delivery {
     this.estimatedArrival,
     this.destinationLatitude,
     this.destinationLongitude,
+    this.destinationPrecision = LocationPrecision.unknown,
     this.restaurantId,
     this.restaurantNom,
     this.restaurantLatitude,
@@ -103,6 +110,9 @@ class Delivery {
           (orderJson?['deliveryLatitude'] as num?)?.toDouble(),
       destinationLongitude:
           (orderJson?['deliveryLongitude'] as num?)?.toDouble(),
+      destinationPrecision: LocationPrecision.fromWire(
+        orderJson?['deliveryPrecision'] as String?,
+      ),
       restaurantId: restaurantJson?['id'] as String?,
       restaurantNom: restaurantJson?['nom'] as String?,
       restaurantLatitude: (restaurantJson?['latitude'] as num?)?.toDouble(),

@@ -66,6 +66,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "79838517894-2s5pn34skisgau9glbtqhjqv4e2trqh7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dreesis.lilia_admin",
+            "certificate_hash": "37e91bca6ec69c62901446c907d61fba6091b2ec"
+          }
+        },
+        {
           "client_id": "79838517894-kjddg1nj6phfenbpport3vag3dph6mem.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -115,6 +123,14 @@
           "android_info": {
             "package_name": "com.dreesis.lilia_food_delivery",
             "certificate_hash": "f09482342c0d607a17c1fc8b4bebc3ebce044ed6"
+          }
+        },
+        {
+          "client_id": "79838517894-e5kptq2ngft8pkhm4c433869od1ol6pq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dreesis.lilia_food_delivery",
+            "certificate_hash": "49ad2b60c44247c959d767a142c616c82375115d"
           }
         },
         {

@@ -14,6 +14,39 @@ val keystoreProperties = Properties()
     if (keystorePropertiesFile.exists()) {
         keystoreProperties.load(FileInputStream(keystorePropertiesFile))
     }
+
+// Clé Google Maps — même mécanisme que `lilia-app` et `lilia_food_delivery`.
+//
+// Cette app lisait sa clé depuis `res/values/google_maps_key.xml`, un fichier
+// de ressources **gitignoré et sans gabarit committé** : trois mécanismes
+// différents pour un seul besoin, dont le plus fragile. Un poste neuf ne
+// pouvait pas construire l'app et rien n'indiquait pourquoi.
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
+}
+val mapsApiKey: String =
+    (localProperties["MAPS_API_KEY"] as String?)
+        ?: providers.environmentVariable("MAPS_API_KEY").orNull
+        ?: "YOUR_GOOGLE_MAPS_API_KEY"
+
+// Refuse de produire un binaire de release sans vraie clé : sans elle, la
+// carte de supervision est grise et aucune erreur ne le signale.
+gradle.taskGraph.whenReady {
+    val buildingRelease = allTasks.any { task ->
+        task.name.contains("Release") &&
+            (task.name.startsWith("assemble") || task.name.startsWith("bundle"))
+    }
+    if (buildingRelease && mapsApiKey == "YOUR_GOOGLE_MAPS_API_KEY") {
+        throw GradleException(
+            "Clé Google Maps absente : ajoutez `MAPS_API_KEY=<clé>` dans " +
+                "android/local.properties (fichier gitignoré), ou exportez " +
+                "MAPS_API_KEY."
+        )
+    }
+}
+
 android {
     namespace = "com.dreesis.lilia_admin"
     compileSdk = flutter.compileSdkVersion
@@ -38,6 +71,8 @@ android {
         multiDexEnabled = true
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Injecte la clé Maps dans AndroidManifest (${MAPS_API_KEY}).
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
     // Signature release (audit 2026-08-01, M-6). Le bloc était commenté : l'AAB
     // produit était signé avec la clé de DEBUG — inpubliable sur le Play Store,
@@ -85,7 +120,8 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.3")
 
     // Firebase dependencies
-    implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
+    implementation(platform("com.google.firebase:firebase-bom:34.18.0"))
+    implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-messaging")
 }
 flutter {

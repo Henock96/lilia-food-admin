@@ -51,11 +51,30 @@ final class CategoryServiceProvider
 
 String _$categoryServiceHash() => r'67d5d8c71ccfea387031346dd1763cc0e359be1b';
 
+/// Sections de menu du vendeur courant.
+///
+/// Le périmètre vient de `catalogScopeProvider` : son propre vendeur pour un
+/// RESTAURATEUR, celui sélectionné pour un ADMIN. Changer de vendeur recharge
+/// automatiquement la liste — `ref.watch` s'en charge, sans invalidation
+/// manuelle à répartir sur chaque écran.
+
 @ProviderFor(Categories)
 final categoriesProvider = CategoriesProvider._();
 
+/// Sections de menu du vendeur courant.
+///
+/// Le périmètre vient de `catalogScopeProvider` : son propre vendeur pour un
+/// RESTAURATEUR, celui sélectionné pour un ADMIN. Changer de vendeur recharge
+/// automatiquement la liste — `ref.watch` s'en charge, sans invalidation
+/// manuelle à répartir sur chaque écran.
 final class CategoriesProvider
     extends $AsyncNotifierProvider<Categories, List<Category>> {
+  /// Sections de menu du vendeur courant.
+  ///
+  /// Le périmètre vient de `catalogScopeProvider` : son propre vendeur pour un
+  /// RESTAURATEUR, celui sélectionné pour un ADMIN. Changer de vendeur recharge
+  /// automatiquement la liste — `ref.watch` s'en charge, sans invalidation
+  /// manuelle à répartir sur chaque écran.
   CategoriesProvider._()
     : super(
         from: null,
@@ -75,7 +94,14 @@ final class CategoriesProvider
   Categories create() => Categories();
 }
 
-String _$categoriesHash() => r'68f11b5f5f558a2aceec84dbe232cefe4031caee';
+String _$categoriesHash() => r'5671f664bd5bd31dc308c9ac5de38949fd21c139';
+
+/// Sections de menu du vendeur courant.
+///
+/// Le périmètre vient de `catalogScopeProvider` : son propre vendeur pour un
+/// RESTAURATEUR, celui sélectionné pour un ADMIN. Changer de vendeur recharge
+/// automatiquement la liste — `ref.watch` s'en charge, sans invalidation
+/// manuelle à répartir sur chaque écran.
 
 abstract class _$Categories extends $AsyncNotifier<List<Category>> {
   FutureOr<List<Category>> build();

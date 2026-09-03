@@ -10,7 +10,6 @@ import '../../../categories/presentation/providers/categories_provider.dart';
 import '../../../categories/presentation/widgets/create_category_dialog.dart';
 import '../../../photos/application/photos_controller.dart';
 import '../../../photos/data/photo_models.dart';
-import '../../../restaurant/presentation/providers/restaurant_provider.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
 import '../providers/products_provider.dart';
 import '../widgets/product_image_buffer.dart';
@@ -78,11 +77,12 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     super.dispose();
   }
 
-  /// LIL-129 : champ catégorie qui s'adapte au cas où la liste est vide
-  /// (cas typique des nouveaux vendeurs non-RESTAURANT qui n'ont pas
-  /// encore créé leurs catégories). Affiche un état vide bloquant avec
-  /// bouton "Créer ma 1re catégorie" plutôt qu'un dropdown vide qui
-  /// empêcherait l'enregistrement.
+  /// Champ section de menu — **facultatif**.
+  ///
+  /// L'état vide n'est plus bloquant (et devient rare : chaque vendeur naît
+  /// avec des sections par défaut selon son `vendorType`). Rendre la section
+  /// obligatoire faisait dépendre la mise en vente d'un produit d'une décision
+  /// d'organisation : un vendeur sans section ne pouvait rien vendre.
   Widget _buildCategoryField(List<Category> categories) {
     if (categories.isEmpty) {
       return Container(
@@ -109,15 +109,16 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Vous devez créer au moins une catégorie pour pouvoir '
-              'enregistrer un produit (ex. "Pâtisseries", "Boissons").',
+              'Vous pouvez enregistrer ce produit sans section — il apparaîtra '
+              'dans « Autres » chez le client. Créez-en une pour organiser '
+              'votre carte (ex. « Pâtisseries », « Boissons »).',
               style: TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 10),
             FilledButton.icon(
               onPressed: _openCreateCategoryDialog,
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Créer ma 1re catégorie'),
+              label: const Text('Créer ma 1re section'),
             ),
           ],
         ),
@@ -129,7 +130,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
           child: DropdownButtonFormField<String>(
             initialValue: _selectedCategoryId,
             decoration: const InputDecoration(
-              labelText: 'Catégorie *',
+              labelText: 'Section de menu (facultatif)',
               border: OutlineInputBorder(),
             ),
             items: categories
@@ -140,8 +141,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 .toList(),
             onChanged: (value) =>
                 setState(() => _selectedCategoryId = value),
-            validator: (value) =>
-                value == null ? 'Sélectionnez une catégorie' : null,
+            // Aucun `validator` : une section est un confort d'organisation,
+            // pas une condition de vente. Un produit sans section reste
+            // parfaitement vendable et remonte dans « Autres » chez le client.
           ),
         ),
         const SizedBox(width: 8),
@@ -165,12 +167,6 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
   Future<void> _saveProduct() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedCategoryId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez sélectionner une catégorie')),
-      );
-      return;
-    }
     if (_productType == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez sélectionner un type de produit')),
@@ -181,7 +177,6 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final restaurantId = ref.read(currentRestaurantIdProvider);
       final stockText = _stockController.text.trim();
       final ingredientsText = _ingredientsController.text.trim();
       final shelfLifeText = _shelfLifeController.text.trim();
@@ -190,7 +185,13 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         'description': _descriptionController.text.trim(),
         'prixOriginal': double.parse(_priceController.text.trim()),
         'categoryId': _selectedCategoryId,
-        'restaurantId': restaurantId,
+        // ⚠️ `restaurantId` n'est PLUS envoyé ici. Le champ est réservé à
+        // l'ADMIN côté backend : le transmettre en tant que RESTAURATEUR
+        // déclenchait « Seul un administrateur peut écrire dans le catalogue
+        // d'un autre vendeur » — un 403 sur SA PROPRE boutique, qui rendait la
+        // création de produit impossible depuis cette application.
+        // C'est `ProductsNotifier.createProduct` qui l'ajoute, et seulement
+        // pour un administrateur agissant au nom d'un tiers.
         'variants': _variants.map((v) => v.toJson()).toList(),
         if (stockText.isNotEmpty) 'stockQuotidien': int.parse(stockText),
         'productType': _productType!.name,

@@ -6,6 +6,7 @@ import 'package:lilia_admin/core/utils/currency.dart';
 import '../../../../models/menu.dart';
 import '../providers/menus_provider.dart';
 import 'menu_form_screen.dart';
+import '../../../catalog/catalog_scope.dart';
 
 class MenusScreen extends ConsumerWidget {
   const MenusScreen({super.key});
@@ -27,74 +28,94 @@ class MenusScreen extends ConsumerWidget {
             icon: const Icon(Icons.add_circle),
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const MenuFormScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => const MenuFormScreen()),
               );
             },
             tooltip: 'Ajouter un menu',
           ),
         ],
       ),
-      body: menusAsync.when(
-        data: (menus) {
-          if (menus.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.restaurant_menu_outlined,
-                      size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'Aucun menu',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Appuyez sur + pour créer un menu du jour',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          }
+      body: Column(
+        children: [
+          const CatalogScopeBar(),
+          Expanded(
+            child:
+                ref.watch(isCatalogAdminProvider) &&
+                    ref.watch(catalogScopeProvider) == null
+                ? const CatalogScopeEmpty(quoi: 'menus')
+                : menusAsync.when(
+                    data: (menus) {
+                      if (menus.isEmpty) {
+                        return const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.restaurant_menu_outlined,
+                                size: 64,
+                                color: Colors.grey,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'Aucun menu',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Appuyez sur + pour créer un menu du jour',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
 
-          return RefreshIndicator(
-            onRefresh: () => ref.read(menusProvider.notifier).refresh(),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: menus.length,
-              itemBuilder: (context, index) {
-                final menu = menus[index];
-                return _MenuCard(menu: menu);
-              },
-            ),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text('Erreur: $error'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.read(menusProvider.notifier).refresh(),
-                child: const Text('Réessayer'),
-              ),
-            ],
+                      return RefreshIndicator(
+                        onRefresh: () =>
+                            ref.read(menusProvider.notifier).refresh(),
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: menus.length,
+                          itemBuilder: (context, index) {
+                            final menu = menus[index];
+                            return _MenuCard(menu: menu);
+                          },
+                        ),
+                      );
+                    },
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (error, stack) => Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 64,
+                            color: Colors.red,
+                          ),
+                          const SizedBox(height: 16),
+                          Text('Erreur: $error'),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () =>
+                                ref.read(menusProvider.notifier).refresh(),
+                            child: const Text('Réessayer'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
           ),
-        ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const MenuFormScreen(),
-            ),
+            MaterialPageRoute(builder: (context) => const MenuFormScreen()),
           );
         },
         child: const Icon(Icons.add),
@@ -143,8 +164,9 @@ class _MenuCard extends ConsumerWidget {
         children: [
           if (menu.imageUrl != null)
             ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
               child: AppCachedImage(
                 imageUrl: menu.imageUrl!,
                 height: 150,
@@ -243,7 +265,11 @@ class _MenuCard extends ConsumerWidget {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                    const Icon(
+                      Icons.calendar_today,
+                      size: 14,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       '${dateFormat.format(menu.dateDebut)} - ${dateFormat.format(menu.dateFin)}',
@@ -258,7 +284,11 @@ class _MenuCard extends ConsumerWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.restaurant, size: 16, color: Colors.orange[700]),
+                      Icon(
+                        Icons.restaurant,
+                        size: 16,
+                        color: Colors.orange[700],
+                      ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -281,15 +311,17 @@ class _MenuCard extends ConsumerWidget {
                     runSpacing: 4,
                     children: menu.products
                         .take(3)
-                        .map((p) => Chip(
-                              label: Text(
-                                p.product?.name ?? 'Produit',
-                                style: const TextStyle(fontSize: 11),
-                              ),
-                              padding: EdgeInsets.zero,
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
-                            ))
+                        .map(
+                          (p) => Chip(
+                            label: Text(
+                              p.product?.name ?? 'Produit',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            padding: EdgeInsets.zero,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        )
                         .toList(),
                   ),
                   if (menu.products.length > 3)
@@ -297,10 +329,7 @@ class _MenuCard extends ConsumerWidget {
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
                         '+${menu.products.length - 3} autres produits',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ),
                 ],
@@ -319,9 +348,11 @@ class _MenuCard extends ConsumerWidget {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: Text(menu.isActive
-                                            ? 'Menu désactivé'
-                                            : 'Menu activé'),
+                                        content: Text(
+                                          menu.isActive
+                                              ? 'Menu désactivé'
+                                              : 'Menu activé',
+                                        ),
                                       ),
                                     );
                                   }
@@ -358,7 +389,8 @@ class _MenuCard extends ConsumerWidget {
                           builder: (context) => AlertDialog(
                             title: const Text('Supprimer le menu'),
                             content: Text(
-                                'Voulez-vous vraiment supprimer "${menu.nom}" ?'),
+                              'Voulez-vous vraiment supprimer "${menu.nom}" ?',
+                            ),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(context, false),
@@ -367,7 +399,8 @@ class _MenuCard extends ConsumerWidget {
                               TextButton(
                                 onPressed: () => Navigator.pop(context, true),
                                 style: TextButton.styleFrom(
-                                    foregroundColor: Colors.red),
+                                  foregroundColor: Colors.red,
+                                ),
                                 child: const Text('Supprimer'),
                               ),
                             ],

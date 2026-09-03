@@ -418,3 +418,37 @@ Résultat : `flutter analyze` **0 erreur / 0 warning**, tests **43/43**.
 - [ ] Gestion paiements (liste transactions, réconciliation manuelle)
 - [ ] Notifications push custom aux clients (campagnes)
 - [ ] Export CSV/PDF (dashboard)
+
+---
+
+## Carte de suivi — deux correctifs (1er septembre 2026)
+
+### `ACCEPTER` manquait à l'enum
+
+`DeliveryStatus` ignorait la valeur `ACCEPTER`, ajoutée côté backend le
+29/08/2026. `fromWire` la convertissait **silencieusement** en `EN_ATTENTE`, et
+`_isNotInTrackingState` en déduisait « pas en livraison » : la carte de toute
+course acceptée mais pas encore récupérée était invisible. Un « Maps ne marche
+pas » qui n'avait rien à voir avec Maps.
+
+Le repli du `default:` est conservé (une valeur inconnue ne doit pas casser
+l'écran) mais il **journalise et `assert`** désormais. Et les trois `switch`
+exhaustifs de `deliverer_detail_screen` cassent la compilation à l'ajout d'une
+valeur : c'est le garde-fou contre la récidive.
+
+### Plus de faux marqueur au centre-ville
+
+`_kFallbackDestination` posait un marqueur « Adresse de livraison » au centre de
+Brazzaville quand la commande n'avait pas de coordonnées. Un point faux présenté
+comme la destination est indiscernable d'une vraie adresse.
+
+Renommé `_kBrazzavilleFraming` et réduit à son seul usage légitime : **cadrer**
+la carte. Aucun marqueur n'y est posé. Un `_PrecisionBanner` dit ce que la carte
+montre vraiment (`Delivery.destinationPrecision`), et l'ETA rend « — » plutôt
+qu'une durée calculée depuis un point inventé.
+
+### Clé Google Maps
+
+Migrée de `res/values/google_maps_key.xml` (gitignoré, sans gabarit committé)
+vers `android/local.properties` + `manifestPlaceholders`, comme les deux autres
+apps Flutter. Le build de release échoue si la clé est absente.

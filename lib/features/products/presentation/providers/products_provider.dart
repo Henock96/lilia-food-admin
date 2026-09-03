@@ -1,8 +1,9 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import '../../../../models/product.dart';
-import '../../../restaurant/presentation/providers/restaurant_provider.dart';
-import '../../data/product_service.dart';
+
 import 'package:lilia_admin/core/network/api_client.dart';
+import '../../../../models/product.dart';
+import '../../../catalog/catalog_scope.dart';
+import '../../data/product_service.dart';
 
 part 'products_provider.g.dart';
 
@@ -11,29 +12,35 @@ ProductService productService(Ref ref) {
   return ProductService(ref.watch(apiClientProvider));
 }
 
+/// Catalogue du vendeur courant (`catalogScopeProvider`).
+///
+/// La **lecture** est filtrée par `restaurantId` en query — c'est un filtre, il
+/// ne donne aucun droit. L'**écriture**, elle, ne transmet ce champ que pour un
+/// ADMIN : c'est la seule règle que le backend accepte, et la confondre avec le
+/// filtre de lecture est ce qui a mis la création de produit hors service pour
+/// tous les restaurateurs.
 @riverpod
 class Products extends _$Products {
   @override
   Future<List<Product>> build() async {
-    final restaurantId = ref.watch(currentRestaurantIdProvider);
-    if (restaurantId.isEmpty) return const [];
-    final service = ref.watch(productServiceProvider);
-    return service.getProducts(restaurantId);
+    final scope = ref.watch(catalogScopeProvider);
+    if (scope == null) return const [];
+    return ref.watch(productServiceProvider).getProducts(scope);
   }
 
   Future<void> refresh() async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      final restaurantId = ref.read(currentRestaurantIdProvider);
-      if (restaurantId.isEmpty) return const <Product>[];
-      final service = ref.read(productServiceProvider);
-      return service.getProducts(restaurantId);
-    });
+    ref.invalidateSelf();
+    await future;
   }
 
   Future<Product> createProduct(Map<String, dynamic> productData) async {
-    final service = ref.read(productServiceProvider);
-    final created = await service.createProduct(productData);
+    final created = await ref.read(productServiceProvider).createProduct({
+      ...productData,
+      // Réservé à l'ADMIN — null pour un RESTAURATEUR, dont le vendeur est
+      // déduit du compte authentifié par le backend.
+      if (ref.read(catalogTargetRestaurantIdProvider) != null)
+        'restaurantId': ref.read(catalogTargetRestaurantIdProvider),
+    });
     await refresh();
     return created;
   }
@@ -42,14 +49,14 @@ class Products extends _$Products {
     String productId,
     Map<String, dynamic> productData,
   ) async {
-    final service = ref.read(productServiceProvider);
-    await service.updateProduct(productId, productData);
+    // Aucun `restaurantId` : un produit ne change pas de vendeur, et le DTO de
+    // mise à jour ne déclare pas ce champ (le ValidationPipe le retirerait).
+    await ref.read(productServiceProvider).updateProduct(productId, productData);
     await refresh();
   }
 
   Future<void> deleteProduct(String productId) async {
-    final service = ref.read(productServiceProvider);
-    await service.deleteProduct(productId);
+    await ref.read(productServiceProvider).deleteProduct(productId);
     await refresh();
   }
 }

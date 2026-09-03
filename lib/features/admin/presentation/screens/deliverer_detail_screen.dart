@@ -58,6 +58,10 @@ String _statusLabel(DeliveryStatus s) {
       return 'En attente';
     case DeliveryStatus.assigner:
       return 'Assigné';
+    case DeliveryStatus.accepter:
+      // « Accepté » ≠ « en transit » : le livreur a pris la course et va
+      // chercher le repas, il n'a pas encore quitté le comptoir.
+      return 'À récupérer';
     case DeliveryStatus.enTransit:
       return 'En transit';
     case DeliveryStatus.livrer:
@@ -73,6 +77,8 @@ IconData _statusIcon(DeliveryStatus s) {
       return Iconsax.clock;
     case DeliveryStatus.assigner:
       return Iconsax.profile_tick;
+    case DeliveryStatus.accepter:
+      return Iconsax.box_tick;
     case DeliveryStatus.enTransit:
       return Iconsax.truck_fast;
     case DeliveryStatus.livrer:
@@ -89,6 +95,8 @@ Color _statusColor(BuildContext context, DeliveryStatus s) {
       return scheme.outline;
     case DeliveryStatus.assigner:
       return scheme.tertiary;
+    case DeliveryStatus.accepter:
+      return scheme.secondary;
     case DeliveryStatus.enTransit:
       return scheme.primary;
     case DeliveryStatus.livrer:
