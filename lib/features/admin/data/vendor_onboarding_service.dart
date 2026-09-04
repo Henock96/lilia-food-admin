@@ -148,6 +148,30 @@ class VendorOnboardingService {
     });
   }
 
+  /// `PATCH /admin/vendors/:id/payout-account` — compte Mobile Money sur
+  /// lequel le vendeur sera reversé.
+  ///
+  /// Volontairement **hors** de `updateCommerce` : la commission est un taux
+  /// négociable, le numéro de reversement est la destination de l'argent.
+  /// Le backend les sépare pour la même raison — la route est réservée à
+  /// l'ADMIN et absente de `UpdateRestaurantDto`, ouvert au RESTAURATEUR : un
+  /// compte vendeur compromis détournerait sinon tous les reversements.
+  ///
+  /// [payoutProvider] : `MTN_MOMO` ou `AIRTEL_MONEY`.
+  Future<void> updatePayoutAccount(
+    String restaurantId, {
+    required String payoutPhoneNumber,
+    required String payoutProvider,
+    String? payoutAccountName,
+  }) async {
+    await _api.patchJson('/admin/vendors/$restaurantId/payout-account', body: {
+      'payoutPhoneNumber': payoutPhoneNumber,
+      'payoutProvider': payoutProvider,
+      if (payoutAccountName != null && payoutAccountName.isNotEmpty)
+        'payoutAccountName': payoutAccountName,
+    });
+  }
+
   /// Étape 10 — active la boutique. Le backend refuse (409) si la checklist
   /// bloquante est incomplète.
   ///

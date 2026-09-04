@@ -65,6 +65,29 @@ class AdminVendorsService {
   Future<void> unsuspendVendor(String restaurantId) async {
     await _api.patchJson('/admin/vendors/$restaurantId/unsuspend');
   }
+
+  /// `PATCH /admin/vendors/:id/display-order` — range le vendeur dans les
+  /// listes publiques (1 = premier, 1000 = « pas encore classé »).
+  ///
+  /// Ne publie rien et ne masque rien : la visibilité reste portée par
+  /// `onboardingStatus + adminApproved + isActive`. Le serveur trie déjà par
+  /// `[isOpen desc, displayOrder asc, createdAt desc]` — un commerce fermé ne
+  /// remonte donc jamais devant un commerce ouvert, quel que soit son rang.
+  Future<void> setDisplayOrder(String restaurantId, int displayOrder) async {
+    await _api.patchJson(
+      '/admin/vendors/$restaurantId/display-order',
+      body: {'displayOrder': displayOrder},
+    );
+  }
+
+  /// `PATCH /admin/vendors/:id/feature` — met le vendeur en avant sur la page
+  /// d'accueil du site, ou l'en retire. Indépendant de `displayOrder`.
+  Future<void> setFeatured(String restaurantId, bool isFeatured) async {
+    await _api.patchJson(
+      '/admin/vendors/$restaurantId/feature',
+      body: {'isFeatured': isFeatured},
+    );
+  }
 }
 
 /// Représentation enrichie pour la liste admin — `Restaurant` + owner + counts.

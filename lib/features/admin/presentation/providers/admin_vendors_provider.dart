@@ -31,6 +31,28 @@ class AdminVendorsList extends _$AdminVendorsList {
     await service.suspendVendor(restaurantId, reason);
     ref.invalidateSelf();
   }
+
+  /// Lève une suspension. `unsuspendVendor` existait dans le service depuis
+  /// août 2026 mais **aucun écran ne l'appelait** : un vendeur suspendu depuis
+  /// cette application ne pouvait être rétabli que depuis l'admin web. C'est
+  /// l'état dans lequel Attieke.com et Maison Kayser sont restés en production.
+  Future<void> unsuspend(String restaurantId) async {
+    final service = ref.read(adminVendorsServiceProvider);
+    await service.unsuspendVendor(restaurantId);
+    ref.invalidateSelf();
+  }
+
+  Future<void> setDisplayOrder(String restaurantId, int displayOrder) async {
+    final service = ref.read(adminVendorsServiceProvider);
+    await service.setDisplayOrder(restaurantId, displayOrder);
+    ref.invalidateSelf();
+  }
+
+  Future<void> setFeatured(String restaurantId, bool isFeatured) async {
+    final service = ref.read(adminVendorsServiceProvider);
+    await service.setFeatured(restaurantId, isFeatured);
+    ref.invalidateSelf();
+  }
 }
 
 /// LIL-128 : vendeurs en attente d'approbation. Utilisé par le badge "À valider"

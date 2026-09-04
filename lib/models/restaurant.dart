@@ -58,6 +58,29 @@ class Restaurant {
   /// `null` = taux plateforme. Modifiable par l'ADMIN uniquement.
   final double? commissionPercent;
 
+  /// Compte Mobile Money sur lequel le vendeur est reversé.
+  ///
+  /// **Masqué** par le serveur dès qu'il transite par une réponse
+  /// (`PATCH /admin/vendors/:id/payout-account` rend `24206****67`) : cet
+  /// écran affiche donc l'existant sans jamais le rendre recopiable, et un
+  /// changement se fait en saisissant le numéro complet.
+  ///
+  /// `null` sur les deux champs = vendeur **impayable**. C'était l'état des
+  /// six vendeurs de production au 4 septembre 2026, onze commandes
+  /// encaissées et aucun reversement possible.
+  final String? payoutPhoneNumber;
+  final String? payoutProvider;
+
+  /// Position voulue par l'administration dans les listes publiques
+  /// (1 = premier, 1000 = « pas encore classé »). Ne décide jamais de la
+  /// visibilité : celle-ci reste portée par
+  /// `onboardingStatus + adminApproved + isActive`.
+  final int displayOrder;
+
+  /// Mise en avant éditoriale sur la page d'accueil du site, indépendante de
+  /// `displayOrder`.
+  final bool isFeatured;
+
   Restaurant({
     required this.id,
     required this.name,
@@ -98,6 +121,10 @@ class Restaurant {
     this.supportsDelivery = true,
     this.supportsPickup = true,
     this.commissionPercent,
+    this.payoutPhoneNumber,
+    this.payoutProvider,
+    this.displayOrder = 1000,
+    this.isFeatured = false,
   });
 
   factory Restaurant.fromJson(Map<String, dynamic> json) {
@@ -154,11 +181,20 @@ class Restaurant {
       supportsDelivery: json['supportsDelivery'] as bool? ?? true,
       supportsPickup: json['supportsPickup'] as bool? ?? true,
       commissionPercent: (json['commissionPercent'] as num?)?.toDouble(),
+      payoutPhoneNumber: json['payoutPhoneNumber'] as String?,
+      payoutProvider: json['payoutProvider'] as String?,
+      displayOrder: (json['displayOrder'] as num?)?.toInt() ?? 1000,
+      isFeatured: json['isFeatured'] as bool? ?? false,
     );
   }
 
   /// La boutique est-elle encore en configuration ?
   bool get isDraft => onboardingStatus != 'ACTIVATED';
+
+  /// Le vendeur peut-il recevoir de l'argent ?
+  bool get isPayable =>
+      (payoutPhoneNumber?.isNotEmpty ?? false) &&
+      (payoutProvider?.isNotEmpty ?? false);
 
   /// Visible d'un client : les trois dimensions doivent être satisfaites.
   bool get isVisibleToClients =>

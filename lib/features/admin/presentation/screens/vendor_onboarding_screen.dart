@@ -43,7 +43,11 @@ class _VendorOnboardingScreenState
     _StepDef('Localisation', ['location', 'gps']),
     _StepDef('Horaires', ['hours']),
     _StepDef('Livraison', ['delivery']),
-    _StepDef('Commercial', ['commerce']),
+    // `payout` est bloquant : sans compte de reversement, le vendeur
+    // encaisserait des commandes sans qu'on puisse jamais le payer. Il doit
+    // donc être rattaché à une étape, sinon la checklist signalerait un
+    // manque que l'assistant ne saurait pas où corriger.
+    _StepDef('Commercial', ['commerce', 'payout']),
     _StepDef('Catalogue', ['catalog']),
     _StepDef('Vérification', []),
   ];
@@ -183,7 +187,13 @@ class _VendorOnboardingScreenState
       case 4:
         return _DeliveryStep(vendor: _vendor, saving: _saving, onSave: _saveDelivery);
       case 5:
-        return _CommerceStep(vendor: _vendor, saving: _saving, onSave: _saveCommerce);
+        return _CommerceStep(
+          vendor: _vendor,
+          saving: _saving,
+          onSave: _saveCommerce,
+          onSavePayout: _savePayoutAccount,
+          payoutCheck: _check('payout'),
+        );
       case 6:
         return _CatalogStep(check: _check('catalog'));
       default:
@@ -267,6 +277,15 @@ class _VendorOnboardingScreenState
           minimumOrderAmount: minOrder,
         ),
         'Paramètres commerciaux enregistrés',
+      );
+
+  Future<void> _savePayoutAccount(String phone, String provider) => _save(
+        () => _service.updatePayoutAccount(
+          _vendor.id,
+          payoutPhoneNumber: phone,
+          payoutProvider: provider,
+        ),
+        'Compte de reversement enregistré',
       );
 
   Future<void> _activate({bool skipRecommendations = false}) async {
@@ -875,11 +894,15 @@ class _CommerceStep extends StatefulWidget {
   final Restaurant vendor;
   final bool saving;
   final Future<void> Function(double?, int?) onSave;
+  final Future<void> Function(String phone, String provider) onSavePayout;
+  final ReadinessCheck? payoutCheck;
 
   const _CommerceStep({
     required this.vendor,
     required this.saving,
     required this.onSave,
+    required this.onSavePayout,
+    required this.payoutCheck,
   });
 
   @override
@@ -893,29 +916,110 @@ class _CommerceStepState extends State<_CommerceStep> {
   late final _minOrder = TextEditingController(
     text: widget.vendor.minimumOrderAmount.toInt().toString(),
   );
+  final _payoutPhone = TextEditingController();
+  String _payoutProvider = 'MTN_MOMO';
 
   @override
   void dispose() {
     _commission.dispose();
     _minOrder.dispose();
+    _payoutPhone.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return _StepShell(
-      hint: 'Réservé aux administrateurs — le vendeur ne peut pas modifier sa commission.',
-      saving: widget.saving,
-      onSave: () => widget.onSave(
-        double.tryParse(_commission.text.trim()),
-        int.tryParse(_minOrder.text.trim()),
-      ),
+    final payoutOk = widget.payoutCheck?.isOk ?? false;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _field(_commission, 'Commission plateforme (%)',
-            keyboard: TextInputType.number,
-            helper: 'Vide = taux plateforme. Figée sur chaque commande passée.'),
-        _field(_minOrder, 'Minimum de commande (XAF)',
-            keyboard: TextInputType.number),
+        _StepShell(
+          hint:
+              'Réservé aux administrateurs — le vendeur ne peut pas modifier sa commission.',
+          saving: widget.saving,
+          onSave: () => widget.onSave(
+            double.tryParse(_commission.text.trim()),
+            int.tryParse(_minOrder.text.trim()),
+          ),
+          children: [
+            _field(_commission, 'Commission plateforme (%)',
+                keyboard: TextInputType.number,
+                helper:
+                    'Vide = taux plateforme. Figée sur chaque commande passée.'),
+            _field(_minOrder, 'Minimum de commande (XAF)',
+                keyboard: TextInputType.number),
+          ],
+        ),
+        const SizedBox(height: 20),
+        const Divider(),
+        const SizedBox(height: 12),
+
+        // ── Compte de reversement ────────────────────────────────────────────
+        // Case bloquante depuis septembre 2026. Les six vendeurs de production
+        // ont vécu sans, onze commandes encaissées et aucun reversement
+        // possible : la checklist ne posait pas la question, donc personne ne
+        // pouvait y répondre.
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: (payoutOk ? Colors.green : Colors.orange)
+                .withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                payoutOk ? Icons.check_circle : Icons.account_balance_wallet,
+                size: 18,
+                color: payoutOk ? Colors.green : Colors.orange,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.payoutCheck?.detail ??
+                      (payoutOk
+                          ? 'Compte de reversement enregistré.'
+                          : 'Aucun compte de reversement.'),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        _StepShell(
+          hint:
+              'Numéro Mobile Money sur lequel ce vendeur sera payé. Distinct du '
+              'téléphone du commerce. Le serveur ne renvoie jamais le numéro en '
+              'clair : pour le changer, saisissez-le en entier.',
+          saving: widget.saving,
+          onSave: () => widget.onSavePayout(
+            _payoutPhone.text.trim(),
+            _payoutProvider,
+          ),
+          children: [
+            _field(_payoutPhone, 'Numéro de reversement *',
+                keyboard: TextInputType.phone,
+                helper: widget.vendor.isPayable
+                    ? 'Un compte est déjà enregistré — saisir un numéro le remplace.'
+                    : 'Ex. 06 123 45 67'),
+            DropdownButtonFormField<String>(
+              initialValue: _payoutProvider,
+              decoration: const InputDecoration(
+                labelText: 'Opérateur *',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'MTN_MOMO', child: Text('MTN MoMo')),
+                DropdownMenuItem(
+                    value: 'AIRTEL_MONEY', child: Text('Airtel Money')),
+              ],
+              onChanged: (v) =>
+                  setState(() => _payoutProvider = v ?? 'MTN_MOMO'),
+            ),
+          ],
+        ),
       ],
     );
   }
