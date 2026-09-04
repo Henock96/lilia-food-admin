@@ -118,6 +118,17 @@ final isAdmin = userProfile?.role == Role.admin;
 - Filtres par période (`period` param)
 
 ### Produits (products/)
+
+⚠️ **`getProducts` lit `GET /products/manage`, pas `GET /products`** (4/09/2026).
+La route publique est le catalogue **client** : sans pagination transmise elle
+plafonnait à **20 produits**, et elle masque les produits retirés de la vente,
+ceux hors de leur fenêtre horaire, et l'intégralité du catalogue d'un vendeur
+suspendu ou encore en `DRAFT`. Un vendeur suspendu ne voyait donc plus rien au
+moment précis où il doit corriger sa boutique. Le service enchaîne les pages
+jusqu'au `meta.totalPages` annoncé (plafond 50 pages, `limit=100` = borne
+serveur). Sans `meta`, une seule page : un client à jour contre un backend
+ancien ne doit pas boucler.
+
 - CRUD : `products_screen.dart` + `product_form_screen.dart`
 - Champ `stockQuotidien` (optionnel)
 - Indicateur stock restant dans la liste (`Stock: X/Y` ou `Épuisé`)
