@@ -14,6 +14,7 @@ import 'package:lilia_admin/models/delivery.dart';
 import 'package:lilia_admin/models/delivery_status.dart';
 import 'package:lilia_admin/models/tracking/driver_position_event.dart';
 import 'package:lilia_admin/models/tracking/order_status_event.dart';
+import 'package:lilia_admin/models/location_precision.dart';
 import 'package:lilia_admin/services/tracking_socket_provider.dart';
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -25,7 +26,14 @@ const String _kLogName = 'DeliveryTrackingScreen';
 
 // Fallback destination : centre Brazzaville (placeholder en attendant que le
 // backend renvoie la lat/lng de l'adresse client dans la payload Delivery).
-const LatLng _kFallbackDestination = LatLng(-4.2634, 15.2429);
+/// Cadrage de repli — **jamais** un marqueur.
+///
+/// La version précédente posait un marqueur « Adresse de livraison » sur ce
+/// point quand la commande n'avait pas de coordonnées. Un point faux
+/// présenté comme la destination est indiscernable d'une vraie adresse :
+/// l'admin y croyait, et le livreur aussi. On cadre la ville, on ne prétend
+/// rien.
+const LatLng _kBrazzavilleFraming = LatLng(-4.2634, 15.2429);
 
 // Zoom initial avant le 1er event — recentré sur Brazzaville.
 const double _kInitialZoom = 12.5;
@@ -126,7 +134,14 @@ class _DeliveryTrackingScreenState
     );
     if (!_hasFittedBounds) {
       _hasFittedBounds = true;
-      _animateCameraToFit(pos, _destination ?? _kFallbackDestination);
+      // Sans destination connue, on se contente de cadrer le livreur : il n'y
+      // a pas de second point à faire tenir à l'écran.
+      final dest = _destination;
+      if (dest != null) {
+        _animateCameraToFit(pos, dest);
+      } else {
+        _hasFittedBounds = true;
+      }
     }
   }
 
@@ -233,6 +248,20 @@ class _DeliveryTrackingScreenState
             ),
           ),
 
+          // ─── Fiabilité de la destination ────────────────────────────────
+          // Placé au-dessus du bottom sheet, donc toujours visible : c'est la
+          // seule chose qui distingue une porte d'un centroïde de quartier, et
+          // l'admin arbitre des litiges de livraison avec.
+          if (delivery.destinationPrecision != LocationPrecision.exact)
+            Positioned(
+              top: 64,
+              left: 12,
+              right: 12,
+              child: _PrecisionBanner(
+                precision: delivery.destinationPrecision,
+              ),
+            ),
+
           // ─── Bottom sheet livreur + ETA ─────────────────────────────────
           Align(
             alignment: Alignment.bottomCenter,
@@ -288,10 +317,10 @@ class _DeliveryTrackingScreenState
   // ──────────────────────────────────────────────────────────────────────
 
   Widget _buildMap(Delivery delivery) {
-    // Résout les coords destination + resto à partir du modèle (1ère fois).
+    // Destination réelle, ou rien. Pas de repli inventé.
     _destination ??= delivery.hasDestinationCoords
         ? LatLng(delivery.destinationLatitude!, delivery.destinationLongitude!)
-        : _kFallbackDestination;
+        : null;
     if (_restaurant == null &&
         delivery.restaurantLatitude != null &&
         delivery.restaurantLongitude != null) {
@@ -299,7 +328,7 @@ class _DeliveryTrackingScreenState
           LatLng(delivery.restaurantLatitude!, delivery.restaurantLongitude!);
     }
 
-    final destination = _destination!;
+    final destination = _destination;
     final markers = <Marker>{};
 
     if (_lastDriverPosition != null) {
@@ -317,12 +346,23 @@ class _DeliveryTrackingScreenState
       ));
     }
 
-    markers.add(Marker(
-      markerId: const MarkerId('destination'),
-      position: destination,
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-      infoWindow: const InfoWindow(title: 'Adresse de livraison'),
-    ));
+    if (destination != null) {
+      final approximate =
+          delivery.destinationPrecision == LocationPrecision.approximate;
+      markers.add(Marker(
+        markerId: const MarkerId('destination'),
+        position: destination,
+        icon: BitmapDescriptor.defaultMarkerWithHue(
+          approximate ? BitmapDescriptor.hueYellow : BitmapDescriptor.hueAzure,
+        ),
+        infoWindow: InfoWindow(
+          title: approximate
+              ? 'Zone de livraison (approximative)'
+              : 'Adresse de livraison',
+          snippet: approximate ? 'Centroïde du quartier' : null,
+        ),
+      ));
+    }
 
     if (_restaurant != null) {
       markers.add(Marker(
@@ -348,7 +388,9 @@ class _DeliveryTrackingScreenState
 
     return GoogleMap(
       initialCameraPosition: CameraPosition(
-        target: destination,
+        // Cadrage : destination > restaurant > ville. Le dernier ne pose
+        // aucun marqueur, il dit seulement « quelque part à Brazzaville ».
+        target: destination ?? _restaurant ?? _kBrazzavilleFraming,
         zoom: _kInitialZoom,
       ),
       markers: markers,
@@ -363,7 +405,7 @@ class _DeliveryTrackingScreenState
         // sur la destination réelle (et le resto si dispo) au 1er rendu.
         if (_lastDriverPosition == null && !_hasFittedBounds) {
           _hasFittedBounds = true;
-          if (_restaurant != null) {
+          if (_restaurant != null && destination != null) {
             _animateCameraToFit(_restaurant!, destination);
           }
         }
@@ -381,6 +423,8 @@ class _DeliveryTrackingScreenState
       return '${_lastBackendEta!.round()} $_kEtaSuffix';
     }
     // Priorité 2 : calcul local Haversine à partir de la dernière position.
+    // Sans destination (commande sans coordonnées), il n'y a rien à estimer :
+    // on rend « — » plutôt qu'une durée calculée depuis un point inventé.
     final driver = _lastDriverPosition;
     final destination = _destination;
     if (driver != null && destination != null) {
@@ -399,13 +443,22 @@ class _DeliveryTrackingScreenState
   // Logique métier — état tracking actif
   // ──────────────────────────────────────────────────────────────────────
 
-  /// `true` si on doit afficher l'écran d'attente "pas en livraison" plutôt
-  /// que la carte. La carte n'a de sens que pour [DeliveryStatus.assigner]
-  /// (livreur accepté) et [DeliveryStatus.enTransit].
+  /// `true` si on doit afficher l'écran d'attente « pas en livraison » plutôt
+  /// que la carte.
+  ///
+  /// La carte a du sens dès qu'un livreur est engagé sur la course :
+  /// `ASSIGNER` (il vient de recevoir la mission), `ACCEPTER` (il va chercher
+  /// le repas) et `EN_TRANSIT` (il roule vers le client).
+  ///
+  /// `ACCEPTER` manquait — l'enum de cette app ignorait la valeur, ajoutée
+  /// côté backend le 29/08/2026, et `fromWire` la convertissait
+  /// silencieusement en `EN_ATTENTE`. Toute la fenêtre entre l'acceptation et
+  /// la récupération affichait donc « pas en livraison » au lieu de la carte.
   bool _isNotInTrackingState(Delivery delivery) {
     if (delivery.delivererId == null) return true;
     switch (delivery.status) {
       case DeliveryStatus.assigner:
+      case DeliveryStatus.accepter:
       case DeliveryStatus.enTransit:
         return false;
       case DeliveryStatus.enAttente:
@@ -818,3 +871,57 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
+
+/// Dit à l'administrateur ce que la carte montre vraiment.
+///
+/// Silencieux sur une position exacte : il n'y a rien à signaler, et un
+/// bandeau permanent finit par ne plus être lu.
+class _PrecisionBanner extends StatelessWidget {
+  const _PrecisionBanner({required this.precision});
+
+  final LocationPrecision precision;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final unknown = precision == LocationPrecision.unknown;
+
+    return Material(
+      elevation: 2,
+      borderRadius: BorderRadius.circular(10),
+      color: (unknown ? scheme.errorContainer : scheme.tertiaryContainer)
+          .withValues(alpha: 0.95),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Icon(
+              unknown ? Icons.gps_off : Icons.gps_not_fixed,
+              size: 16,
+              color: unknown
+                  ? scheme.onErrorContainer
+                  : scheme.onTertiaryContainer,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                unknown
+                    ? 'Aucune position sur cette commande — aucun marqueur '
+                          'destination n\'est affiché'
+                    : 'Destination approximative : centroïde du quartier, pas '
+                          'la porte du client',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: unknown
+                      ? scheme.onErrorContainer
+                      : scheme.onTertiaryContainer,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

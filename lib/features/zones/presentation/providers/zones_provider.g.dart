@@ -78,7 +78,7 @@ abstract class _$DeliveryZones extends $AsyncNotifier<DeliveryZonesData> {
   FutureOr<DeliveryZonesData> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref as $Ref<AsyncValue<DeliveryZonesData>, DeliveryZonesData>;
     final element =
@@ -89,6 +89,6 @@ abstract class _$DeliveryZones extends $AsyncNotifier<DeliveryZonesData> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

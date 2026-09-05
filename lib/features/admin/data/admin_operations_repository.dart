@@ -1,7 +1,4 @@
-import 'dart:convert';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
+import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/utils/api_response.dart';
 import 'package:lilia_admin/models/admin_payment.dart';
 import 'package:lilia_admin/models/payments_stats.dart';
@@ -13,22 +10,17 @@ import 'package:lilia_admin/models/delivery_mission_summary.dart';
 import 'package:lilia_admin/models/delivery_status.dart';
 import 'package:lilia_admin/models/paginated.dart';
 import 'package:lilia_admin/models/platform_settings.dart';
+import 'package:lilia_admin/models/order_financials.dart';
 
 import 'package:lilia_admin/constants/app_constants.dart';
+
 /// Appels HTTP des opérations d'administration transverses :
 /// supervision des paiements, des livreurs et configuration plateforme.
 /// Toutes les routes sont ADMIN-only côté backend.
 class AdminOperationsRepository {
-  final String _baseUrl = AppConstants.baseUrl;
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  final ApiClient _api;
 
-  Future<String?> _getAuthToken() async {
-    final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      throw Exception('Utilisateur non authentifié.');
-    }
-    return await user.getIdToken();
-  }
+  AdminOperationsRepository(this._api);
 
   /// Extrait `{ items, total, page, limit }` d'une réponse paginée en tolérant :
   /// - le **double-wrap** de l'`ApiResponseInterceptor` backend (B24) :
@@ -58,216 +50,87 @@ class AdminOperationsRepository {
     int page = 1,
     String status = '',
   }) async {
-    final token = await _getAuthToken();
-    final url = Uri.parse('$_baseUrl/admin/payments').replace(
-      queryParameters: {
-        'page': '$page',
-        'limit': '${AppConstants.adminPageSize}',
-        if (status.isNotEmpty) 'status': status,
-      },
+    final res = await _api.getJson('/admin/payments', query: {
+      'page': '$page',
+      'limit': '${AppConstants.adminPageSize}',
+      if (status.isNotEmpty) 'status': status,
+    });
+    final p = _paginated(res.data, page);
+    return PaginatedPayments(
+      payments: p.items
+          .map((j) => AdminPayment.fromJson(j as Map<String, dynamic>))
+          .toList(),
+      total: p.total,
+      page: p.page,
+      limit: p.limit,
     );
-
-    final response = await http.get(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final p = _paginated(
-        json.decode(utf8.decode(response.bodyBytes)),
-        page,
-      );
-      return PaginatedPayments(
-        payments: p.items
-            .map((j) => AdminPayment.fromJson(j as Map<String, dynamic>))
-            .toList(),
-        total: p.total,
-        page: p.page,
-        limit: p.limit,
-      );
-    }
-    throw Exception(
-        _parseError(response, 'Échec du chargement des paiements'));
   }
 
   /// KPI paiements agrégés (GET /admin/payments/stats).
   Future<PaymentsStats> fetchPaymentsStats() async {
-    final token = await _getAuthToken();
-    final response = await http.get(
-      Uri.parse('$_baseUrl/admin/payments/stats'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-    if (response.statusCode == 200) {
-      // Tolère objet plat OU enveloppe `{ data: ... }` via le helper partagé.
-      final data = ApiResponse.mapOf(json.decode(utf8.decode(response.bodyBytes)));
-      return PaymentsStats.fromJson(data);
-    }
-    throw Exception(_parseError(
-        response, 'Échec du chargement des stats paiements'));
+    final res = await _api.getJson('/admin/payments/stats');
+    // Tolère objet plat OU enveloppe `{ data: ... }` via le helper partagé.
+    return PaymentsStats.fromJson(ApiResponse.mapOf(res.data));
   }
 
   /// Confirmation manuelle d'un paiement (POST /payments/:id/confirm).
   Future<void> confirmPayment(String paymentId) async {
-    final token = await _getAuthToken();
-    final response = await http.post(
-      Uri.parse('$_baseUrl/payments/$paymentId/confirm'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      String message = 'Échec de la confirmation du paiement';
-      try {
-        final body = json.decode(utf8.decode(response.bodyBytes));
-        if (body is Map && body['message'] is String) {
-          message = body['message'] as String;
-        }
-      } catch (e) {
-        if (kDebugMode) debugPrint('[AdminOps] confirmPayment parse error: $e');
-      }
-      throw Exception(message);
-    }
+    await _api.postJson('/payments/$paymentId/confirm');
   }
 
   /// Rejet manuel d'un paiement (POST /payments/:id/reject).
   /// `reason` optionnel — virement non retrouvé par défaut côté backend.
   /// La commande reste EN_ATTENTE : le client pourra réessayer.
   Future<void> rejectPayment(String paymentId, {String? reason}) async {
-    final token = await _getAuthToken();
-    final response = await http.post(
-      Uri.parse('$_baseUrl/payments/$paymentId/reject'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: json.encode({
-        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
-      }),
-    );
-
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      String message = 'Échec du rejet du paiement';
-      try {
-        final body = json.decode(utf8.decode(response.bodyBytes));
-        if (body is Map && body['message'] is String) {
-          message = body['message'] as String;
-        }
-      } catch (e) {
-        if (kDebugMode) debugPrint('[AdminOps] rejectPayment parse error: $e');
-      }
-      throw Exception(message);
-    }
+    await _api.postJson('/payments/$paymentId/reject', body: {
+      if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+    });
   }
 
   /// Livreurs paginés avec leurs livraisons récentes (GET /admin/deliverers).
   Future<PaginatedDeliverers> fetchDeliverers({int page = 1}) async {
-    final token = await _getAuthToken();
-    final url = Uri.parse('$_baseUrl/admin/deliverers').replace(
-      queryParameters: {
-        'page': '$page',
-        'limit': '${AppConstants.adminPageSize}',
-      },
+    final res = await _api.getJson('/admin/deliverers', query: {
+      'page': '$page',
+      'limit': '${AppConstants.adminPageSize}',
+    });
+    final p = _paginated(res.data, page);
+    return PaginatedDeliverers(
+      deliverers: p.items
+          .map((j) => AdminDeliverer.fromJson(j as Map<String, dynamic>))
+          .toList(),
+      total: p.total,
+      page: p.page,
+      limit: p.limit,
     );
-
-    final response = await http.get(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final p = _paginated(
-        json.decode(utf8.decode(response.bodyBytes)),
-        page,
-      );
-      return PaginatedDeliverers(
-        deliverers: p.items
-            .map((j) => AdminDeliverer.fromJson(j as Map<String, dynamic>))
-            .toList(),
-        total: p.total,
-        page: p.page,
-        limit: p.limit,
-      );
-    }
-    throw Exception(
-        _parseError(response, 'Échec du chargement des livreurs'));
   }
 
   /// Configuration plateforme (GET /admin/platform-settings).
   Future<PlatformSettings> fetchPlatformSettings() async {
-    final token = await _getAuthToken();
-    final response = await http.get(
-      Uri.parse('$_baseUrl/admin/platform-settings'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final body = json.decode(utf8.decode(response.bodyBytes))
-          as Map<String, dynamic>;
-      final data = body['data'] as Map<String, dynamic>? ?? {};
-      return PlatformSettings.fromJson(data);
-    }
-    throw Exception(
-        _parseError(response, 'Échec du chargement de la configuration'));
+    final res = await _api.getJson('/admin/platform-settings');
+    final data =
+        (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>? ?? {};
+    return PlatformSettings.fromJson(data);
   }
 
   /// Mise à jour de la configuration plateforme
   /// (PATCH /admin/platform-settings).
   Future<PlatformSettings> updatePlatformSettings(
       Map<String, dynamic> dto) async {
-    final token = await _getAuthToken();
-    final response = await http.patch(
-      Uri.parse('$_baseUrl/admin/platform-settings'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: json.encode(dto),
-    );
-
-    if (response.statusCode == 200) {
-      final body = json.decode(utf8.decode(response.bodyBytes))
-          as Map<String, dynamic>;
-      final data = body['data'] as Map<String, dynamic>? ?? {};
-      return PlatformSettings.fromJson(data);
-    }
-    throw Exception(
-        _parseError(response, 'Échec de la mise à jour de la configuration'));
+    final res = await _api.patchJson('/admin/platform-settings', body: dto);
+    final data =
+        (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>? ?? {};
+    return PlatformSettings.fromJson(data);
   }
 
   // ─── Fiche livreur détaillée (LIL-84) ────────────────────────────────────
 
   /// Stats agrégées d'un livreur — `GET /admin/deliverers/:id/stats`.
   Future<DelivererStats> getDelivererStats(String id) async {
-    final token = await _getAuthToken();
-    final response = await http.get(
-      Uri.parse('$_baseUrl/admin/deliverers/$id/stats'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-    if (response.statusCode == 200) {
-      final body = json.decode(utf8.decode(response.bodyBytes))
-          as Map<String, dynamic>;
-      final data = body['data'] as Map<String, dynamic>? ?? const {};
-      return DelivererStats.fromJson(data);
-    }
-    throw Exception(_parseError(
-        response, 'Échec du chargement des stats livreur'));
+    final res = await _api.getJson('/admin/deliverers/$id/stats');
+    final data =
+        (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>? ??
+            const {};
+    return DelivererStats.fromJson(data);
   }
 
   /// Missions d'un livreur paginées et optionnellement filtrées par statut —
@@ -278,51 +141,24 @@ class AdminOperationsRepository {
     int page = 1,
     int limit = 20,
   }) async {
-    final token = await _getAuthToken();
-    final url = Uri.parse('$_baseUrl/admin/deliverers/$id/missions').replace(
-      queryParameters: {
-        'page': '$page',
-        'limit': '$limit',
-        if (status != null) 'status': status.wireValue,
-      },
+    final res = await _api.getJson('/admin/deliverers/$id/missions', query: {
+      'page': '$page',
+      'limit': '$limit',
+      if (status != null) 'status': status.wireValue,
+    });
+    // Déballe l'éventuel double-wrap de l'interceptor backend avant de passer
+    // à Paginated.fromJson (qui attend `{ data: [...], (meta|root) }`).
+    return Paginated<DeliveryMissionSummary>.fromJson(
+      ApiResponse.mapOf(res.data),
+      DeliveryMissionSummary.fromJson,
     );
-    final response = await http.get(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-    if (response.statusCode == 200) {
-      // Déballe l'éventuel double-wrap de l'interceptor backend avant de passer
-      // à Paginated.fromJson (qui attend `{ data: [...], (meta|root) }`).
-      final body = ApiResponse.mapOf(json.decode(utf8.decode(response.bodyBytes)));
-      return Paginated<DeliveryMissionSummary>.fromJson(
-        body,
-        DeliveryMissionSummary.fromJson,
-      );
-    }
-    throw Exception(_parseError(
-        response, 'Échec du chargement des missions livreur'));
   }
 
   /// Livraison associée à une commande — `GET /deliveries/by-order/:orderId`.
   Future<Delivery> getDeliveryByOrder(String orderId) async {
-    final token = await _getAuthToken();
-    final response = await http.get(
-      Uri.parse('$_baseUrl/deliveries/by-order/$orderId'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-    if (response.statusCode == 200) {
-      // Tolère objet plat OU enveloppe `{ data: ... }` via le helper partagé.
-      final data = ApiResponse.mapOf(json.decode(utf8.decode(response.bodyBytes)));
-      return Delivery.fromJson(data);
-    }
-    throw Exception(_parseError(
-        response, 'Échec du chargement de la livraison'));
+    final res = await _api.getJson('/deliveries/by-order/$orderId');
+    // Tolère objet plat OU enveloppe `{ data: ... }` via le helper partagé.
+    return Delivery.fromJson(ApiResponse.mapOf(res.data));
   }
 
   /// Fiche détaillée composée : user (depuis la liste paginée) + stats +
@@ -390,18 +226,60 @@ class AdminOperationsRepository {
     }
   }
 
-  String _parseError(http.Response response, String fallback) {
-    try {
-      final body = json.decode(utf8.decode(response.bodyBytes));
-      if (body is Map && body['message'] is String) {
-        return body['message'] as String;
-      }
-      if (body is Map && body['message'] is List) {
-        return (body['message'] as List).join(', ');
-      }
-    } catch (e) {
-      if (kDebugMode) debugPrint('[AdminOps] _parseError decode failed: $e');
-    }
-    return '$fallback (${response.statusCode})';
+  // ══════════════════════════════════════════════════════════════════════════
+  // Reversements vendeurs (payouts)
+  //
+  // ⚠️ Aucun montant n'est envoyé au backend : il recalcule tout à partir de la
+  // commande et du taux en vigueur. L'application affiche, elle ne décide pas.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /// Récapitulatif financier d'une commande + éligibilité au reversement
+  /// (GET /admin/orders/:orderId/financials).
+  Future<OrderFinancials> fetchOrderFinancials(String orderId) async {
+    final res = await _api.getJson('/admin/orders/$orderId/financials');
+    return OrderFinancials.fromJson(ApiResponse.mapOf(res.data));
+  }
+
+  /// Déclenche le reversement du vendeur (POST /admin/orders/:orderId/payout).
+  ///
+  /// Le backend rejoue **toutes** les vérifications d'éligibilité : afficher le
+  /// bouton ne l'autorise pas. Un 409 porte un `code` exploitable
+  /// (`PAYOUT_ALREADY_COMPLETED`, `VENDOR_PAYOUT_ACCOUNT_MISSING`…).
+  Future<void> requestPayout(String orderId, {String? note}) async {
+    await _api.postJson(
+      '/admin/orders/$orderId/payout',
+      body: {if (note != null && note.isNotEmpty) 'note': note},
+    );
+  }
+
+  /// Nouvelle tentative après échec (POST /admin/orders/:orderId/payout/retry).
+  ///
+  /// Refusée par le backend tant que le reversement est `PENDING` ou `SUCCESS` :
+  /// réessayer un virement peut-être déjà parti est le seul moyen de payer deux
+  /// fois un vendeur.
+  Future<void> retryPayout(String orderId, {String? note}) async {
+    await _api.postJson(
+      '/admin/orders/$orderId/payout/retry',
+      body: {if (note != null && note.isNotEmpty) 'note': note},
+    );
+  }
+
+  /// Enregistre le compte Mobile Money de reversement d'un vendeur
+  /// (PATCH /admin/vendors/:id/payout-account).
+  Future<void> updateVendorPayoutAccount({
+    required String restaurantId,
+    required String phoneNumber,
+    required String provider,
+    String? accountName,
+  }) async {
+    await _api.patchJson(
+      '/admin/vendors/$restaurantId/payout-account',
+      body: {
+        'payoutPhoneNumber': phoneNumber,
+        'payoutProvider': provider,
+        if (accountName != null && accountName.isNotEmpty)
+          'payoutAccountName': accountName,
+      },
+    );
   }
 }

@@ -52,7 +52,7 @@ final class PhotosFacadeProvider
   }
 }
 
-String _$photosFacadeHash() => r'2f6bc2749395e3ac8641fb2278e30d6efbc9d589';
+String _$photosFacadeHash() => r'bc225d677b747ccd18ee8e1e17f0e8a8bdb86bf5';
 
 /// Provider du service Cloudinary — overridable dans les tests.
 
@@ -106,7 +106,7 @@ final class CloudinaryServiceForPhotosProvider
 }
 
 String _$cloudinaryServiceForPhotosHash() =>
-    r'ed1504a4a79badfa83c2795749a34b21a4fd52f5';
+    r'406ea2dcf77f1de52eb5019b9e96791c31ced556';
 
 /// AsyncNotifier paramétré par (EntityType, parentId). Gère la liste des
 /// photos d'une entité + les 5 mutations optimistic.
@@ -200,7 +200,7 @@ abstract class _$PhotosController extends $AsyncNotifier<List<Photo>> {
   FutureOr<List<Photo>> build(EntityType type, String parentId);
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<List<Photo>>, List<Photo>>;
     final element =
         ref.element
@@ -210,6 +210,6 @@ abstract class _$PhotosController extends $AsyncNotifier<List<Photo>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args.$1, _$args.$2));
+    return element.handleCreate(ref, () => build(_$args.$1, _$args.$2));
   }
 }

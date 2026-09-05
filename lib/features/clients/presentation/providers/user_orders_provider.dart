@@ -3,13 +3,14 @@ import 'package:lilia_admin/features/clients/data/user_repository.dart';
 import 'package:lilia_admin/features/auth/user_sync_provider.dart';
 import 'package:lilia_admin/models/role.dart';
 import 'package:lilia_admin/models/order.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 
 part 'user_orders_provider.g.dart';
 
 // Provider pour l'instance du UserRepository
 @riverpod
 UserRepository userRepository(Ref ref) {
-  return UserRepository();
+  return UserRepository(ref.watch(apiClientProvider));
 }
 
 // Provider pour récupérer la liste des commandes d'un utilisateur

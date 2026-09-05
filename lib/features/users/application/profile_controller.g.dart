@@ -48,7 +48,7 @@ final class UserRepositoryProvider
   }
 }
 
-String _$userRepositoryHash() => r'8366fba5ac0d6b90c6a637882d24c5e759a5a92f';
+String _$userRepositoryHash() => r'827710bacb7cd582dbf9d749c54fb446ecc85629';
 
 @ProviderFor(userProfile)
 final userProfileProvider = UserProfileProvider._();
@@ -107,13 +107,13 @@ final class ProfileControllerProvider
   ProfileController create() => ProfileController();
 }
 
-String _$profileControllerHash() => r'47d672bfa5330cd3514c2cbb187f518e6e492ab9';
+String _$profileControllerHash() => r'bf1ab6cfcbfdfecfe50ecdc17582d3d7b05d9f1d';
 
 abstract class _$ProfileController extends $AsyncNotifier<void> {
   FutureOr<void> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<void>, void>;
     final element =
         ref.element
@@ -123,6 +123,6 @@ abstract class _$ProfileController extends $AsyncNotifier<void> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

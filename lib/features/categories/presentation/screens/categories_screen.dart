@@ -1,153 +1,97 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../models/product.dart';
-import '../providers/categories_provider.dart';
 
+import '../../../../models/product.dart';
+import '../../../catalog/catalog_scope.dart';
+import '../providers/categories_provider.dart';
+import '../widgets/create_category_dialog.dart';
+
+/// Sections de menu du vendeur — création, renommage, ordre, activation.
+///
+/// L'écran affiche **toutes** les sections, y compris vides : c'est la vue où
+/// l'on remplit sa carte. Le client, lui, ne voit que les sections actives et
+/// non vides — deux questions différentes, deux requêtes différentes.
 class CategoriesScreen extends ConsumerWidget {
   const CategoriesScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categoriesAsync = ref.watch(categoriesProvider);
+    final needsVendor = ref.watch(isCatalogAdminProvider) &&
+        ref.watch(catalogScopeProvider) == null;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Catégories'),
+        title: const Text('Sections de menu'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => ref.read(categoriesProvider.notifier).refresh(),
             tooltip: 'Actualiser',
           ),
-          IconButton(
-            icon: const Icon(Icons.add_circle),
-            onPressed: () => _showCategoryDialog(context, ref),
-            tooltip: 'Ajouter une catégorie',
+        ],
+      ),
+      body: Column(
+        children: [
+          const CatalogScopeBar(),
+          Expanded(
+            child: needsVendor
+                ? const CatalogScopeEmpty(quoi: 'sections de menu')
+                : categoriesAsync.when(
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (error, _) => _ErrorState(
+                      error: error,
+                      onRetry: () =>
+                          ref.read(categoriesProvider.notifier).refresh(),
+                    ),
+                    data: (categories) => categories.isEmpty
+                        ? const _EmptyState()
+                        : _CategoryList(categories: categories),
+                  ),
           ),
         ],
       ),
-      body: categoriesAsync.when(
-        data: (categories) {
-          if (categories.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.category_outlined, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'Aucune catégorie',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Appuyez sur + pour ajouter une catégorie',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () => ref.read(categoriesProvider.notifier).refresh(),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                final category = categories[index];
-                return _CategoryCard(category: category);
-              },
+      floatingActionButton: needsVendor
+          ? null
+          : FloatingActionButton(
+              onPressed: () => showCreateCategoryDialog(context, ref),
+              tooltip: 'Nouvelle section',
+              child: const Icon(Icons.add),
             ),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text('Erreur: $error'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.read(categoriesProvider.notifier).refresh(),
-                child: const Text('Réessayer'),
-              ),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCategoryDialog(context, ref),
-        child: const Icon(Icons.add),
-      ),
     );
   }
+}
 
-  void _showCategoryDialog(BuildContext context, WidgetRef ref,
-      {Category? category}) {
-    final controller = TextEditingController(text: category?.name ?? '');
-    final isEditing = category != null;
+/// Liste réordonnable — le vendeur pose l'ordre de sa carte, et le client le
+/// respecte. Sans cela, les sections sortaient par ordre alphabétique côté
+/// mobile : « Accompagnements » avant « Les Grillades ».
+class _CategoryList extends ConsumerWidget {
+  final List<Category> categories;
+  const _CategoryList({required this.categories});
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isEditing ? 'Modifier la catégorie' : 'Nouvelle catégorie'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Nom de la catégorie',
-            border: OutlineInputBorder(),
-          ),
-          autofocus: true,
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return RefreshIndicator(
+      onRefresh: () => ref.read(categoriesProvider.notifier).refresh(),
+      child: ReorderableListView.builder(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 88),
+        itemCount: categories.length,
+        onReorderItem: (oldIndex, newIndex) {
+          // `onReorderItem` (Flutter ≥ 3.41) ajuste déjà `newIndex` pour le
+          // retrait de l'élément déplacé — contrairement à `onReorder`, où il
+          // fallait décrémenter à la main. C'est le piège des bannières, réglé
+          // en amont par le framework.
+          final ids = categories.map((c) => c.id).toList();
+          final moved = ids.removeAt(oldIndex);
+          ids.insert(newIndex, moved);
+          ref.read(categoriesProvider.notifier).reorder(ids);
+        },
+        itemBuilder: (context, index) => _CategoryCard(
+          key: ValueKey(categories[index].id),
+          category: categories[index],
+          position: index,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final name = controller.text.trim();
-              if (name.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Le nom est requis')),
-                );
-                return;
-              }
-
-              Navigator.pop(context);
-
-              try {
-                if (isEditing) {
-                  await ref
-                      .read(categoriesProvider.notifier)
-                      .updateCategory(category.id, {'nom': name});
-                } else {
-                  await ref
-                      .read(categoriesProvider.notifier)
-                      .createCategory({'nom': name});
-                }
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content:
-                          Text(isEditing ? 'Catégorie modifiée' : 'Catégorie créée'),
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Erreur: $e')),
-                  );
-                }
-              }
-            },
-            child: Text(isEditing ? 'Enregistrer' : 'Créer'),
-          ),
-        ],
       ),
     );
   }
@@ -155,146 +99,141 @@ class CategoriesScreen extends ConsumerWidget {
 
 class _CategoryCard extends ConsumerWidget {
   final Category category;
+  final int position;
 
-  const _CategoryCard({required this.category});
+  const _CategoryCard({
+    super.key,
+    required this.category,
+    required this.position,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final count = category.productCount;
+    final theme = Theme.of(context);
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-          child: Icon(
-            Icons.category,
-            color: Theme.of(context).primaryColor,
+        leading: ReorderableDragStartListener(
+          index: position,
+          child: const Padding(
+            padding: EdgeInsets.only(right: 4),
+            child: Icon(Icons.drag_indicator, color: Colors.grey),
           ),
         ),
         title: Text(
           category.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            // Une section désactivée reste dans la liste du vendeur, mais elle
+            // doit se distinguer d'un coup d'œil de ce que voit le client.
+            color: category.isActive ? null : theme.disabledColor,
+          ),
         ),
+        subtitle: Text([
+          if (count != null) '$count produit${count > 1 ? "s" : ""}',
+          if (!category.isActive) 'Masquée aux clients',
+        ].join(' · ')),
         trailing: PopupMenuButton<String>(
-          onSelected: (value) async {
-            if (value == 'edit') {
-              _showEditDialog(context, ref);
-            } else if (value == 'delete') {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Supprimer la catégorie'),
-                  content: Text(
-                      'Voulez-vous vraiment supprimer "${category.name}" ?\n\nAttention: Les produits de cette catégorie seront également affectés.'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Annuler'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      style: TextButton.styleFrom(foregroundColor: Colors.red),
-                      child: const Text('Supprimer'),
-                    ),
-                  ],
-                ),
-              );
-
-              if (confirm == true) {
-                try {
-                  await ref
-                      .read(categoriesProvider.notifier)
-                      .deleteCategory(category.id);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Catégorie supprimée')),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e')),
-                    );
-                  }
-                }
-              }
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'edit',
-              child: Row(
-                children: [
-                  Icon(Icons.edit, size: 20),
-                  SizedBox(width: 8),
-                  Text('Modifier'),
-                ],
-              ),
+          onSelected: (value) => _onAction(context, ref, value),
+          itemBuilder: (_) => [
+            const PopupMenuItem(value: 'edit', child: Text('Renommer')),
+            PopupMenuItem(
+              value: 'toggle',
+              child: Text(category.isActive ? 'Masquer aux clients' : 'Afficher aux clients'),
             ),
-            const PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(Icons.delete, size: 20, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('Supprimer', style: TextStyle(color: Colors.red)),
-                ],
-              ),
-            ),
+            const PopupMenuItem(value: 'delete', child: Text('Supprimer')),
           ],
         ),
-        onTap: () => _showEditDialog(context, ref),
       ),
     );
   }
 
-  void _showEditDialog(BuildContext context, WidgetRef ref) {
-    final controller = TextEditingController(text: category.name);
+  Future<void> _onAction(
+      BuildContext context, WidgetRef ref, String action) async {
+    final notifier = ref.read(categoriesProvider.notifier);
+    switch (action) {
+      case 'edit':
+        final nom = await _promptName(context, initial: category.name);
+        if (nom != null && context.mounted) {
+          await _guard(context, () => notifier.updateCategory(category.id, {'nom': nom}),
+              'Section renommée');
+        }
+      case 'toggle':
+        final count = category.productCount ?? 0;
+        if (category.isActive && count > 0) {
+          final ok = await _confirm(
+            context,
+            titre: 'Masquer « ${category.name} » ?',
+            message:
+                'Cette section contient $count produit${count > 1 ? "s" : ""}. '
+                'Ils resteront en vente et apparaîtront dans « Autres » chez le client.',
+            action: 'Masquer',
+          );
+          if (ok != true) return;
+        }
+        if (!context.mounted) return;
+        await _guard(context, () => notifier.setActive(category.id, !category.isActive),
+            category.isActive ? 'Section masquée' : 'Section affichée');
+      case 'delete':
+        final count = category.productCount ?? 0;
+        final ok = await _confirm(
+          context,
+          titre: 'Supprimer « ${category.name} » ?',
+          message: count > 0
+              // Le message précédent annonçait que les produits « seraient
+              // affectés », alors que le backend refusait purement la
+              // suppression. Les deux étaient faux ; voici ce qui se passe.
+              ? '$count produit${count > 1 ? "s" : ""} ${count > 1 ? "seront" : "sera"} '
+                  'sans section et ${count > 1 ? "resteront" : "restera"} en vente. '
+                  'Aucun produit n\'est supprimé.'
+              : 'Cette section est vide.',
+          action: 'Supprimer',
+          destructif: true,
+        );
+        if (ok == true && context.mounted) {
+          await _guard(context, () => notifier.deleteCategory(category.id),
+              'Section supprimée');
+        }
+    }
+  }
 
-    showDialog(
+  Future<void> _guard(
+      BuildContext context, Future<void> Function() run, String succes) async {
+    // Le messenger est capturé AVANT l'await : après, le widget peut avoir été
+    // démonté et `context` ne vaut plus rien.
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await run();
+      messenger.showSnackBar(SnackBar(content: Text(succes)));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Erreur : $e')));
+    }
+  }
+
+  Future<String?> _promptName(BuildContext context, {required String initial}) {
+    final ctrl = TextEditingController(text: initial);
+    return showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Modifier la catégorie'),
+      builder: (ctx) => AlertDialog(
+        title: const Text('Renommer la section'),
         content: TextField(
-          controller: controller,
+          controller: ctrl,
+          autofocus: true,
+          maxLength: 60,
           decoration: const InputDecoration(
-            labelText: 'Nom de la catégorie',
+            labelText: 'Nom de la section',
             border: OutlineInputBorder(),
           ),
-          autofocus: true,
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
+              onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
           ElevatedButton(
-            onPressed: () async {
-              final name = controller.text.trim();
-              if (name.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Le nom est requis')),
-                );
-                return;
-              }
-
-              Navigator.pop(context);
-
-              try {
-                await ref
-                    .read(categoriesProvider.notifier)
-                    .updateCategory(category.id, {'nom': name});
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Catégorie modifiée')),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Erreur: $e')),
-                  );
-                }
-              }
+            onPressed: () {
+              final v = ctrl.text.trim();
+              if (v.isNotEmpty) Navigator.pop(ctx, v);
             },
             child: const Text('Enregistrer'),
           ),
@@ -302,4 +241,74 @@ class _CategoryCard extends ConsumerWidget {
       ),
     );
   }
+
+  Future<bool?> _confirm(
+    BuildContext context, {
+    required String titre,
+    required String message,
+    required String action,
+    bool destructif = false,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(titre),
+        content: Text(message),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: destructif
+                ? TextButton.styleFrom(foregroundColor: Colors.red)
+                : null,
+            child: Text(action),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) => const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.category_outlined, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('Aucune section', style: TextStyle(fontSize: 18, color: Colors.grey)),
+            SizedBox(height: 8),
+            Text('Appuyez sur + pour organiser votre carte.',
+                style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+}
+
+class _ErrorState extends StatelessWidget {
+  final Object error;
+  final VoidCallback onRetry;
+  const _ErrorState({required this.error, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text('Erreur : $error', textAlign: TextAlign.center),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(onPressed: onRetry, child: const Text('Réessayer')),
+          ],
+        ),
+      );
 }

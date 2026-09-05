@@ -15,6 +15,7 @@ import 'package:lilia_admin/models/deliverer_stats.dart';
 import 'package:lilia_admin/models/delivery_mission_summary.dart';
 import 'package:lilia_admin/models/delivery_status.dart';
 import 'package:lilia_admin/theme/lilia_tokens.dart';
+import 'package:lilia_admin/features/admin/data/deliverer_rating_service.dart';
 
 /// Strings UI groupés ici pour rester centralisé (cf. règle « zéro string
 /// métier hardcoded »).
@@ -57,6 +58,10 @@ String _statusLabel(DeliveryStatus s) {
       return 'En attente';
     case DeliveryStatus.assigner:
       return 'Assigné';
+    case DeliveryStatus.accepter:
+      // « Accepté » ≠ « en transit » : le livreur a pris la course et va
+      // chercher le repas, il n'a pas encore quitté le comptoir.
+      return 'À récupérer';
     case DeliveryStatus.enTransit:
       return 'En transit';
     case DeliveryStatus.livrer:
@@ -72,6 +77,8 @@ IconData _statusIcon(DeliveryStatus s) {
       return Iconsax.clock;
     case DeliveryStatus.assigner:
       return Iconsax.profile_tick;
+    case DeliveryStatus.accepter:
+      return Iconsax.box_tick;
     case DeliveryStatus.enTransit:
       return Iconsax.truck_fast;
     case DeliveryStatus.livrer:
@@ -88,6 +95,8 @@ Color _statusColor(BuildContext context, DeliveryStatus s) {
       return scheme.outline;
     case DeliveryStatus.assigner:
       return scheme.tertiary;
+    case DeliveryStatus.accepter:
+      return scheme.secondary;
     case DeliveryStatus.enTransit:
       return scheme.primary;
     case DeliveryStatus.livrer:
@@ -281,6 +290,12 @@ class _DelivererDetailScreenState extends ConsumerState<DelivererDetailScreen> {
         slivers: [
           SliverToBoxAdapter(child: _HeaderCard(deliverer: detail.user)),
           SliverToBoxAdapter(child: _StatsGrid(stats: detail.stats)),
+          // Note donnée par les clients après livraison. Elle existait en base
+          // sans être affichée nulle part : une notation que personne ne
+          // consulte n'a aucun effet sur la qualité de service.
+          SliverToBoxAdapter(
+            child: _RatingCard(delivererId: detail.user.id),
+          ),
           if (detail.currentMission != null)
             SliverToBoxAdapter(
               child: _CurrentMissionCard(
@@ -973,6 +988,89 @@ class _EmptyView extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+/// Note moyenne du livreur, avec la distribution des étoiles.
+///
+/// Volontairement discret quand il n'y a pas encore de note : un livreur qui
+/// débute ne doit pas apparaître comme mal noté.
+class _RatingCard extends ConsumerWidget {
+  const _RatingCard({required this.delivererId});
+
+  final String delivererId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ratingAsync = ref.watch(delivererRatingProvider(delivererId));
+
+    return ratingAsync.maybeWhen(
+      // Une note indisponible ne doit pas casser la fiche : on masque.
+      orElse: () => const SizedBox.shrink(),
+      data: (rating) {
+        final cs = Theme.of(context).colorScheme;
+
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.star_rounded,
+                  color: rating.hasRatings ? Colors.amber : cs.outline,
+                  size: 36,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        rating.hasRatings
+                            ? '${rating.averageRating!.toStringAsFixed(1)} / 5'
+                            : 'Pas encore noté',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        rating.hasRatings
+                            ? '${rating.totalReviews} avis client'
+                              '${rating.totalReviews > 1 ? 's' : ''}'
+                            : 'La note apparaîtra après la première livraison notée',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (rating.hasRatings)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [5, 4, 3, 2, 1]
+                        .map(
+                          (star) => Text(
+                            '$star★ ${rating.distribution[star] ?? 0}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -4,16 +4,19 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../users/data/cloudinary_service.dart';
 import '../data/photo_models.dart';
 import '../data/photos_facade.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 
 part 'photos_controller.g.dart';
 
 /// Provider de la façade — overridable dans les tests.
 @riverpod
-PhotosFacade photosFacade(Ref ref) => PhotosFacade();
+PhotosFacade photosFacade(Ref ref) =>
+    PhotosFacade(api: ref.watch(apiClientProvider));
 
 /// Provider du service Cloudinary — overridable dans les tests.
 @riverpod
-CloudinaryService cloudinaryServiceForPhotos(Ref ref) => CloudinaryService();
+CloudinaryService cloudinaryServiceForPhotos(Ref ref) =>
+    CloudinaryService(ref.watch(apiClientProvider));
 
 /// AsyncNotifier paramétré par (EntityType, parentId). Gère la liste des
 /// photos d'une entité + les 5 mutations optimistic.

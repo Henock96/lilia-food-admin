@@ -55,7 +55,7 @@ final class AdminOperationsRepositoryProvider
 }
 
 String _$adminOperationsRepositoryHash() =>
-    r'5c58ae7be403969ed9c3b15bb6bf6d9a3c176c4a';
+    r'6bea5cac2925b43fba3fddff7e628475420ba791';
 
 /// Paiements paginés (ADMIN). `status` vide → vue "Tous statuts confondus".
 
@@ -324,3 +324,117 @@ final class PlatformSettingsProvider
 }
 
 String _$platformSettingsHash() => r'a77a1ce9d8afd9758f2800e58dd18a40e042b8eb';
+
+/// Récapitulatif financier d'une commande (ADMIN) : encaissement client,
+/// reversement vendeur, marge Lilia Food — et l'éligibilité au paiement du
+/// restaurant, **décidée par le serveur**.
+///
+/// `autoDispose` implicite (`@riverpod`) : la fiche n'est chargée que tant
+/// qu'un écran l'affiche. Après un reversement, l'appelant invalide ce provider
+/// pour relire l'état réel plutôt que de le supposer.
+
+@ProviderFor(orderFinancials)
+final orderFinancialsProvider = OrderFinancialsFamily._();
+
+/// Récapitulatif financier d'une commande (ADMIN) : encaissement client,
+/// reversement vendeur, marge Lilia Food — et l'éligibilité au paiement du
+/// restaurant, **décidée par le serveur**.
+///
+/// `autoDispose` implicite (`@riverpod`) : la fiche n'est chargée que tant
+/// qu'un écran l'affiche. Après un reversement, l'appelant invalide ce provider
+/// pour relire l'état réel plutôt que de le supposer.
+
+final class OrderFinancialsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<OrderFinancials>,
+          OrderFinancials,
+          FutureOr<OrderFinancials>
+        >
+    with $FutureModifier<OrderFinancials>, $FutureProvider<OrderFinancials> {
+  /// Récapitulatif financier d'une commande (ADMIN) : encaissement client,
+  /// reversement vendeur, marge Lilia Food — et l'éligibilité au paiement du
+  /// restaurant, **décidée par le serveur**.
+  ///
+  /// `autoDispose` implicite (`@riverpod`) : la fiche n'est chargée que tant
+  /// qu'un écran l'affiche. Après un reversement, l'appelant invalide ce provider
+  /// pour relire l'état réel plutôt que de le supposer.
+  OrderFinancialsProvider._({
+    required OrderFinancialsFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'orderFinancialsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$orderFinancialsHash();
+
+  @override
+  String toString() {
+    return r'orderFinancialsProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<OrderFinancials> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<OrderFinancials> create(Ref ref) {
+    final argument = this.argument as String;
+    return orderFinancials(ref, orderId: argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is OrderFinancialsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$orderFinancialsHash() => r'7caeaf27a67b595540533053548c022862d5529f';
+
+/// Récapitulatif financier d'une commande (ADMIN) : encaissement client,
+/// reversement vendeur, marge Lilia Food — et l'éligibilité au paiement du
+/// restaurant, **décidée par le serveur**.
+///
+/// `autoDispose` implicite (`@riverpod`) : la fiche n'est chargée que tant
+/// qu'un écran l'affiche. Après un reversement, l'appelant invalide ce provider
+/// pour relire l'état réel plutôt que de le supposer.
+
+final class OrderFinancialsFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<OrderFinancials>, String> {
+  OrderFinancialsFamily._()
+    : super(
+        retry: null,
+        name: r'orderFinancialsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Récapitulatif financier d'une commande (ADMIN) : encaissement client,
+  /// reversement vendeur, marge Lilia Food — et l'éligibilité au paiement du
+  /// restaurant, **décidée par le serveur**.
+  ///
+  /// `autoDispose` implicite (`@riverpod`) : la fiche n'est chargée que tant
+  /// qu'un écran l'affiche. Après un reversement, l'appelant invalide ce provider
+  /// pour relire l'état réel plutôt que de le supposer.
+
+  OrderFinancialsProvider call({required String orderId}) =>
+      OrderFinancialsProvider._(argument: orderId, from: this);
+
+  @override
+  String toString() => r'orderFinancialsProvider';
+}

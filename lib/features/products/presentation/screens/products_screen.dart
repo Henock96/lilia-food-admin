@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_admin/core/utils/currency.dart';
 import '../../../../models/product.dart';
+import '../../../catalog/catalog_scope.dart';
 import '../providers/products_provider.dart';
 import 'product_form_screen.dart';
 
@@ -13,6 +14,12 @@ class ProductsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(productsProvider);
+    // Un ADMIN ne possède aucun vendeur : sans sélection, il n'y a pas de
+    // catalogue à afficher ni de cible où créer. On le dit, plutôt que
+    // d'afficher une liste vide qui ressemble à une panne.
+    final needsVendor =
+        ref.watch(isCatalogAdminProvider) &&
+        ref.watch(catalogScopeProvider) == null;
 
     return Scaffold(
       appBar: AppBar(
@@ -21,7 +28,7 @@ class ProductsScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.category_outlined),
             onPressed: () => context.goNamed('categories'),
-            tooltip: 'Gérer les catégories',
+            tooltip: 'Gérer les sections de menu',
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -41,67 +48,84 @@ class ProductsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: productsAsync.when(
-        data: (products) {
-          if (products.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'Aucun produit',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Appuyez sur + pour ajouter un produit',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () => ref.read(productsProvider.notifier).refresh(),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: products.length,
-              itemBuilder: (context, index) {
-                final product = products[index];
-                return _ProductCard(product: product);
-              },
-            ),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text('Erreur: $error'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.read(productsProvider.notifier).refresh(),
-                child: const Text('Réessayer'),
-              ),
-            ],
+      body: Column(
+        children: [
+          const CatalogScopeBar(),
+          Expanded(
+            child: needsVendor
+                ? const CatalogScopeEmpty(quoi: 'produits')
+                : _buildProducts(context, ref, productsAsync),
           ),
-        ),
+        ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const ProductFormScreen(),
+      floatingActionButton: needsVendor
+          ? null
+          : FloatingActionButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const ProductFormScreen(),
+                ),
+              ),
+              child: const Icon(Icons.add),
+            ),
+    );
+  }
+
+  Widget _buildProducts(
+    BuildContext context,
+    WidgetRef ref,
+    AsyncValue<List<Product>> productsAsync,
+  ) {
+    return productsAsync.when(
+      data: (products) {
+        if (products.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  'Aucun produit',
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Appuyez sur + pour ajouter un produit',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
             ),
           );
-        },
-        child: const Icon(Icons.add),
+        }
+
+        return RefreshIndicator(
+          onRefresh: () => ref.read(productsProvider.notifier).refresh(),
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: products.length,
+            itemBuilder: (context, index) {
+              final product = products[index];
+              return _ProductCard(product: product);
+            },
+          ),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text('Erreur: $error'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => ref.read(productsProvider.notifier).refresh(),
+              child: const Text('Réessayer'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -194,7 +218,8 @@ class _ProductCard extends ConsumerWidget {
                 builder: (context) => AlertDialog(
                   title: const Text('Supprimer le produit'),
                   content: Text(
-                      'Voulez-vous vraiment supprimer "${product.name}" ?'),
+                    'Voulez-vous vraiment supprimer "${product.name}" ?',
+                  ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
@@ -221,9 +246,9 @@ class _ProductCard extends ConsumerWidget {
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e')),
-                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
                   }
                 }
               }

@@ -48,13 +48,35 @@ final class ProductServiceProvider
   }
 }
 
-String _$productServiceHash() => r'0473fdd2a61f1b9401fe8cd8815ed49e7139952a';
+String _$productServiceHash() => r'585339dce0c6b80a447b8653aa1234e2a81e2317';
+
+/// Catalogue du vendeur courant (`catalogScopeProvider`).
+///
+/// La **lecture** est filtrée par `restaurantId` en query — c'est un filtre, il
+/// ne donne aucun droit. L'**écriture**, elle, ne transmet ce champ que pour un
+/// ADMIN : c'est la seule règle que le backend accepte, et la confondre avec le
+/// filtre de lecture est ce qui a mis la création de produit hors service pour
+/// tous les restaurateurs.
 
 @ProviderFor(Products)
 final productsProvider = ProductsProvider._();
 
+/// Catalogue du vendeur courant (`catalogScopeProvider`).
+///
+/// La **lecture** est filtrée par `restaurantId` en query — c'est un filtre, il
+/// ne donne aucun droit. L'**écriture**, elle, ne transmet ce champ que pour un
+/// ADMIN : c'est la seule règle que le backend accepte, et la confondre avec le
+/// filtre de lecture est ce qui a mis la création de produit hors service pour
+/// tous les restaurateurs.
 final class ProductsProvider
     extends $AsyncNotifierProvider<Products, List<Product>> {
+  /// Catalogue du vendeur courant (`catalogScopeProvider`).
+  ///
+  /// La **lecture** est filtrée par `restaurantId` en query — c'est un filtre, il
+  /// ne donne aucun droit. L'**écriture**, elle, ne transmet ce champ que pour un
+  /// ADMIN : c'est la seule règle que le backend accepte, et la confondre avec le
+  /// filtre de lecture est ce qui a mis la création de produit hors service pour
+  /// tous les restaurateurs.
   ProductsProvider._()
     : super(
         from: null,
@@ -74,13 +96,21 @@ final class ProductsProvider
   Products create() => Products();
 }
 
-String _$productsHash() => r'46da9fa279bf8714979d76ab26936052b0fb7e0e';
+String _$productsHash() => r'678b397e5d6c4927a85e13b961d92cd33b03a27f';
+
+/// Catalogue du vendeur courant (`catalogScopeProvider`).
+///
+/// La **lecture** est filtrée par `restaurantId` en query — c'est un filtre, il
+/// ne donne aucun droit. L'**écriture**, elle, ne transmet ce champ que pour un
+/// ADMIN : c'est la seule règle que le backend accepte, et la confondre avec le
+/// filtre de lecture est ce qui a mis la création de produit hors service pour
+/// tous les restaurateurs.
 
 abstract class _$Products extends $AsyncNotifier<List<Product>> {
   FutureOr<List<Product>> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<List<Product>>, List<Product>>;
     final element =
         ref.element
@@ -90,6 +120,6 @@ abstract class _$Products extends $AsyncNotifier<List<Product>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

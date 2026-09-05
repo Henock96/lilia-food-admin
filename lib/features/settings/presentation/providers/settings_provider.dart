@@ -2,10 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../models/restaurant.dart';
 import '../../data/restaurant_settings_service.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 
 part 'settings_provider.g.dart';
 
-final restaurantSettingsServiceProvider = Provider((ref) => RestaurantSettingsService());
+final restaurantSettingsServiceProvider =
+    Provider((ref) => RestaurantSettingsService(ref.watch(apiClientProvider)));
 
 @riverpod
 class RestaurantSettings extends _$RestaurantSettings {

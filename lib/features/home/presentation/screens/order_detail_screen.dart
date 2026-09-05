@@ -5,12 +5,30 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/core/utils/currency.dart';
 import 'package:lilia_admin/core/utils/date_format.dart';
+import 'package:lilia_admin/features/admin/presentation/widgets/order_payout_card.dart';
+import 'package:lilia_admin/features/auth/user_sync_provider.dart';
+import 'package:lilia_admin/models/role.dart';
 import '../../../../models/order.dart';
 import '../../../../models/app_deliverer.dart';
 import '../../../deliveries/data/delivery_service.dart';
 import '../../data/order_controller.dart';
+
+/// L'utilisateur peut-il voir — et déclencher — le paiement du restaurant ?
+///
+/// Double condition : le rôle (ADMIN uniquement) et l'avancement de la commande
+/// (à partir de `PRET`). Le contrôle d'accès réel est côté serveur
+/// (`@Roles('ADMIN')`) ; celui-ci évite seulement de promettre une action
+/// impossible et d'exposer la marge à un vendeur.
+bool _canSeePayout(WidgetRef ref, Order order) {
+  final isAdmin = ref.watch(currentUserProfileProvider)?.role == Role.admin;
+  if (!isAdmin) return false;
+  return order.status == OrderStatus.pret ||
+      order.status == OrderStatus.enRoute ||
+      order.status == OrderStatus.livrer;
+}
 
 class OrderDetailScreen extends ConsumerWidget {
   final Order order;
@@ -93,7 +111,30 @@ class OrderDetailScreen extends ConsumerWidget {
 
             // Infos paiement
             _buildPaymentInfo(context, currentOrder),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+
+            // Paiement du restaurant — encaisser le client et payer le vendeur
+            // sont deux décisions distinctes. La carte n'apparaît qu'à partir
+            // de PRET : avant, il n'y a rien à décider, et l'afficher grisée
+            // n'apprendrait rien.
+            //
+            // ⚠️ Réservée à l'ADMIN. Un RESTAURATEUR consulte la même fiche :
+            // lui montrer le bouton lui promettrait une action que le backend
+            // lui refuse (403), et lui exposerait la marge de la plateforme.
+            if (_canSeePayout(ref, currentOrder)) ...[
+              OrderPayoutCard(orderId: currentOrder.id),
+              const SizedBox(height: 16),
+            ],
+            const SizedBox(height: 8),
+
+            // État réel de la course. La commande reste PRET tant que le
+            // livreur n'a pas récupéré le repas : sans cette carte, le vendeur
+            // verrait « assignez un livreur » alors qu'un livreur a déjà
+            // accepté et arrive.
+            if (currentOrder.isDelivery) ...[
+              _DeliveryStateCard(orderId: currentOrder.id),
+              const SizedBox(height: 16),
+            ],
 
             // Assignation livreur (commande PRET en livraison)
             if (currentOrder.status == OrderStatus.pret &&
@@ -761,7 +802,10 @@ class OrderDetailScreen extends ConsumerWidget {
       );
     }
 
-    final availableStatuses = _getAvailableStatuses(order.status);
+    final availableStatuses = _getAvailableStatuses(
+      order.status,
+      isDelivery: order.isDelivery,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -878,7 +922,25 @@ class OrderDetailScreen extends ConsumerWidget {
     }
   }
 
-  List<OrderStatus> _getAvailableStatuses(OrderStatus current) {
+  /// Transitions que le backend acceptera réellement, pour ce vendeur et cette
+  /// commande.
+  ///
+  /// Doit rester le miroir d'`ORDER_TRANSITION_MATRIX` côté backend, restreint
+  /// au rôle vendeur : proposer un bouton que l'API refusera par un 403
+  /// n'apprend rien au vendeur, sinon que l'application est cassée.
+  ///
+  /// Deux absences sont volontaires :
+  ///  - **`EN_ROUTE` n'est jamais proposé.** Ce statut annonce au client
+  ///    « votre livreur est en chemin » ; seul le livreur peut l'établir, en
+  ///    confirmant la récupération. Le backend le refuse au vendeur depuis
+  ///    l'audit du 29/08/2026.
+  ///  - **`LIVRER` n'apparaît que sur les commandes à emporter** : là, le
+  ///    vendeur remet le sac en main propre, il est donc le mieux placé pour
+  ///    clôturer. Sur une livraison, c'est le livreur qui constate.
+  List<OrderStatus> _getAvailableStatuses(
+    OrderStatus current, {
+    required bool isDelivery,
+  }) {
     switch (current) {
       case OrderStatus.enattente:
         return [
@@ -891,10 +953,14 @@ class OrderDetailScreen extends ConsumerWidget {
       case OrderStatus.enpreparation:
         return [OrderStatus.pret, OrderStatus.annuler];
       case OrderStatus.pret:
-        // Pour les livraisons, le livreur marque livré après réception
-        return [OrderStatus.annuler];
+        // Retrait au comptoir : sans ce bouton, la commande n'avait aucune
+        // sortie autre que l'annulation et restait « Prête » indéfiniment.
+        return [
+          if (!isDelivery) OrderStatus.livrer,
+          OrderStatus.annuler,
+        ];
       case OrderStatus.enRoute:
-        // Le livreur est en transit, l'admin ne peut qu'annuler en cas d'urgence
+        // Le livreur est en transit : le vendeur n'a plus la main.
         return [];
       default:
         return [];
@@ -1063,7 +1129,8 @@ class _AssignDelivererSheet extends StatefulWidget {
 }
 
 class _AssignDelivererSheetState extends State<_AssignDelivererSheet> {
-  final _service = DeliveryService();
+  late final DeliveryService _service =
+      DeliveryService(widget.ref.read(apiClientProvider));
   List<AppDeliverer>? _deliverers;
   bool _loading = true;
   String? _error;
@@ -1310,6 +1377,81 @@ class _AssignDelivererSheetState extends State<_AssignDelivererSheet> {
             ),
         ],
       ),
+    );
+  }
+}
+
+
+/// État de la course, du point de vue du vendeur.
+///
+/// Le statut de la commande ne suffit pas : entre « le livreur a accepté » et
+/// « le livreur est parti avec le repas », la commande reste `PRET`. C'est
+/// exact — elle est encore au comptoir — mais le vendeur a besoin de savoir
+/// qu'un livreur est engagé et arrive.
+class _DeliveryStateCard extends ConsumerWidget {
+  const _DeliveryStateCard({required this.orderId});
+
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stateAsync = ref.watch(orderDeliveryStateProvider(orderId));
+
+    return stateAsync.maybeWhen(
+      orElse: () => const SizedBox.shrink(),
+      data: (state) {
+        // Aucune livraison créée : le bloc d'assignation habituel suffit.
+        if (state == null || state.status == null) {
+          return const SizedBox.shrink();
+        }
+
+        final (color, icon) = switch (state.status) {
+          'ASSIGNER' => (Colors.orange, Icons.hourglass_empty),
+          'ACCEPTER' => (Colors.blue, Icons.directions_bike),
+          'EN_TRANSIT' => (Colors.indigo, Icons.delivery_dining),
+          'LIVRER' => (Colors.green, Icons.check_circle),
+          'ECHEC' => (Colors.red, Icons.error_outline),
+          _ => (Colors.grey, Icons.info_outline),
+        };
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.35)),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      state.label,
+                      style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (state.delivererNom != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        state.delivererNom!,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

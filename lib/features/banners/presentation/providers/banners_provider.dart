@@ -1,12 +1,13 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../models/banner.dart';
 import '../../data/banner_service.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 
 part 'banners_provider.g.dart';
 
 @riverpod
 BannerService bannerService(Ref ref) {
-  return BannerService();
+  return BannerService(ref.watch(apiClientProvider));
 }
 
 @riverpod

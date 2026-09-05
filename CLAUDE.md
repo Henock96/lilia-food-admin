@@ -67,7 +67,10 @@ lib/
 │   └── zones/          CRUD zones livraison par quartier
 ├── models/             order.dart, product.dart, app_user.dart…
 ├── routing/            app_router.dart (go_router role-aware)
-├── services/           notification_service.dart (FCM)
+├── services/
+│   ├── notification_service.dart   # FCM — colle Firebase
+│   ├── notification_router.dart    # payload FCM → action (pur, testé)
+│   └── fcm_token_registrar.dart    # cycle de vie du token (pur, testé)
 └── main.dart
 ```
 
@@ -93,8 +96,8 @@ final isAdmin = userProfile?.role == Role.admin;
 ### Commandes (home/)
 
 **Temps réel via FCM uniquement** (mai 2026) :
-- `notification_service.dart::_handleNotificationData` reçoit les push FCM avec `data.orderId`
-- → invalidate `restaurantOrdersProvider` + set `latestOrderNotificationProvider`
+- `notification_router.dart` traduit le push en action, `notification_service.dart::_handleNotificationData` l'applique
+- Tout payload portant un `orderId` → invalidate `restaurantOrdersProvider`
 - Plus de SSE (endpoint supprimé du backend, package `flutter_client_sse` retiré du pubspec)
 
 - `restaurant_orders_screen.dart` : tabs par statut (Toutes / En attente / Payée / En préparation / Prête / Livrée / Annulée)
@@ -115,6 +118,17 @@ final isAdmin = userProfile?.role == Role.admin;
 - Filtres par période (`period` param)
 
 ### Produits (products/)
+
+⚠️ **`getProducts` lit `GET /products/manage`, pas `GET /products`** (4/09/2026).
+La route publique est le catalogue **client** : sans pagination transmise elle
+plafonnait à **20 produits**, et elle masque les produits retirés de la vente,
+ceux hors de leur fenêtre horaire, et l'intégralité du catalogue d'un vendeur
+suspendu ou encore en `DRAFT`. Un vendeur suspendu ne voyait donc plus rien au
+moment précis où il doit corriger sa boutique. Le service enchaîne les pages
+jusqu'au `meta.totalPages` annoncé (plafond 50 pages, `limit=100` = borne
+serveur). Sans `meta`, une seule page : un client à jour contre un backend
+ancien ne doit pas boucler.
+
 - CRUD : `products_screen.dart` + `product_form_screen.dart`
 - Champ `stockQuotidien` (optionnel)
 - Indicateur stock restant dans la liste (`Stock: X/Y` ou `Épuisé`)
@@ -158,9 +172,28 @@ final isAdmin = userProfile?.role == Role.admin;
 - Upload photo via **Cloudinary** (`cloudinary_service.dart`)
 - `UserRepository` : `GET/PATCH /users/me`
 
-### Admin (admin/)
-- Création vendeur avec propriétaire : `create_restaurant_screen.dart` (champ `vendorType`)
-- `AdminService` → `POST /admin/restaurants`
+### Admin (admin/) — onboarding vendeur (30/08/2026)
+
+**Créé ≠ prêt ≠ ouvert.** Une boutique naît `DRAFT`, invisible et fermée ;
+l'activation est un geste explicite, refusé tant que la checklist serveur n'est
+pas satisfaite.
+
+- `create_restaurant_screen.dart` — étape 1 : compte + boutique. **Aucun champ
+  mot de passe** : le backend envoie une invitation d'activation, le vendeur
+  choisit son secret. `Idempotency-Key` par écran contre le double-envoi.
+- `vendor_onboarding_screen.dart` — les 8 étapes (identité, visuels,
+  localisation, horaires, livraison, commercial, catalogue, vérification).
+  L'état vit **en base** : fermer l'écran ne perd rien.
+- `vendor_onboarding_service.dart` → `POST /admin/vendors`,
+  `PATCH /vendors/:id/*`, `POST /admin/vendors/:id/activate`.
+- La progression et le droit d'activer viennent de `GET /vendors/:id/onboarding`.
+  **Ne jamais recalculer `isReady` côté Flutter** : c'est le serveur qui accepte
+  ou refuse, et une interface qui déciderait seule proposerait un bouton menant
+  à un 409.
+
+⚠️ `PATCH /admin/vendors/:id/unsuspend` lève une suspension ;
+`POST /admin/vendors/:id/activate` publie une boutique configurée. Deux gestes
+distincts — l'ancien `/activate` en `PATCH` a été renommé.
 - **Validation marketplace** : `admin_vendors_screen.dart` + `admin_vendors_service.dart`
   - `GET /admin/vendors?vendorType=&adminApproved=&isActive=` — vue complète
   - `GET /admin/vendors/pending` — badge « à valider »
@@ -202,19 +235,85 @@ final isAdmin = userProfile?.role == Role.admin;
 
 ⚠️ Le statut `EN_ROUTE` et la transition vers `LIVRER` sont déclenchés par l'app livreur, **pas par l'admin**. L'admin reçoit juste les notifs FCM (pas de broadcast WS aujourd'hui car non branché).
 
+### Transitions proposées au vendeur (29/08/2026)
+
+`_getAvailableStatuses` doit rester le miroir d'`ORDER_TRANSITION_MATRIX` côté
+backend, restreint au rôle vendeur : un bouton que l'API refusera par un 403
+n'apprend rien, sinon que l'application est cassée.
+
+- **`EN_ROUTE` n'est jamais proposé.** Il annonce au client « votre livreur est
+  en chemin » ; seul le livreur peut l'établir, en confirmant la récupération.
+  Le backend le refuse au vendeur.
+- **`LIVRER` n'apparaît que si `order.isDelivery == false`** (retrait au
+  comptoir) : le vendeur remet le sac en main propre, il est le mieux placé
+  pour clôturer. Sans ce bouton, une commande à emporter n'avait aucune sortie
+  autre que l'annulation.
+
+### Remboursements — pagination (29/08/2026)
+
+`RefundsService.list()` envoie `page` + `limit` et rend un `RefundPage` porteur
+du **total serveur**. Le badge lit `page.total`, pas `items.length` : il
+comptait les éléments reçus et plafonnait donc à la taille d'une page — l'admin
+voyait « 20 » alors que cinquante clients attendaient leur argent.
+
 ---
 
-## Push Notifications FCM
+## Push Notifications FCM (revu août 2026)
 
-`lib/services/notification_service.dart`
+Trois fichiers, dont deux purs et testés :
+
+| Fichier | Rôle |
+|---|---|
+| `services/notification_service.dart` | colle Firebase / plugin local |
+| `services/notification_router.dart` | payload FCM → `NotificationAction` (**pur, testé**) |
+| `services/fcm_token_registrar.dart` | token : register / remove (**pur, testé**) |
+
+Le service touche `FirebaseMessaging.instance` dès sa construction, donc il
+n'est pas instanciable en test unitaire. Toute logique décidable en est
+extraite. **Y ajouter de la logique = l'ajouter dans un des deux fichiers
+purs.**
 
 - `Firebase.initializeApp()` AVANT `ProviderScope`
-- Top-level `firebaseMessagingBackgroundHandler`
 - Handlers `onMessage` + `onMessageOpenedApp` + `getInitialMessage`
+- ⚠️ `_setupMessageHandlers()` doit rester **avant** `getToken()` dans
+  `init()` : un échec APNS emportait sinon tous les handlers dans le `catch`
 - Canal Android : `high_importance_channel`
-- Token enregistré via `POST /notifications/register-token` après login
-- Supprimé au logout via `DELETE /notifications/token`
-- Quand `data.type == 'new_order'` ou `data.orderId` → invalidate `restaurantOrdersProvider`
+- Token enregistré via `POST /notifications/register-token` après login.
+  `registerTokenOnServer()` redemande le token à FCM à chaque appel — après
+  un logout le registrar n'en a plus en mémoire
+- Supprimé au logout via `DELETE /notifications/token`, **dans
+  `AuthController.signOut()` avant le signOut Firebase** — après, le DELETE
+  authentifié ne passerait plus
+- ⚠️ **Le handler background n'affiche rien** : Android affiche déjà la notif
+  lui-même (bloc `notification` backend + `default_notification_channel_id` au
+  manifest). Un `show()` dedans en produisait une seconde, identique
+- iOS : `_fetchFcmToken()` retente pendant 10s tant qu'APNS répond
+  `apns-token-not-set`
+
+### Table de routage (`notification_router.dart`)
+
+| `data.type` backend | Rafraîchit | Ouvre (tap seulement) |
+|---|---|---|
+| `incident` + `incidentId` | `incidentsListProvider` | `incident-detail` |
+| `vendor_pending_approval` | `adminPendingVendors` + `adminVendorsList` | `admin-vendors` |
+| `vendor_approved` | `userDataSynchronizer` (profil + `adminApproved`) | — |
+| `preorder_reminder` | `restaurantOrdersProvider` | — |
+| tout payload avec `orderId` | `restaurantOrdersProvider` | — |
+
+**La navigation n'a lieu qu'au tap.** En foreground on rafraîchit sans
+déplacer l'utilisateur : un incident reçu pendant qu'il remplit un formulaire
+le projetait sur l'écran de détail sans qu'il ait rien touché.
+
+### iOS — entitlements requis
+
+`ios/Runner/Runner.entitlements` (Debug + Profile) et `RunnerRelease.entitlements`
+portent `aps-environment`, câblés via `CODE_SIGN_ENTITLEMENTS` sur les 3 build
+configs, avec `DEVELOPMENT_TEAM` sur les trois. Sans eux, `getToken()` échoue
+et **aucun push n'arrive, même sur iPhone physique**.
+`UIBackgroundModes: remote-notification` est dans `Info.plist`.
+
+⚠️ Les deux fichiers sont sur `development`. À basculer sur `production` avant
+la première distribution TestFlight / App Store.
 
 ---
 
@@ -280,6 +379,40 @@ url_launcher: ^6.3.1
 1. ✅ **SSE cleanup complet** : `flutter_client_sse` retiré du pubspec, `restaurant_orders_screen.dart` nettoyé (~90 lignes : imports + `_sseSubscription` + `_subscribeToOrderEvents` + `_handleOrderEvent`)
 2. ✅ **FCM est désormais le seul canal temps réel** : `notification_service.dart::_handleNotificationData` invalide `restaurantOrdersProvider` à la réception d'un push avec `orderId`
 
+## Remédiation audit (août 2026 — `AUDIT_2026-08-01.md`)
+
+1. ✅ **Signature release réactivée** (M-6, `android/app/build.gradle.kts`). Le
+   bloc `signingConfigs` était **commenté** et `release` pointait sur
+   `signingConfigs.getByName("debug")` : l'AAB produit était signé avec la clé de
+   debug Android — inpubliable sur le Play Store, et cette clé étant publique,
+   n'importe qui pouvait produire une mise à jour acceptée par les appareils.
+   Le bloc est rétabli, mais **conditionné à la présence de
+   `android/key.properties`** : sans lui on retombe sur debug avec un
+   `logger.warn("NE PAS PUBLIER cet artefact")`, pour qu'un `flutter run
+   --release` local n'échoue pas au chargement Gradle.
+   ⚠️ **Reste à faire** : créer `android/key.properties` sur la machine de
+   release (il est gitignoré).
+2. ✅ **`.gitignore` durci** (C-1) : `*.jks`, `*.keystore`,
+   `/android/key.properties`, `/android/local.properties`, `/android/build/`,
+   `/android/app/build/`. Le `/build/` ancré à la racine ne couvrait pas les
+   artefacts Android.
+3. ✅ **Garde `context.mounted`** (`photo_gallery_editor.dart`) — le sélecteur
+   d'image est asynchrone, l'écran pouvait être quitté pendant la sélection.
+4. ✅ **Dépendances alignées** sur les 3 apps Flutter (`firebase_core ^4.10.0`,
+   `firebase_auth ^6.5.2`, `flutter_riverpod ^3.3.2`, `riverpod_annotation
+   ^4.0.3`, `go_router ^17.3.0`, `dio ^5.9.2`), `build_runner` régénéré.
+5. ⚠️ **Uploads — cette affirmation était fausse.** Il était écrit ici que
+   l'app utilisait « déjà » `POST /upload/image`. Vérification faite (audit du
+   30/08/2026) : **aucune occurrence** de cette route n'existait dans `lib/`.
+   Les quatre appelants passaient par `CloudinaryPublic('dun9ev7pw',
+   'ml_default')` — un preset *unsigned*, sans limite de taille, sans contrôle
+   MIME, sans rôle ni dossier imposé. Corrigé le 30/08/2026 : `CloudinaryService`
+   prend un `ApiClient` et poste sur `/upload/image`.
+
+Résultat : `flutter analyze` **0 erreur / 0 warning**, tests **43/43**.
+
+---
+
 ## Dettes techniques restantes
 
 1. **Pas de WebSocket admin** alors que le backend offre `/tracking` avec `order:status` broadcast multi-instance. Utile si l'admin gère plusieurs commandes simultanées (pour éviter de dépendre uniquement des push FCM qui peuvent rater).
@@ -296,3 +429,37 @@ url_launcher: ^6.3.1
 - [ ] Gestion paiements (liste transactions, réconciliation manuelle)
 - [ ] Notifications push custom aux clients (campagnes)
 - [ ] Export CSV/PDF (dashboard)
+
+---
+
+## Carte de suivi — deux correctifs (1er septembre 2026)
+
+### `ACCEPTER` manquait à l'enum
+
+`DeliveryStatus` ignorait la valeur `ACCEPTER`, ajoutée côté backend le
+29/08/2026. `fromWire` la convertissait **silencieusement** en `EN_ATTENTE`, et
+`_isNotInTrackingState` en déduisait « pas en livraison » : la carte de toute
+course acceptée mais pas encore récupérée était invisible. Un « Maps ne marche
+pas » qui n'avait rien à voir avec Maps.
+
+Le repli du `default:` est conservé (une valeur inconnue ne doit pas casser
+l'écran) mais il **journalise et `assert`** désormais. Et les trois `switch`
+exhaustifs de `deliverer_detail_screen` cassent la compilation à l'ajout d'une
+valeur : c'est le garde-fou contre la récidive.
+
+### Plus de faux marqueur au centre-ville
+
+`_kFallbackDestination` posait un marqueur « Adresse de livraison » au centre de
+Brazzaville quand la commande n'avait pas de coordonnées. Un point faux présenté
+comme la destination est indiscernable d'une vraie adresse.
+
+Renommé `_kBrazzavilleFraming` et réduit à son seul usage légitime : **cadrer**
+la carte. Aucun marqueur n'y est posé. Un `_PrecisionBanner` dit ce que la carte
+montre vraiment (`Delivery.destinationPrecision`), et l'ETA rend « — » plutôt
+qu'une durée calculée depuis un point inventé.
+
+### Clé Google Maps
+
+Migrée de `res/values/google_maps_key.xml` (gitignoré, sans gabarit committé)
+vers `android/local.properties` + `manifestPlaceholders`, comme les deux autres
+apps Flutter. Le build de release échoue si la clé est absente.

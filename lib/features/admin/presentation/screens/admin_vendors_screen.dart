@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/admin_vendors_service.dart';
 import '../providers/admin_vendors_provider.dart';
+import 'vendor_onboarding_screen.dart';
 
 /// LIL-128 : écran admin pour gérer les vendeurs marketplace.
 /// 2 tabs : "À valider" (queue d'approbation) et "Tous" (recherche/filtrage).
@@ -130,6 +131,157 @@ class _AdminVendorsScreenState extends ConsumerState<AdminVendorsScreen>
     }
   }
 
+  /// Lève une suspension.
+  Future<void> _unsuspend(AdminVendorItem item) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Réactiver ce vendeur ?'),
+        content: Text(
+          '« ${item.restaurant.name} » redeviendra visible des clients.\n\n'
+          'Sa boutique ne rouvre pas automatiquement : c\'est le vendeur qui '
+          'la rouvre, selon ses horaires.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Réactiver'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await ref
+          .read(adminVendorsListProvider.notifier)
+          .unsuspend(item.restaurant.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('« ${item.restaurant.name} » réactivé.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur : $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  /// Ouvre — ou **rouvre** — l'assistant de configuration du vendeur.
+  ///
+  /// L'assistant n'était accessible que dans les secondes suivant la création :
+  /// le quitter laissait le vendeur en `DRAFT`, invisible des clients, et cette
+  /// application n'avait plus aucun moyen d'y revenir. « Le First Restaurant
+  /// Brazzaville » est resté dans cet état en production, actif et approuvé mais
+  /// jamais publié.
+  ///
+  /// Rien n'est perdu entre deux ouvertures : l'état de l'onboarding vit en
+  /// base, pas dans le formulaire.
+  Future<void> _configure(AdminVendorItem item) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => VendorOnboardingScreen(vendor: item.restaurant),
+      ),
+    );
+    if (!mounted) return;
+    ref.invalidate(adminVendorsListProvider);
+    ref.invalidate(adminPendingVendorsProvider);
+  }
+
+  /// Vitrine : rang d'affichage et mise en avant sur la page d'accueil du site.
+  ///
+  /// Ces deux réglages n'existaient que dans l'admin web. Conséquence mesurée :
+  /// `isFeatured` est resté `false` sur les six vendeurs, et la page d'accueil
+  /// de liliafood.com n'a jamais affiché un seul vendeur depuis sa mise en
+  /// ligne.
+  Future<void> _showcase(AdminVendorItem item) async {
+    final r = item.restaurant;
+    final controller = TextEditingController(text: r.displayOrder.toString());
+    var featured = r.isFeatured;
+
+    final result = await showDialog<({int order, bool featured})>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: Text('Vitrine — ${r.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Rang d\'affichage',
+                  helperText: '1 = premier. 1000 = pas encore classé.',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: featured,
+                onChanged: (v) => setLocal(() => featured = v),
+                title: const Text('En vedette'),
+                subtitle: const Text(
+                  'Mis en avant sur la page d\'accueil du site.',
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Ni l\'un ni l\'autre ne publie la boutique : la visibilité '
+                'reste portée par l\'activation, l\'approbation et la suspension.',
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final order = int.tryParse(controller.text.trim());
+                if (order == null || order < 1) return;
+                Navigator.pop(ctx, (order: order, featured: featured));
+              },
+              child: const Text('Enregistrer'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (result == null) return;
+
+    try {
+      final notifier = ref.read(adminVendorsListProvider.notifier);
+      // Deux routes distinctes côté serveur : on n'appelle que ce qui change,
+      // pour ne pas inscrire au journal d'audit une modification qui n'en est
+      // pas une.
+      if (result.order != r.displayOrder) {
+        await notifier.setDisplayOrder(r.id, result.order);
+      }
+      if (result.featured != r.isFeatured) {
+        await notifier.setFeatured(r.id, result.featured);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vitrine mise à jour.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur : $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final pendingAsync = ref.watch(adminPendingVendorsProvider);
@@ -197,12 +349,16 @@ class _AdminVendorsScreenState extends ConsumerState<AdminVendorsScreen>
             emptyMessage: 'Aucun vendeur en attente d\'approbation.',
             onApprove: _approve,
             onSuspend: null, // pas de suspend dans la queue pending
+            onConfigure: _configure,
           ),
           _VendorList(
             asyncList: allAsync,
             emptyMessage: 'Aucun vendeur sur la marketplace.',
             onApprove: _approve,
             onSuspend: _suspend,
+            onUnsuspend: _unsuspend,
+            onConfigure: _configure,
+            onShowcase: _showcase,
           ),
         ],
       ),
@@ -215,12 +371,18 @@ class _VendorList extends StatelessWidget {
   final String emptyMessage;
   final void Function(AdminVendorItem)? onApprove;
   final void Function(AdminVendorItem)? onSuspend;
+  final void Function(AdminVendorItem)? onUnsuspend;
+  final void Function(AdminVendorItem)? onConfigure;
+  final void Function(AdminVendorItem)? onShowcase;
 
   const _VendorList({
     required this.asyncList,
     required this.emptyMessage,
     this.onApprove,
     this.onSuspend,
+    this.onUnsuspend,
+    this.onConfigure,
+    this.onShowcase,
   });
 
   @override
@@ -253,6 +415,9 @@ class _VendorList extends StatelessWidget {
             item: vendors[i],
             onApprove: onApprove,
             onSuspend: onSuspend,
+            onUnsuspend: onUnsuspend,
+            onConfigure: onConfigure,
+            onShowcase: onShowcase,
           ),
         );
       },
@@ -264,11 +429,17 @@ class _VendorCard extends StatelessWidget {
   final AdminVendorItem item;
   final void Function(AdminVendorItem)? onApprove;
   final void Function(AdminVendorItem)? onSuspend;
+  final void Function(AdminVendorItem)? onUnsuspend;
+  final void Function(AdminVendorItem)? onConfigure;
+  final void Function(AdminVendorItem)? onShowcase;
 
   const _VendorCard({
     required this.item,
     this.onApprove,
     this.onSuspend,
+    this.onUnsuspend,
+    this.onConfigure,
+    this.onShowcase,
   });
 
   @override
@@ -370,11 +541,71 @@ class _VendorCard extends StatelessWidget {
                 ],
               ],
             ),
-            if (onApprove != null || onSuspend != null) ...[
-              const SizedBox(height: 12),
+            // Le rang et l'état de publication comptent autant que le statut :
+            // un vendeur ACTIVATED mais jamais classé n'apparaît nulle part en
+            // tête, et un vendeur DRAFT reste invisible quoi qu'il arrive.
+            if (r.isDraft || r.isFeatured || r.displayOrder != 1000) ...[
+              const SizedBox(height: 6),
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (r.isDraft)
+                    const _MetaPill(
+                      icon: Icons.edit_note,
+                      label: 'Configuration inachevée',
+                      color: Colors.deepOrange,
+                    ),
+                  if (r.isFeatured) ...[
+                    if (r.isDraft) const SizedBox(width: 6),
+                    const _MetaPill(
+                      icon: Icons.star,
+                      label: 'En vedette',
+                      color: Colors.amber,
+                    ),
+                  ],
+                  if (r.displayOrder != 1000) ...[
+                    const SizedBox(width: 6),
+                    _MetaPill(
+                      icon: Icons.format_list_numbered,
+                      label: 'Rang ${r.displayOrder}',
+                    ),
+                  ],
+                ],
+              ),
+            ],
+            if (!r.isPayable) ...[
+              const SizedBox(height: 6),
+              // Sans compte de reversement, ce vendeur encaisse mais ne peut
+              // pas être payé. Le dire ici évite de le découvrir au moment du
+              // virement, quand la dette est déjà constituée.
+              const _MetaPill(
+                icon: Icons.account_balance_wallet_outlined,
+                label: 'Reversement non configuré',
+                color: Colors.red,
+              ),
+            ],
+            if (onApprove != null ||
+                onSuspend != null ||
+                onUnsuspend != null ||
+                onConfigure != null ||
+                onShowcase != null) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (onConfigure != null)
+                    OutlinedButton.icon(
+                      onPressed: () => onConfigure!(item),
+                      icon: const Icon(Icons.tune, size: 16),
+                      label: Text(r.isDraft ? 'Reprendre' : 'Configurer'),
+                    ),
+                  if (onShowcase != null)
+                    OutlinedButton.icon(
+                      onPressed: () => onShowcase!(item),
+                      icon: const Icon(Icons.storefront_outlined, size: 16),
+                      label: const Text('Vitrine'),
+                    ),
                   if (pending && onApprove != null) ...[
                     FilledButton.icon(
                       onPressed: () => onApprove!(item),
@@ -392,6 +623,21 @@ class _VendorCard extends StatelessWidget {
                       label: const Text('Suspendre'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red,
+                      ),
+                    ),
+                  ],
+                  // « Réactiver » : `unsuspendVendor` existait dans le service
+                  // depuis août 2026 sans qu'aucun écran ne l'appelle. Un
+                  // vendeur suspendu depuis cette application ne pouvait être
+                  // rétabli que depuis l'admin web — c'est l'état dans lequel
+                  // Attieke.com et Maison Kayser sont restés en production.
+                  if (suspended && onUnsuspend != null) ...[
+                    FilledButton.icon(
+                      onPressed: () => onUnsuspend!(item),
+                      icon: const Icon(Icons.play_arrow, size: 16),
+                      label: const Text('Réactiver'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.blue,
                       ),
                     ),
                   ],

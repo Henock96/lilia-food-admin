@@ -73,6 +73,9 @@ class PhotoGalleryEditor extends ConsumerWidget {
     final file = await picker.pickImage(source: ImageSource.gallery);
     if (file == null) return;
 
+    // Le sélecteur d'image est asynchrone : l'écran peut avoir été quitté
+    // pendant que l'utilisateur choisissait sa photo.
+    if (!context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(
       const SnackBar(

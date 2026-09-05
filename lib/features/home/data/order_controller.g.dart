@@ -49,7 +49,7 @@ final class OrderServiceRepositoryProvider
 }
 
 String _$orderServiceRepositoryHash() =>
-    r'9aa390137ae3c42bec5ccf5dbbea95bca28144de';
+    r'a6deabd3562a64c9ebf57900cce5d3aa40671b25';
 
 @ProviderFor(RestaurantOrders)
 final restaurantOrdersProvider = RestaurantOrdersProvider._();
@@ -81,7 +81,7 @@ abstract class _$RestaurantOrders extends $AsyncNotifier<List<Order>> {
   FutureOr<List<Order>> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<List<Order>>, List<Order>>;
     final element =
         ref.element
@@ -91,6 +91,6 @@ abstract class _$RestaurantOrders extends $AsyncNotifier<List<Order>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

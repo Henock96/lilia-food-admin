@@ -1,19 +1,9 @@
-import 'dart:convert';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:http/http.dart' as http;
+import 'package:lilia_admin/core/network/api_client.dart';
 
-import 'package:lilia_admin/constants/app_constants.dart';
 class AdminService {
-  final String _baseUrl = AppConstants.baseUrl;
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  final ApiClient _api;
 
-  Future<String?> _getAuthToken() async {
-    final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      throw Exception('User not authenticated');
-    }
-    return await user.getIdToken();
-  }
+  AdminService(this._api);
 
   Future<Map<String, dynamic>> createRestaurantWithOwner({
     required String email,
@@ -25,33 +15,17 @@ class AdminService {
     required String restaurantPhone,
     String? restaurantImageUrl,
   }) async {
-    final token = await _getAuthToken();
-    final response = await http.post(
-      Uri.parse('$_baseUrl/admin/restaurants'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({
-        'email': email,
-        'password': password,
-        'nom': nom,
-        if (phone != null && phone.isNotEmpty) 'phone': phone,
-        'restaurantNom': restaurantNom,
-        'restaurantAdresse': restaurantAdresse,
-        'restaurantPhone': restaurantPhone,
-        if (restaurantImageUrl != null && restaurantImageUrl.isNotEmpty)
-          'restaurantImageUrl': restaurantImageUrl,
-      }),
-    );
-
-    if (response.statusCode == 201 || response.statusCode == 200) {
-      final decoded = json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      return decoded['data'] as Map<String, dynamic>;
-    } else {
-      final body = json.decode(utf8.decode(response.bodyBytes));
-      final message = body['message'] ?? 'Erreur inconnue';
-      throw Exception(message);
-    }
+    final res = await _api.postJson('/admin/restaurants', body: {
+      'email': email,
+      'password': password,
+      'nom': nom,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+      'restaurantNom': restaurantNom,
+      'restaurantAdresse': restaurantAdresse,
+      'restaurantPhone': restaurantPhone,
+      if (restaurantImageUrl != null && restaurantImageUrl.isNotEmpty)
+        'restaurantImageUrl': restaurantImageUrl,
+    });
+    return (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
   }
 }

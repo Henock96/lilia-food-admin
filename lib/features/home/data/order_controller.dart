@@ -1,12 +1,13 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_admin/models/order.dart';
 import 'order_service.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 
 part 'order_controller.g.dart';
 
 @riverpod
 OrderService orderServiceRepository(Ref ref) {
-  return OrderService();
+  return OrderService(ref.watch(apiClientProvider));
 }
 
 @riverpod

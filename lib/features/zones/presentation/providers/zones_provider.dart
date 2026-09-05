@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../data/zones_service.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 
 part 'zones_provider.g.dart';
 
-final zonesServiceProvider = Provider((ref) => ZonesService());
+final zonesServiceProvider =
+    Provider((ref) => ZonesService(ref.watch(apiClientProvider)));
 
 @riverpod
 Future<List<Quartier>> allQuartiers(Ref ref) async {

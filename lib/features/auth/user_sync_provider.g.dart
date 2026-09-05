@@ -53,7 +53,7 @@ abstract class _$CurrentUserProfile extends $Notifier<AppUser?> {
   AppUser? build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AppUser?, AppUser?>;
     final element =
         ref.element
@@ -63,7 +63,7 @@ abstract class _$CurrentUserProfile extends $Notifier<AppUser?> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }
 
@@ -92,13 +92,13 @@ final class UserDataSynchronizerProvider
 }
 
 String _$userDataSynchronizerHash() =>
-    r'f9e8d3e8931667234d8de286dee16e65d277bab8';
+    r'fea5063c9077e054dc6f4c9aa53d89c941f72fb1';
 
 abstract class _$UserDataSynchronizer extends $AsyncNotifier<void> {
   FutureOr<void> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<void>, void>;
     final element =
         ref.element
@@ -108,6 +108,6 @@ abstract class _$UserDataSynchronizer extends $AsyncNotifier<void> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

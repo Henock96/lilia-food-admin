@@ -1,120 +1,70 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
+import 'package:lilia_admin/utils/api_response.dart';
 
 import '../../../models/product.dart';
 
-import 'package:lilia_admin/constants/app_constants.dart';
-import 'package:lilia_admin/utils/api_response.dart';
+/// Sections de menu d'un vendeur (`/categories`).
+///
+/// ⚠️ Ce service postait auparavant sur `/categories?restaurantId=X` — un
+/// paramètre que le backend **ne lisait pas**. L'écran, son wording et son
+/// provider étaient donc bâtis sur une hypothèse fausse : la catégorie était en
+/// réalité globale à toute la plateforme. Le modèle est désormais réellement
+/// « une section appartient à un vendeur », et le ciblage passe par le **corps**
+/// de la requête, réservé à l'ADMIN.
 class CategoryService {
-  final String _baseUrl = AppConstants.baseUrl;
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  final ApiClient _api;
 
-  Future<String?> _getAuthToken() async {
-    final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      throw Exception('User not authenticated');
-    }
-    return await user.getIdToken();
-  }
+  CategoryService(this._api);
 
-  Future<List<Category>> getCategories(String restaurantId) async {
-    final token = await _getAuthToken();
-    final response = await http.get(
-      Uri.parse('$_baseUrl/categories?restaurantId=$restaurantId'),
-      headers: {'Authorization': 'Bearer $token'},
+  /// GET /categories — mes sections (ADMIN : celles du vendeur ciblé).
+  ///
+  /// Rend **toutes** les sections, y compris vides et désactivées : c'est la vue
+  /// du propriétaire, celle où l'on remplit. Une section vide qui disparaît de
+  /// cette liste ne peut plus jamais être remplie.
+  Future<List<Category>> getCategories({String? restaurantId}) async {
+    final res = await _api.getJson(
+      '/categories',
+      query: {if (restaurantId != null) 'restaurantId': restaurantId},
     );
-
-    if (response.statusCode == 200) {
-      // Backend renvoie { data:[...], count } → double-wrappé par l'interceptor.
-      // ApiResponse.listOf tolère liste brute / simple wrap / double wrap.
-      final categoriesData =
-          ApiResponse.listOf(json.decode(utf8.decode(response.bodyBytes)));
-      return categoriesData.map((json) => Category.fromJson(json as Map<String, dynamic>)).toList();
-    } else {
-      throw Exception('Failed to load categories: ${response.body}');
-    }
+    return ApiResponse.listOf(res.data)
+        .map((json) => Category.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
-  Future<Category> getCategory(String categoryId) async {
-    final token = await _getAuthToken();
-    final response = await http.get(
-      Uri.parse('$_baseUrl/categories/$categoryId'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode == 200) {
-      // Le backend renvoie { "data": {...} }
-      final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
-      final categoryData = responseData['data'] as Map<String, dynamic>?;
-      if (categoryData == null) {
-        throw Exception('Category data is null');
-      }
-      return Category.fromJson(categoryData);
-    } else {
-      throw Exception('Failed to load category: ${response.body}');
-    }
-  }
-
+  /// POST /categories — `restaurantId` uniquement si l'appelant est ADMIN.
   Future<Category> createCategory(
-      String restaurantId, Map<String, dynamic> categoryData) async {
-    final token = await _getAuthToken();
-    final response = await http.post(
-      Uri.parse('$_baseUrl/categories?restaurantId=$restaurantId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode(categoryData),
-    );
-
-    if (response.statusCode == 201 || response.statusCode == 200) {
-      // Le backend renvoie { "data": {...}, "message": "..." }
-      final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
-      final categoryJson = responseData['data'] as Map<String, dynamic>?;
-      if (categoryJson == null) {
-        throw Exception('Category data is null in response');
-      }
-      return Category.fromJson(categoryJson);
-    } else {
-      throw Exception('Failed to create category: ${response.body}');
-    }
+    Map<String, dynamic> body, {
+    String? restaurantId,
+  }) async {
+    final res = await _api.postJson('/categories', body: {
+      ...body,
+      if (restaurantId != null) 'restaurantId': restaurantId,
+    });
+    return Category.fromJson(ApiResponse.mapOf(res.data));
   }
 
+  /// PATCH /categories/:id — nom, description, ordre, activation.
   Future<Category> updateCategory(
-      String categoryId, Map<String, dynamic> categoryData) async {
-    final token = await _getAuthToken();
-    final response = await http.patch(
-      Uri.parse('$_baseUrl/categories/$categoryId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode(categoryData),
-    );
-
-    if (response.statusCode == 200) {
-      // Le backend renvoie { "data": {...}, "message": "..." }
-      final Map<String, dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
-      final categoryJson = responseData['data'] as Map<String, dynamic>?;
-      if (categoryJson == null) {
-        throw Exception('Category data is null in response');
-      }
-      return Category.fromJson(categoryJson);
-    } else {
-      throw Exception('Failed to update category: ${response.body}');
-    }
+    String categoryId,
+    Map<String, dynamic> body,
+  ) async {
+    final res = await _api.patchJson('/categories/$categoryId', body: body);
+    return Category.fromJson(ApiResponse.mapOf(res.data));
   }
 
-  Future<void> deleteCategory(String categoryId) async {
-    final token = await _getAuthToken();
-    final response = await http.delete(
-      Uri.parse('$_baseUrl/categories/$categoryId'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
+  /// PATCH /categories/reorder — liste ordonnée **complète**.
+  Future<void> reorderCategories(
+    List<String> categoryIds, {
+    String? restaurantId,
+  }) async {
+    await _api.patchJson('/categories/reorder', body: {
+      'categoryIds': categoryIds,
+      if (restaurantId != null) 'restaurantId': restaurantId,
+    });
+  }
 
-    if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception('Failed to delete category: ${response.body}');
-    }
+  /// DELETE /categories/:id — les produits sont **détachés**, jamais supprimés.
+  Future<void> deleteCategory(String categoryId) async {
+    await _api.deleteJson('/categories/$categoryId');
   }
 }

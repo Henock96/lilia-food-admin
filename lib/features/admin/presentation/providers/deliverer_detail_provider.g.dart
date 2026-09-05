@@ -408,7 +408,7 @@ abstract class _$DelivererMissionsController
   FutureOr<DelivererMissionsState> build(String delivererId);
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref
             as $Ref<AsyncValue<DelivererMissionsState>, DelivererMissionsState>;
@@ -423,6 +423,6 @@ abstract class _$DelivererMissionsController
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args));
+    return element.handleCreate(ref, () => build(_$args));
   }
 }

@@ -55,7 +55,7 @@ final class IncidentsRepositoryProvider
 }
 
 String _$incidentsRepositoryHash() =>
-    r'3f1abbe063071867c1b602c2bdfbc5118eca25f1';
+    r'ae1a4d20571808f6d7ebae99dcfc4d3f1d8dacf0';
 
 /// Liste paginée + filtrable des incidents (ADMIN).
 ///

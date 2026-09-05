@@ -53,7 +53,7 @@ final class ClientRepositoryProvider
   }
 }
 
-String _$clientRepositoryHash() => r'd0503e21d2fff20e3571277eee0eb21271ac7182';
+String _$clientRepositoryHash() => r'e50bd7c15bf765ccb00b068468412e43d64e1fc2';
 
 /// Clients d'un restaurant (vue restaurateur).
 

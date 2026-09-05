@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/common_widgets/app_cached_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -64,7 +65,7 @@ class _BannerFormScreenState extends ConsumerState<BannerFormScreen> {
     setState(() => _isUploading = true);
 
     try {
-      final cloudinary = CloudinaryService();
+      final cloudinary = CloudinaryService(ref.read(apiClientProvider));
       final url = await cloudinary.uploadImage(image);
 
       if (url != null && mounted) {

@@ -1,53 +1,23 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 
-import 'package:lilia_admin/constants/app_constants.dart';
 class DashboardService {
-  final String _baseUrl = AppConstants.baseUrl;
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  final ApiClient _api;
 
-  Future<String?> _getAuthToken() async {
-    final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      throw Exception('User not authenticated');
-    }
-    return await user.getIdToken();
-  }
+  DashboardService(this._api);
 
   /// Récupère les statistiques générales du dashboard
   Future<DashboardOverview> getOverview() async {
-    final token = await _getAuthToken();
-    final response = await http.get(
-      Uri.parse('$_baseUrl/dashboard/overview'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode == 200) {
-      final data = _payloadMap(response);
-      return DashboardOverview.fromJson(data);
-    } else {
-      throw Exception('Failed to load dashboard overview: ${response.body}');
-    }
+    final res = await _api.getJson('/dashboard/overview');
+    return DashboardOverview.fromJson(_payloadMap(res.data));
   }
 
   /// Récupère les statistiques des commandes par statut
   Future<OrderStats> getOrderStats({String? period}) async {
-    final token = await _getAuthToken();
-    final uri = Uri.parse(
-      '$_baseUrl/dashboard/orders${period != null ? '?period=$period' : ''}',
+    final res = await _api.getJson(
+      '/dashboard/orders',
+      query: {if (period != null) 'period': period},
     );
-    final response = await http.get(
-      uri,
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode == 200) {
-      final data = _payloadMap(response);
-      return OrderStats.fromJson(data);
-    } else {
-      throw Exception('Failed to load order stats: ${response.body}');
-    }
+    return OrderStats.fromJson(_payloadMap(res.data));
   }
 
   /// Récupère les produits les plus vendus
@@ -55,115 +25,61 @@ class DashboardService {
     int limit = 10,
     String? period,
   }) async {
-    final token = await _getAuthToken();
-    var url = '$_baseUrl/dashboard/top-products?limit=$limit';
-    if (period != null) url += '&period=$period';
-
-    final response = await http.get(
-      Uri.parse(url),
-      headers: {'Authorization': 'Bearer $token'},
+    final res = await _api.getJson(
+      '/dashboard/top-products',
+      query: {'limit': '$limit', if (period != null) 'period': period},
     );
-
-    if (response.statusCode == 200) {
-      final products = _payloadList(response);
-      return products.map((p) => TopProduct.fromJson(_asMap(p))).toList();
-    } else {
-      throw Exception('Failed to load top products: ${response.body}');
-    }
+    final products = _payloadList(res.data);
+    return products.map((p) => TopProduct.fromJson(_asMap(p))).toList();
   }
 
   /// Récupère l'évolution des revenus par jour
   Future<List<RevenueData>> getRevenueChart({int days = 30}) async {
-    final token = await _getAuthToken();
-    final response = await http.get(
-      Uri.parse('$_baseUrl/dashboard/revenue-chart?days=$days'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode == 200) {
-      final chartData = _payloadList(response);
-      return chartData.map((d) => RevenueData.fromJson(_asMap(d))).toList();
-    } else {
-      throw Exception('Failed to load revenue chart: ${response.body}');
-    }
+    final res = await _api
+        .getJson('/dashboard/revenue-chart', query: {'days': '$days'});
+    final chartData = _payloadList(res.data);
+    return chartData.map((d) => RevenueData.fromJson(_asMap(d))).toList();
   }
 
   /// Récupère les statistiques des clients
   Future<ClientStats> getClientStats() async {
-    final token = await _getAuthToken();
-    final response = await http.get(
-      Uri.parse('$_baseUrl/dashboard/clients'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode == 200) {
-      final data = _payloadMap(response);
-      return ClientStats.fromJson(data);
-    } else {
-      throw Exception('Failed to load client stats: ${response.body}');
-    }
+    final res = await _api.getJson('/dashboard/clients');
+    return ClientStats.fromJson(_payloadMap(res.data));
   }
 
   /// Récupère les heures de pointe
   Future<PeakHoursData> getPeakHours({String? period}) async {
-    final token = await _getAuthToken();
-    final uri = Uri.parse(
-      '$_baseUrl/dashboard/peak-hours${period != null ? '?period=$period' : ''}',
+    final res = await _api.getJson(
+      '/dashboard/peak-hours',
+      query: {if (period != null) 'period': period},
     );
-    final response = await http.get(
-      uri,
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode == 200) {
-      final data = _payloadMap(response);
-      return PeakHoursData.fromJson(data);
-    } else {
-      throw Exception('Failed to load peak hours: ${response.body}');
-    }
+    return PeakHoursData.fromJson(_payloadMap(res.data));
   }
 
   /// Récupère le classement des restaurants (ADMIN uniquement)
   Future<List<RestaurantRanking>> getRestaurantRanking({String? period}) async {
-    final token = await _getAuthToken();
-    var url = '$_baseUrl/dashboard/restaurant-ranking';
-    if (period != null) url += '?period=$period';
-
-    final response = await http.get(
-      Uri.parse(url),
-      headers: {'Authorization': 'Bearer $token'},
+    final res = await _api.getJson(
+      '/dashboard/restaurant-ranking',
+      query: {if (period != null) 'period': period},
     );
-
-    if (response.statusCode == 200) {
-      final rankings = _payloadList(response);
-      return rankings
-          .map((r) => RestaurantRanking.fromJson(_asMap(r)))
-          .toList();
-    } else {
-      throw Exception('Failed to load restaurant ranking: ${response.body}');
-    }
+    final rankings = _payloadList(res.data);
+    return rankings
+        .map((r) => RestaurantRanking.fromJson(_asMap(r)))
+        .toList();
   }
 
-  dynamic _decodeBody(http.Response response) {
-    return json.decode(utf8.decode(response.bodyBytes));
-  }
-
-  Map<String, dynamic> _decodeMap(http.Response response) {
-    final decoded = _decodeBody(response);
-    if (decoded is Map<String, dynamic>) return decoded;
-    if (decoded is Map) return Map<String, dynamic>.from(decoded);
-    return const <String, dynamic>{};
-  }
-
-  Map<String, dynamic> _payloadMap(http.Response response) {
-    final decoded = _decodeMap(response);
-    final data = decoded['data'];
+  Map<String, dynamic> _payloadMap(dynamic decoded) {
+    final map = decoded is Map<String, dynamic>
+        ? decoded
+        : (decoded is Map
+            ? Map<String, dynamic>.from(decoded)
+            : const <String, dynamic>{});
+    final data = map['data'];
     if (data is Map<String, dynamic>) return data;
-    return decoded;
+    return map;
   }
 
-  List<dynamic> _payloadList(http.Response response) {
-    final body = _decodeBody(response);
+  List<dynamic> _payloadList(dynamic body) {
     if (body is List) return body;
     final decoded = body is Map<String, dynamic>
         ? body

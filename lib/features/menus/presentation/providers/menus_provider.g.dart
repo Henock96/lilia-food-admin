@@ -48,7 +48,7 @@ final class MenuServiceProvider
   }
 }
 
-String _$menuServiceHash() => r'708a4075ded35b5aa254625dc5c3f0e574d4abf8';
+String _$menuServiceHash() => r'171945dbf23db445a91697c137fbfa9bf21252e0';
 
 @ProviderFor(Menus)
 final menusProvider = MenusProvider._();
@@ -80,7 +80,7 @@ abstract class _$Menus extends $AsyncNotifier<List<MenuDuJour>> {
   FutureOr<List<MenuDuJour>> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref as $Ref<AsyncValue<List<MenuDuJour>>, List<MenuDuJour>>;
     final element =
@@ -91,6 +91,6 @@ abstract class _$Menus extends $AsyncNotifier<List<MenuDuJour>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

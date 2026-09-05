@@ -4,12 +4,14 @@ import 'package:lilia_admin/models/admin_payment.dart';
 import 'package:lilia_admin/models/admin_deliverer.dart';
 import 'package:lilia_admin/models/payments_stats.dart';
 import 'package:lilia_admin/models/platform_settings.dart';
+import 'package:lilia_admin/models/order_financials.dart';
+import 'package:lilia_admin/core/network/api_client.dart';
 
 part 'admin_operations_provider.g.dart';
 
 @riverpod
 AdminOperationsRepository adminOperationsRepository(Ref ref) {
-  return AdminOperationsRepository();
+  return AdminOperationsRepository(ref.watch(apiClientProvider));
 }
 
 /// Paiements paginés (ADMIN). `status` vide → vue "Tous statuts confondus".
@@ -42,4 +44,16 @@ Future<PaginatedDeliverers> adminDeliverers(Ref ref, {required int page}) {
 @riverpod
 Future<PlatformSettings> platformSettings(Ref ref) {
   return ref.watch(adminOperationsRepositoryProvider).fetchPlatformSettings();
+}
+
+/// Récapitulatif financier d'une commande (ADMIN) : encaissement client,
+/// reversement vendeur, marge Lilia Food — et l'éligibilité au paiement du
+/// restaurant, **décidée par le serveur**.
+///
+/// `autoDispose` implicite (`@riverpod`) : la fiche n'est chargée que tant
+/// qu'un écran l'affiche. Après un reversement, l'appelant invalide ce provider
+/// pour relire l'état réel plutôt que de le supposer.
+@riverpod
+Future<OrderFinancials> orderFinancials(Ref ref, {required String orderId}) {
+  return ref.watch(adminOperationsRepositoryProvider).fetchOrderFinancials(orderId);
 }

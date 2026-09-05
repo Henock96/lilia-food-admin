@@ -187,10 +187,24 @@ class ProductVariant {
   }
 }
 
+/// Section de la carte d'un vendeur.
+///
+/// Les champs ajoutés en septembre 2026 (`slug`, `displayOrder`, `isActive`,
+/// `productCount`) sont tous **tolérants** : une app à jour contre un backend
+/// ancien retombe sur des valeurs neutres plutôt que de refuser de parser.
 class Category {
   final String id;
   final String name;
   final String? restaurantId;
+  final String? slug;
+  final String? description;
+  final int displayOrder;
+  final bool isActive;
+
+  /// Produits au catalogue dans cette section — `null` si le backend ne l'a
+  /// pas renvoyé (vue publique). Sert à avertir avant une désactivation.
+  final int? productCount;
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -198,15 +212,26 @@ class Category {
     required this.id,
     required this.name,
     this.restaurantId,
+    this.slug,
+    this.description,
+    this.displayOrder = 0,
+    this.isActive = true,
+    this.productCount,
     this.createdAt,
     this.updatedAt,
   });
 
   factory Category.fromJson(Map<String, dynamic> json) {
+    final count = json['_count'] as Map<String, dynamic>?;
     return Category(
       id: json['id'] as String? ?? '',
       name: json['nom'] as String? ?? 'Categorie inconnue',
       restaurantId: json['restaurantId'] as String?,
+      slug: json['slug'] as String?,
+      description: json['description'] as String?,
+      displayOrder: (json['displayOrder'] as num?)?.toInt() ?? 0,
+      isActive: json['isActive'] as bool? ?? true,
+      productCount: (count?['products'] as num?)?.toInt(),
       createdAt:
           json['createdAt'] != null ? DateTime.parse(json['createdAt'] as String) : null,
       updatedAt:
