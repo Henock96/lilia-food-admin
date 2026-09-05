@@ -7,6 +7,7 @@ import '../../../../models/onboarding_report.dart';
 import '../../../../models/restaurant.dart';
 import '../../../users/data/cloudinary_service.dart';
 import '../../data/vendor_onboarding_service.dart';
+import 'vendor_onboarding_steps.dart';
 
 /// Configuration d'un vendeur, étape par étape.
 ///
@@ -37,20 +38,8 @@ class _VendorOnboardingScreenState
   bool _saving = false;
   int _step = 0;
 
-  static const _steps = [
-    _StepDef('Identité', ['identity', 'description']),
-    _StepDef('Visuels', ['logo', 'cover']),
-    _StepDef('Localisation', ['location', 'gps']),
-    _StepDef('Horaires', ['hours']),
-    _StepDef('Livraison', ['delivery']),
-    // `payout` est bloquant : sans compte de reversement, le vendeur
-    // encaisserait des commandes sans qu'on puisse jamais le payer. Il doit
-    // donc être rattaché à une étape, sinon la checklist signalerait un
-    // manque que l'assistant ne saurait pas où corriger.
-    _StepDef('Commercial', ['commerce', 'payout']),
-    _StepDef('Catalogue', ['catalog']),
-    _StepDef('Vérification', []),
-  ];
+  /// Définies dans `vendor_onboarding_steps.dart`, avec la règle d'avance.
+  static const _steps = vendorOnboardingSteps;
 
   @override
   void initState() {
@@ -80,7 +69,24 @@ class _VendorOnboardingScreenState
 
   /// Enveloppe commune des enregistrements de section : verrou anti-double-tap,
   /// rafraîchissement de la checklist, message d'erreur lisible.
-  Future<void> _save(Future<void> Function() action, String successMessage) async {
+  ///
+  /// ⚠️ L'avance vers l'étape suivante était **inconditionnelle** : tout
+  /// enregistrement réussi faisait `_step++`. Le raccourci tient tant qu'une
+  /// étape porte un seul formulaire — ce n'est pas le cas de « Commercial »,
+  /// qui en porte deux : les paramètres commerciaux, puis le **compte de
+  /// reversement**. Enregistrer les premiers projetait donc sur « Catalogue »,
+  /// et le champ de reversement disparaissait après s'être affiché une fois.
+  /// Symptôme d'autant plus trompeur que `payout` est une case **bloquante** :
+  /// la checklist réclamait un compte que l'assistant venait d'escamoter.
+  ///
+  /// L'avance suit désormais la même autorité que le reste de l'écran : la
+  /// checklist serveur. On ne quitte une étape que si plus aucune de ses cases
+  /// **bloquantes** n'est en défaut. Les cases facultatives (description,
+  /// couverture, commission) ne retiennent personne.
+  Future<void> _save(
+    Future<void> Function() action,
+    String successMessage,
+  ) async {
     if (_saving) return;
     setState(() => _saving = true);
     try {
@@ -88,7 +94,9 @@ class _VendorOnboardingScreenState
       await _refresh();
       if (!mounted) return;
       _toast(successMessage);
-      if (_step < _steps.length - 1) setState(() => _step++);
+      if (_step < _steps.length - 1 && canLeaveStep(_steps[_step], _report)) {
+        setState(() => _step++);
+      }
     } catch (e) {
       if (!mounted) return;
       _toast(_readableError(e), error: true);
@@ -162,7 +170,7 @@ class _VendorOnboardingScreenState
     );
   }
 
-  StepState _stepState(_StepDef def) {
+  StepState _stepState(VendorOnboardingStep def) {
     if (def.checkKeys.isEmpty) return StepState.indexed;
     final checks = def.checkKeys.map(_check).whereType<ReadinessCheck>();
     if (checks.any((c) => c.blocking && !c.isOk)) return StepState.indexed;
@@ -173,7 +181,11 @@ class _VendorOnboardingScreenState
   Widget _buildStepContent(int index) {
     switch (index) {
       case 0:
-        return _IdentityStep(vendor: _vendor, saving: _saving, onSave: _saveIdentity);
+        return _IdentityStep(
+          vendor: _vendor,
+          saving: _saving,
+          onSave: _saveIdentity,
+        );
       case 1:
         return _VisualsStep(
           vendor: _vendor,
@@ -181,11 +193,19 @@ class _VendorOnboardingScreenState
           onPickAndSave: _saveLogo,
         );
       case 2:
-        return _LocationStep(vendor: _vendor, saving: _saving, onSave: _saveLocation);
+        return _LocationStep(
+          vendor: _vendor,
+          saving: _saving,
+          onSave: _saveLocation,
+        );
       case 3:
         return _HoursStep(vendor: _vendor, saving: _saving, onSave: _saveHours);
       case 4:
-        return _DeliveryStep(vendor: _vendor, saving: _saving, onSave: _saveDelivery);
+        return _DeliveryStep(
+          vendor: _vendor,
+          saving: _saving,
+          onSave: _saveDelivery,
+        );
       case 5:
         return _CommerceStep(
           vendor: _vendor,
@@ -204,15 +224,15 @@ class _VendorOnboardingScreenState
   // ─── Enregistrements ───────────────────────────────────────────────────────
 
   Future<void> _saveIdentity(Map<String, String> values) => _save(
-        () => _service.updateIdentity(
-          _vendor.id,
-          nom: values['nom'],
-          description: values['description'],
-          phone: values['phone'],
-          email: values['email'],
-        ),
-        'Identité enregistrée',
-      );
+    () => _service.updateIdentity(
+      _vendor.id,
+      nom: values['nom'],
+      description: values['description'],
+      phone: values['phone'],
+      email: values['email'],
+    ),
+    'Identité enregistrée',
+  );
 
   Future<void> _saveLogo() async {
     final picker = ImagePicker();
@@ -242,57 +262,62 @@ class _VendorOnboardingScreenState
   }
 
   Future<void> _saveLocation(Map<String, dynamic> values) => _save(
-        () => _service.updateLocation(
-          _vendor.id,
-          adresse: values['adresse'] as String?,
-          quartierId: values['quartierId'] as String?,
-          latitude: values['latitude'] as double?,
-          longitude: values['longitude'] as double?,
-          deliveryInstructions: values['deliveryInstructions'] as String?,
-        ),
-        'Localisation enregistrée',
-      );
+    () => _service.updateLocation(
+      _vendor.id,
+      adresse: values['adresse'] as String?,
+      quartierId: values['quartierId'] as String?,
+      latitude: values['latitude'] as double?,
+      longitude: values['longitude'] as double?,
+      deliveryInstructions: values['deliveryInstructions'] as String?,
+    ),
+    'Localisation enregistrée',
+  );
 
-  Future<void> _saveHours(List<Map<String, dynamic>> hours) =>
-      _save(() => _service.updateHours(_vendor.id, hours), 'Horaires enregistrés');
+  Future<void> _saveHours(List<Map<String, dynamic>> hours) => _save(
+    () => _service.updateHours(_vendor.id, hours),
+    'Horaires enregistrés',
+  );
 
   Future<void> _saveDelivery(Map<String, dynamic> values) => _save(
-        () => _service.updateDelivery(
-          _vendor.id,
-          supportsDelivery: values['supportsDelivery'] as bool?,
-          supportsPickup: values['supportsPickup'] as bool?,
-          deliveryPriceMode: values['deliveryPriceMode'] as String?,
-          fixedDeliveryFee: values['fixedDeliveryFee'] as int?,
-          estimatedDeliveryTimeMin: values['estimatedDeliveryTimeMin'] as int?,
-          estimatedDeliveryTimeMax: values['estimatedDeliveryTimeMax'] as int?,
-        ),
-        'Livraison enregistrée',
-      );
+    () => _service.updateDelivery(
+      _vendor.id,
+      supportsDelivery: values['supportsDelivery'] as bool?,
+      supportsPickup: values['supportsPickup'] as bool?,
+      deliveryPriceMode: values['deliveryPriceMode'] as String?,
+      fixedDeliveryFee: values['fixedDeliveryFee'] as int?,
+      estimatedDeliveryTimeMin: values['estimatedDeliveryTimeMin'] as int?,
+      estimatedDeliveryTimeMax: values['estimatedDeliveryTimeMax'] as int?,
+    ),
+    'Livraison enregistrée',
+  );
 
   Future<void> _saveCommerce(double? commission, int? minOrder) => _save(
-        () => _service.updateCommerce(
-          _vendor.id,
-          commissionPercent: commission,
-          clearCommission: commission == null,
-          minimumOrderAmount: minOrder,
-        ),
-        'Paramètres commerciaux enregistrés',
-      );
+    () => _service.updateCommerce(
+      _vendor.id,
+      commissionPercent: commission,
+      clearCommission: commission == null,
+      minimumOrderAmount: minOrder,
+    ),
+    'Paramètres commerciaux enregistrés',
+  );
 
   Future<void> _savePayoutAccount(String phone, String provider) => _save(
-        () => _service.updatePayoutAccount(
-          _vendor.id,
-          payoutPhoneNumber: phone,
-          payoutProvider: provider,
-        ),
-        'Compte de reversement enregistré',
-      );
+    () => _service.updatePayoutAccount(
+      _vendor.id,
+      payoutPhoneNumber: phone,
+      payoutProvider: provider,
+    ),
+    'Compte de reversement enregistré',
+  );
 
   Future<void> _activate({bool skipRecommendations = false}) async {
     if (_saving) return;
     setState(() => _saving = true);
     try {
-      await _service.activate(_vendor.id, skipRecommendations: skipRecommendations);
+      await _service.activate(
+        _vendor.id,
+        skipRecommendations: skipRecommendations,
+      );
       await _refresh();
       if (!mounted) return;
       _toast('${_vendor.name} est activé.');
@@ -316,37 +341,31 @@ class _VendorOnboardingScreenState
   }
 
   Future<bool?> _confirmSkipRecommendations() => showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Activer malgré tout ?'),
-          content: const Text(
-            'Des éléments recommandés manquent (description, photo de '
-            'couverture). La boutique fonctionnera, mais elle sera moins '
-            'attractive pour les clients.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Compléter d’abord'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Activer'),
-            ),
-          ],
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Activer malgré tout ?'),
+      content: const Text(
+        'Des éléments recommandés manquent (description, photo de '
+        'couverture). La boutique fonctionnera, mais elle sera moins '
+        'attractive pour les clients.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Compléter d’abord'),
         ),
-      );
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Activer'),
+        ),
+      ],
+    ),
+  );
 
   String _readableError(Object e) {
     final raw = e.toString();
     return raw.replaceFirst('Exception: ', '');
   }
-}
-
-class _StepDef {
-  final String title;
-  final List<String> checkKeys;
-  const _StepDef(this.title, this.checkKeys);
 }
 
 // ─── Bandeau d'état ──────────────────────────────────────────────────────────
@@ -372,12 +391,16 @@ class _StatusBanner extends StatelessWidget {
                 : 'Activée, en attente de validation marketplace',
           )
         : ready
-            ? (Colors.blue, Icons.task_alt, 'Configuration terminée — prête à activer')
-            : (
-                Colors.orange,
-                Icons.pending_outlined,
-                '${report!.blockingIssues.length} élément(s) à compléter — invisible des clients',
-              );
+        ? (
+            Colors.blue,
+            Icons.task_alt,
+            'Configuration terminée — prête à activer',
+          )
+        : (
+            Colors.orange,
+            Icons.pending_outlined,
+            '${report!.blockingIssues.length} élément(s) à compléter — invisible des clients',
+          );
 
     return Container(
       width: double.infinity,
@@ -465,10 +488,15 @@ class _IdentityStep extends StatefulWidget {
 
 class _IdentityStepState extends State<_IdentityStep> {
   late final _nom = TextEditingController(text: widget.vendor.name);
-  late final _description =
-      TextEditingController(text: widget.vendor.description ?? '');
-  late final _phone = TextEditingController(text: widget.vendor.phoneNumber ?? '');
-  late final _email = TextEditingController(text: widget.vendor.contactEmail ?? '');
+  late final _description = TextEditingController(
+    text: widget.vendor.description ?? '',
+  );
+  late final _phone = TextEditingController(
+    text: widget.vendor.phoneNumber ?? '',
+  );
+  late final _email = TextEditingController(
+    text: widget.vendor.contactEmail ?? '',
+  );
 
   @override
   void dispose() {
@@ -492,10 +520,23 @@ class _IdentityStepState extends State<_IdentityStep> {
       }),
       children: [
         _field(_nom, 'Nom commercial *'),
-        _field(_description, 'Description', maxLines: 3,
-            helper: 'Recommandé : sans elle, le client ne sait pas ce que vous vendez.'),
-        _field(_phone, 'Téléphone du commerce *', keyboard: TextInputType.phone),
-        _field(_email, 'E-mail de contact', keyboard: TextInputType.emailAddress),
+        _field(
+          _description,
+          'Description',
+          maxLines: 3,
+          helper:
+              'Recommandé : sans elle, le client ne sait pas ce que vous vendez.',
+        ),
+        _field(
+          _phone,
+          'Téléphone du commerce *',
+          keyboard: TextInputType.phone,
+        ),
+        _field(
+          _email,
+          'E-mail de contact',
+          keyboard: TextInputType.emailAddress,
+        ),
       ],
     );
   }
@@ -540,17 +581,17 @@ class _VisualsStep extends StatelessWidget {
             child: saving
                 ? const Center(child: CircularProgressIndicator())
                 : vendor.imageUrl == null
-                    ? const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.add_photo_alternate_outlined, size: 36),
-                            SizedBox(height: 6),
-                            Text('Choisir un logo'),
-                          ],
-                        ),
-                      )
-                    : null,
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_photo_alternate_outlined, size: 36),
+                        SizedBox(height: 6),
+                        Text('Choisir un logo'),
+                      ],
+                    ),
+                  )
+                : null,
           ),
         ),
         const SizedBox(height: 8),
@@ -586,12 +627,15 @@ class _LocationStep extends StatefulWidget {
 
 class _LocationStepState extends State<_LocationStep> {
   late final _adresse = TextEditingController(text: widget.vendor.address);
-  late final _lat =
-      TextEditingController(text: widget.vendor.latitude?.toString() ?? '');
-  late final _lng =
-      TextEditingController(text: widget.vendor.longitude?.toString() ?? '');
-  late final _instructions =
-      TextEditingController(text: widget.vendor.deliveryInstructions ?? '');
+  late final _lat = TextEditingController(
+    text: widget.vendor.latitude?.toString() ?? '',
+  );
+  late final _lng = TextEditingController(
+    text: widget.vendor.longitude?.toString() ?? '',
+  );
+  late final _instructions = TextEditingController(
+    text: widget.vendor.deliveryInstructions ?? '',
+  );
 
   @override
   void dispose() {
@@ -605,7 +649,8 @@ class _LocationStepState extends State<_LocationStep> {
   @override
   Widget build(BuildContext context) {
     return _StepShell(
-      hint: 'Sans GPS, le délai affiché au client et le trajet du livreur sont faux.',
+      hint:
+          'Sans GPS, le délai affiché au client et le trajet du livreur sont faux.',
       saving: widget.saving,
       onSave: () {
         final lat = double.tryParse(_lat.text.trim());
@@ -627,13 +672,24 @@ class _LocationStepState extends State<_LocationStep> {
         _field(_adresse, 'Adresse *'),
         Row(
           children: [
-            Expanded(child: _field(_lat, 'Latitude *', keyboard: TextInputType.number)),
+            Expanded(
+              child: _field(_lat, 'Latitude *', keyboard: TextInputType.number),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _field(_lng, 'Longitude *', keyboard: TextInputType.number)),
+            Expanded(
+              child: _field(
+                _lng,
+                'Longitude *',
+                keyboard: TextInputType.number,
+              ),
+            ),
           ],
         ),
-        _field(_instructions, 'Repères pour le livreur',
-            helper: 'Ex. : portail bleu, face à la pharmacie'),
+        _field(
+          _instructions,
+          'Repères pour le livreur',
+          helper: 'Ex. : portail bleu, face à la pharmacie',
+        ),
         const Text(
           'Le quartier se choisit depuis l’écran Zones du vendeur.',
           style: TextStyle(fontSize: 11, color: Colors.grey),
@@ -698,7 +754,8 @@ class _HoursStepState extends State<_HoursStep> {
   @override
   Widget build(BuildContext context) {
     return _StepShell(
-      hint: 'La boutique ouvre et ferme automatiquement selon ces horaires. '
+      hint:
+          'La boutique ouvre et ferme automatiquement selon ces horaires. '
           'Sans aucun jour ouvert, elle reste fermée.',
       saving: widget.saving,
       onSave: () => widget.onSave([
@@ -829,12 +886,15 @@ class _DeliveryStep extends StatefulWidget {
 class _DeliveryStepState extends State<_DeliveryStep> {
   late bool _delivery = widget.vendor.supportsDelivery;
   late bool _pickup = widget.vendor.supportsPickup;
-  late final _fee =
-      TextEditingController(text: widget.vendor.fixedDeliveryFee.toInt().toString());
-  late final _min =
-      TextEditingController(text: widget.vendor.estimatedDeliveryTimeMin.toString());
-  late final _max =
-      TextEditingController(text: widget.vendor.estimatedDeliveryTimeMax.toString());
+  late final _fee = TextEditingController(
+    text: widget.vendor.fixedDeliveryFee.toInt().toString(),
+  );
+  late final _min = TextEditingController(
+    text: widget.vendor.estimatedDeliveryTimeMin.toString(),
+  );
+  late final _max = TextEditingController(
+    text: widget.vendor.estimatedDeliveryTimeMax.toString(),
+  );
 
   @override
   void dispose() {
@@ -870,17 +930,27 @@ class _DeliveryStepState extends State<_DeliveryStep> {
           title: const Text('Retrait au comptoir'),
         ),
         if (_delivery) ...[
-          _field(_fee, 'Frais de livraison (XAF)', keyboard: TextInputType.number),
+          _field(
+            _fee,
+            'Frais de livraison (XAF)',
+            keyboard: TextInputType.number,
+          ),
           Row(
             children: [
               Expanded(
-                child: _field(_min, 'Délai min (min)',
-                    keyboard: TextInputType.number),
+                child: _field(
+                  _min,
+                  'Délai min (min)',
+                  keyboard: TextInputType.number,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _field(_max, 'Délai max (min)',
-                    keyboard: TextInputType.number),
+                child: _field(
+                  _max,
+                  'Délai max (min)',
+                  keyboard: TextInputType.number,
+                ),
               ),
             ],
           ),
@@ -942,12 +1012,18 @@ class _CommerceStepState extends State<_CommerceStep> {
             int.tryParse(_minOrder.text.trim()),
           ),
           children: [
-            _field(_commission, 'Commission plateforme (%)',
-                keyboard: TextInputType.number,
-                helper:
-                    'Vide = taux plateforme. Figée sur chaque commande passée.'),
-            _field(_minOrder, 'Minimum de commande (XAF)',
-                keyboard: TextInputType.number),
+            _field(
+              _commission,
+              'Commission plateforme (%)',
+              keyboard: TextInputType.number,
+              helper:
+                  'Vide = taux plateforme. Figée sur chaque commande passée.',
+            ),
+            _field(
+              _minOrder,
+              'Minimum de commande (XAF)',
+              keyboard: TextInputType.number,
+            ),
           ],
         ),
         const SizedBox(height: 20),
@@ -963,8 +1039,9 @@ class _CommerceStepState extends State<_CommerceStep> {
           width: double.infinity,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: (payoutOk ? Colors.green : Colors.orange)
-                .withValues(alpha: 0.1),
+            color: (payoutOk ? Colors.green : Colors.orange).withValues(
+              alpha: 0.1,
+            ),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -994,16 +1071,17 @@ class _CommerceStepState extends State<_CommerceStep> {
               'téléphone du commerce. Le serveur ne renvoie jamais le numéro en '
               'clair : pour le changer, saisissez-le en entier.',
           saving: widget.saving,
-          onSave: () => widget.onSavePayout(
-            _payoutPhone.text.trim(),
-            _payoutProvider,
-          ),
+          onSave: () =>
+              widget.onSavePayout(_payoutPhone.text.trim(), _payoutProvider),
           children: [
-            _field(_payoutPhone, 'Numéro de reversement *',
-                keyboard: TextInputType.phone,
-                helper: widget.vendor.isPayable
-                    ? 'Un compte est déjà enregistré — saisir un numéro le remplace.'
-                    : 'Ex. 06 123 45 67'),
+            _field(
+              _payoutPhone,
+              'Numéro de reversement *',
+              keyboard: TextInputType.phone,
+              helper: widget.vendor.isPayable
+                  ? 'Un compte est déjà enregistré — saisir un numéro le remplace.'
+                  : 'Ex. 06 123 45 67',
+            ),
             DropdownButtonFormField<String>(
               initialValue: _payoutProvider,
               decoration: const InputDecoration(
@@ -1013,7 +1091,9 @@ class _CommerceStepState extends State<_CommerceStep> {
               items: const [
                 DropdownMenuItem(value: 'MTN_MOMO', child: Text('MTN MoMo')),
                 DropdownMenuItem(
-                    value: 'AIRTEL_MONEY', child: Text('Airtel Money')),
+                  value: 'AIRTEL_MONEY',
+                  child: Text('Airtel Money'),
+                ),
               ],
               onChanged: (v) =>
                   setState(() => _payoutProvider = v ?? 'MTN_MOMO'),
@@ -1076,14 +1156,14 @@ class _ReviewStep extends StatelessWidget {
               c.isOk
                   ? Icons.check_circle
                   : c.blocking
-                      ? Icons.radio_button_unchecked
-                      : Icons.info_outline,
+                  ? Icons.radio_button_unchecked
+                  : Icons.info_outline,
               size: 18,
               color: c.isOk
                   ? Colors.green
                   : c.blocking
-                      ? Colors.grey
-                      : Colors.orange,
+                  ? Colors.grey
+                  : Colors.orange,
             ),
             title: Text(
               c.label + (c.blocking || c.isOk ? '' : ' (recommandé)'),
