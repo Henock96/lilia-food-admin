@@ -181,21 +181,44 @@ class _ProductCard extends ConsumerWidget {
                 '${product.variants.length} variante(s)',
                 style: TextStyle(color: Colors.grey[500], fontSize: 12),
               ),
+            // « Retiré de la vente » et « épuisé » sont deux états distincts :
+            // le premier est une décision du vendeur, le second une
+            // conséquence du stock. Le backend les a séparés en août 2026
+            // (fix M2) ; cet écran les confondait encore, faute de lire le
+            // `isAvailable` du serveur (fix S-3). Sur cette liste — qui montre
+            // volontairement les produits retirés — un produit retiré mais
+            // encore en stock s'affichait « Stock: 4/10 », en bleu, sur
+            // l'écran même qui porte le bouton pour le remettre en vente.
+            if (!product.isAvailable)
+              const Row(
+                children: [
+                  Icon(Icons.visibility_off, size: 14, color: Colors.orange),
+                  SizedBox(width: 4),
+                  Text(
+                    'Retiré de la vente',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             if (product.stockQuotidien != null)
               Row(
                 children: [
                   Icon(
-                    product.isAvailable ? Icons.inventory : Icons.block,
+                    product.isInStock ? Icons.inventory : Icons.block,
                     size: 14,
-                    color: product.isAvailable ? Colors.blue : Colors.red,
+                    color: product.isInStock ? Colors.blue : Colors.red,
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    product.isAvailable
+                    product.isInStock
                         ? 'Stock: ${product.stockRestant}/${product.stockQuotidien}'
-                        : 'Epuise',
+                        : 'Épuisé',
                     style: TextStyle(
-                      color: product.isAvailable ? Colors.blue : Colors.red,
+                      color: product.isInStock ? Colors.blue : Colors.red,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -212,6 +235,31 @@ class _ProductCard extends ConsumerWidget {
                   builder: (context) => ProductFormScreen(product: product),
                 ),
               );
+            } else if (value == 'availability') {
+              try {
+                await ref
+                    .read(productsProvider.notifier)
+                    .setAvailability(product.id, !product.isAvailable);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        product.isAvailable
+                            ? 'Produit retiré de la vente'
+                            : 'Produit remis en vente',
+                      ),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+                }
+              }
+            } else if (value == 'restock') {
+              await _promptRestock(context, ref, product);
             } else if (value == 'delete') {
               final confirm = await showDialog<bool>(
                 context: context,
@@ -265,6 +313,35 @@ class _ProductCard extends ConsumerWidget {
                 ],
               ),
             ),
+            PopupMenuItem(
+              value: 'availability',
+              child: Row(
+                children: [
+                  Icon(
+                    product.isAvailable
+                        ? Icons.visibility_off
+                        : Icons.visibility,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    product.isAvailable
+                        ? 'Retirer de la vente'
+                        : 'Remettre en vente',
+                  ),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'restock',
+              child: Row(
+                children: [
+                  Icon(Icons.refresh, size: 20),
+                  SizedBox(width: 8),
+                  Text('Réapprovisionner'),
+                ],
+              ),
+            ),
             const PopupMenuItem(
               value: 'delete',
               child: Row(
@@ -286,5 +363,104 @@ class _ProductCard extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  /// Réassort explicite — `PATCH /products/:id/stock`.
+  ///
+  /// Le formulaire produit décrit la **capacité déclarée** ; ce geste-ci
+  /// remet le **stock restant** à niveau. Ce sont deux intentions, et les
+  /// confondre était la moitié du bug S-1 : `stockQuotidien` était absent du
+  /// DTO de mise à jour côté serveur, donc supprimé en silence par le
+  /// `ValidationPipe`. L'écran affichait « Produit mis à jour » et rien
+  /// n'était écrit — définitivement pour un `stockMode = PERMANENT`, que le
+  /// cron de 5 h ne touche jamais.
+  Future<void> _promptRestock(
+    BuildContext context,
+    WidgetRef ref,
+    Product product,
+  ) async {
+    final controller = TextEditingController(
+      text: product.stockQuotidien?.toString() ?? '',
+    );
+
+    final value = await showDialog<String?>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Réapprovisionner « ${product.name} »'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Stock restant : ${product.stockRestant ?? "illimité"}\n'
+              'Capacité déclarée : ${product.stockQuotidien ?? "illimitée"}',
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Nouvelle quantité disponible',
+                helperText: 'Laisser vide = stock illimité',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, controller.text.trim()),
+            child: const Text('Réapprovisionner'),
+          ),
+        ],
+      ),
+    );
+
+    if (value == null) return;
+
+    // Vide = illimité. C'est le seul chemin pour revenir d'un stock fini à un
+    // stock illimité : le formulaire, lui, traite un champ vide comme « ne pas
+    // toucher ».
+    int? quantity;
+    if (value.isNotEmpty) {
+      quantity = int.tryParse(value);
+      if (quantity == null || quantity < 0) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Indiquez un nombre entier d’unités, ou rien'),
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    try {
+      await ref.read(productsProvider.notifier).restock(product.id, quantity);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              quantity == null
+                  ? 'Produit repassé en stock illimité'
+                  : 'Stock remis à $quantity',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      }
+    }
   }
 }

@@ -55,6 +55,27 @@ class Products extends _$Products {
     await refresh();
   }
 
+  /// Réassort explicite — distinct de la modification de la fiche produit.
+  ///
+  /// Le formulaire décrit la **capacité** du produit ; ce geste-ci décrit un
+  /// **réassort**. Les confondre était la moitié du bug S-1 : `stockQuotidien`
+  /// était absent du DTO de mise à jour côté serveur, donc supprimé en silence
+  /// par le `ValidationPipe` — l'application affichait « Produit mis à jour »
+  /// et la base ne bougeait pas.
+  Future<void> restock(String productId, int? stockQuotidien) async {
+    await ref.read(productServiceProvider).restock(productId, stockQuotidien);
+    await refresh();
+  }
+
+  /// Retire ou remet un produit à la vente. Distinct du stock : « retiré » est
+  /// une décision, « épuisé » une conséquence.
+  Future<void> setAvailability(String productId, bool isAvailable) async {
+    await ref
+        .read(productServiceProvider)
+        .setAvailability(productId, isAvailable);
+    await refresh();
+  }
+
   Future<void> deleteProduct(String productId) async {
     await ref.read(productServiceProvider).deleteProduct(productId);
     await refresh();

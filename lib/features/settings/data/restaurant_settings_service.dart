@@ -32,10 +32,10 @@ class RestaurantSettingsService {
   /// Met à jour les paramètres de livraison
   Future<Restaurant> updateDeliverySettings(
     String restaurantId, {
-    double? fixedDeliveryFee,
+    int? fixedDeliveryFee,
     int? estimatedDeliveryTimeMin,
     int? estimatedDeliveryTimeMax,
-    double? minimumOrderAmount,
+    int? minimumOrderAmount,
     String? deliveryPriceMode,
   }) async {
     final data = <String, dynamic>{};
@@ -45,11 +45,26 @@ class RestaurantSettingsService {
     if (minimumOrderAmount != null) data['minimumOrderAmount'] = minimumOrderAmount;
     if (deliveryPriceMode != null) data['deliveryPriceMode'] = deliveryPriceMode;
 
-    final res = await _api.patchJson(
-      '/restaurants/$restaurantId/delivery-settings',
-      body: data,
-    );
-    return Restaurant.fromJson((res.data as Map<String, dynamic>)['data']);
+    // ⚠️ Route changée : `PATCH /vendors/:id/delivery` remplace
+    // `PATCH /restaurants/:id/delivery-settings`, dépréciée.
+    //
+    // Les deux écrivent les mêmes colonnes, mais l'ancienne validait moins :
+    // `deliveryPriceMode` y était un simple `@IsString()` — « GRATUIT » passait
+    // et remontait en 500 depuis Prisma — et les montants n'avaient pas de
+    // borne haute. Deux portes sur la même chose finissent toujours par ne pas
+    // poser les mêmes règles.
+    //
+    // Les montants sont désormais des `int` : le XAF n'a pas de sous-unité, et
+    // le serveur exige `@IsInt` depuis la migration `money_integers`.
+    final res = await _api.patchJson('/vendors/$restaurantId/delivery', body: data);
+
+    // Cette route renvoie `{ data: { vendor, readiness } }` : elle recalcule la
+    // checklist « prêt à vendre » au passage, puisque la livraison en fait
+    // partie. On ne lit que le vendeur ici — cet écran n'affiche pas la
+    // checklist — mais le repli couvre un backend antérieur au changement.
+    final payload = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+    final vendor = payload['vendor'] as Map<String, dynamic>? ?? payload;
+    return Restaurant.fromJson(vendor);
   }
 
   /// Récupère les spécialités du restaurant

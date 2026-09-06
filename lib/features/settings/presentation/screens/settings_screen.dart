@@ -1467,10 +1467,10 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
       await ref
           .read(restaurantSettingsProvider.notifier)
           .updateDeliverySettings(
-            fixedDeliveryFee: double.tryParse(_deliveryFeeController.text),
+            fixedDeliveryFee: int.tryParse(_deliveryFeeController.text.trim()),
             estimatedDeliveryTimeMin: int.tryParse(_minTimeController.text),
             estimatedDeliveryTimeMax: int.tryParse(_maxTimeController.text),
-            minimumOrderAmount: double.tryParse(_minOrderController.text),
+            minimumOrderAmount: int.tryParse(_minOrderController.text.trim()),
             deliveryPriceMode: _deliveryMode,
           );
       if (mounted) {

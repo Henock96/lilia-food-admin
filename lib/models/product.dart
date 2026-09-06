@@ -22,7 +22,27 @@ class Product {
   final bool madeToOrder;
   final String? availableFrom;
   final String? availableUntil;
-  final bool isActive;
+
+  /// Décision du vendeur : « ce produit est-il proposé à la vente ? »
+  ///
+  /// ⚠️ Deux défauts corrigés ici d'un coup (fix S-3, audit du 05/09/2026).
+  ///
+  /// 1. Ce champ s'appelait `isActive` et lisait `json['isActive']` — une clé
+  ///    qui **n'existe pas** sur `Product` côté serveur (le modèle Prisma porte
+  ///    `isAvailable` et `deletedAt`, jamais `isActive`). Il valait donc
+  ///    toujours `true`, par le défaut du parseur, et personne ne s'en servait.
+  /// 2. Le vrai `isAvailable` du serveur était, lui, **masqué** par un getter
+  ///    du même nom dérivé du seul stock.
+  ///
+  /// Conséquence sur cette application, contrairement au client : elle lit
+  /// `GET /products/manage`, qui montre **volontairement** les produits
+  /// retirés de la vente. Un produit que le vendeur venait de retirer
+  /// s'affichait donc « disponible » tant qu'il lui restait du stock — sur
+  /// l'écran même qui porte le bouton pour le remettre en vente.
+  ///
+  /// `true` par défaut : une réponse antérieure au champ décrit un produit en
+  /// vente, sinon elle ne l'aurait pas servi.
+  final bool isAvailable;
 
   // LIL-130 : métadonnées fait maison / pâtisserie
   final String? ingredients;
@@ -47,12 +67,18 @@ class Product {
     this.madeToOrder = false,
     this.availableFrom,
     this.availableUntil,
-    this.isActive = true,
+    this.isAvailable = true,
     this.ingredients,
     this.shelfLifeDays,
   });
 
-  bool get isAvailable => stockRestant == null || stockRestant! > 0;
+  /// Reste-t-il des unités ? `null` = illimité, `0` = épuisé.
+  bool get isInStock => stockRestant == null || stockRestant! > 0;
+
+  /// Commandable **maintenant** : en vente ET en stock. C'est la question que
+  /// posent les écrans — la poser en un seul endroit évite que chacun en
+  /// recompose sa version et en oublie la moitié.
+  bool get isOrderable => isAvailable && isInStock;
 
   factory Product.fromJson(Map<String, dynamic> json) {
     var variantsList = json['variants'] as List? ?? [];
@@ -81,7 +107,7 @@ class Product {
       madeToOrder: json['madeToOrder'] as bool? ?? false,
       availableFrom: json['availableFrom'] as String?,
       availableUntil: json['availableUntil'] as String?,
-      isActive: json['isActive'] as bool? ?? true,
+      isAvailable: json['isAvailable'] as bool? ?? true,
       ingredients: json['ingredients'] as String?,
       shelfLifeDays: (json['shelfLifeDays'] as num?)?.toInt(),
     );
@@ -120,7 +146,7 @@ class Product {
     bool? madeToOrder,
     String? availableFrom,
     String? availableUntil,
-    bool? isActive,
+    bool? isAvailable,
     String? ingredients,
     int? shelfLifeDays,
   }) {
@@ -141,7 +167,7 @@ class Product {
       madeToOrder: madeToOrder ?? this.madeToOrder,
       availableFrom: availableFrom ?? this.availableFrom,
       availableUntil: availableUntil ?? this.availableUntil,
-      isActive: isActive ?? this.isActive,
+      isAvailable: isAvailable ?? this.isAvailable,
       ingredients: ingredients ?? this.ingredients,
       shelfLifeDays: shelfLifeDays ?? this.shelfLifeDays,
     );

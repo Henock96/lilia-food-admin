@@ -93,6 +93,51 @@ class ProductService {
     return Product.fromJson(productJson);
   }
 
+  /// Réapprovisionne un produit — `PATCH /products/:id/stock`.
+  ///
+  /// C'est la **seule** route qui remette `stockRestant` à niveau
+  /// inconditionnellement. `updateProduct` ci-dessus décrit la fiche produit :
+  /// il ne réaligne le stock restant que si la capacité déclarée change,
+  /// sinon corriger une description l'après-midi ressusciterait les unités
+  /// déjà vendues dans la journée.
+  ///
+  /// `null` = stock illimité, et c'est une valeur significative : c'est le seul
+  /// chemin pour y revenir depuis un stock fini.
+  Future<Product> restock(String productId, int? stockQuotidien) async {
+    final res = await _api.patchJson(
+      '/products/$productId/stock',
+      body: {'stockQuotidien': stockQuotidien},
+    );
+    final productJson =
+        (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>?;
+    if (productJson == null) {
+      throw Exception('Product data is null in response');
+    }
+    return Product.fromJson(productJson);
+  }
+
+  /// Retire ou remet un produit à la vente — `PATCH /products/:id/availability`.
+  ///
+  /// La route existe côté serveur depuis le fix M2 d'août 2026 et **aucun
+  /// client Flutter ne l'appelait** : le seul levier du vendeur était de
+  /// mettre son stock à 0, ce qui affiche « épuisé » — une information
+  /// différente, et fausse.
+  ///
+  /// ⚠️ N'a de sens que sur `GET /products/manage` : sur le catalogue public,
+  /// le produit disparaît en même temps que le bouton qui le réactive.
+  Future<Product> setAvailability(String productId, bool isAvailable) async {
+    final res = await _api.patchJson(
+      '/products/$productId/availability',
+      body: {'isAvailable': isAvailable},
+    );
+    final productJson =
+        (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>?;
+    if (productJson == null) {
+      throw Exception('Product data is null in response');
+    }
+    return Product.fromJson(productJson);
+  }
+
   Future<void> deleteProduct(String productId) async {
     await _api.deleteJson('/products/$productId');
   }
