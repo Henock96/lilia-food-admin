@@ -138,6 +138,27 @@ class ProductService {
     return Product.fromJson(productJson);
   }
 
+  /// Classe les produits d'une section — `PATCH /products/reorder`.
+  ///
+  /// Le produit était la **seule** entité ordonnable de la carte sans
+  /// `displayOrder` : le site triait par date de création décroissante (le
+  /// dernier plat saisi passait donc en tête de sa section) et l'application
+  /// cliente ne triait pas du tout. Un vendeur ne pouvait pas mettre son plat
+  /// signature en premier.
+  ///
+  /// On envoie la **liste ordonnée complète**, comme pour les sections : un
+  /// couple `(id, position)` suffirait pour un seul appelant ; à deux, chacun
+  /// partant d'un ordre différent, le résultat ne serait celui d'aucun des deux.
+  Future<void> reorderProducts(
+    List<String> productIds, {
+    String? restaurantId,
+  }) async {
+    await _api.patchJson('/products/reorder', body: {
+      'productIds': productIds,
+      'restaurantId': ?restaurantId,
+    });
+  }
+
   Future<void> deleteProduct(String productId) async {
     await _api.deleteJson('/products/$productId');
   }

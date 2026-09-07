@@ -76,6 +76,22 @@ class Products extends _$Products {
     await refresh();
   }
 
+  /// Classe les produits d'une section, dans l'ordre reçu.
+  ///
+  /// ⚠️ La liste doit être **celle d'une seule section**. Les deux clients
+  /// rendent la carte groupée par section : classer une liste qui en mélange
+  /// plusieurs déplacerait un produit par rapport à des voisins qu'aucun
+  /// acheteur ne voit à côté de lui — un geste sans effet visible.
+  Future<void> reorder(
+    List<String> orderedIds, {
+    String? restaurantId,
+  }) async {
+    await ref
+        .read(productServiceProvider)
+        .reorderProducts(orderedIds, restaurantId: restaurantId);
+    await refresh();
+  }
+
   Future<void> deleteProduct(String productId) async {
     await ref.read(productServiceProvider).deleteProduct(productId);
     await refresh();

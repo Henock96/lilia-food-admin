@@ -24,7 +24,7 @@ class CategoryService {
   Future<List<Category>> getCategories({String? restaurantId}) async {
     final res = await _api.getJson(
       '/categories',
-      query: {if (restaurantId != null) 'restaurantId': restaurantId},
+      query: {'restaurantId': ?restaurantId},
     );
     return ApiResponse.listOf(res.data)
         .map((json) => Category.fromJson(json as Map<String, dynamic>))
@@ -38,7 +38,7 @@ class CategoryService {
   }) async {
     final res = await _api.postJson('/categories', body: {
       ...body,
-      if (restaurantId != null) 'restaurantId': restaurantId,
+      'restaurantId': ?restaurantId,
     });
     return Category.fromJson(ApiResponse.mapOf(res.data));
   }
@@ -59,7 +59,7 @@ class CategoryService {
   }) async {
     await _api.patchJson('/categories/reorder', body: {
       'categoryIds': categoryIds,
-      if (restaurantId != null) 'restaurantId': restaurantId,
+      'restaurantId': ?restaurantId,
     });
   }
 

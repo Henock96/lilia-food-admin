@@ -15,7 +15,7 @@ class DashboardService {
   Future<OrderStats> getOrderStats({String? period}) async {
     final res = await _api.getJson(
       '/dashboard/orders',
-      query: {if (period != null) 'period': period},
+      query: {'period': ?period},
     );
     return OrderStats.fromJson(_payloadMap(res.data));
   }
@@ -27,7 +27,7 @@ class DashboardService {
   }) async {
     final res = await _api.getJson(
       '/dashboard/top-products',
-      query: {'limit': '$limit', if (period != null) 'period': period},
+      query: {'limit': '$limit', 'period': ?period},
     );
     final products = _payloadList(res.data);
     return products.map((p) => TopProduct.fromJson(_asMap(p))).toList();
@@ -51,7 +51,7 @@ class DashboardService {
   Future<PeakHoursData> getPeakHours({String? period}) async {
     final res = await _api.getJson(
       '/dashboard/peak-hours',
-      query: {if (period != null) 'period': period},
+      query: {'period': ?period},
     );
     return PeakHoursData.fromJson(_payloadMap(res.data));
   }
@@ -60,7 +60,7 @@ class DashboardService {
   Future<List<RestaurantRanking>> getRestaurantRanking({String? period}) async {
     final res = await _api.getJson(
       '/dashboard/restaurant-ranking',
-      query: {if (period != null) 'period': period},
+      query: {'period': ?period},
     );
     final rankings = _payloadList(res.data);
     return rankings

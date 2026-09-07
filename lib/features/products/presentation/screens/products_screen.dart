@@ -99,15 +99,59 @@ class ProductsScreen extends ConsumerWidget {
           );
         }
 
+        // La liste arrive triée par le serveur (`displayOrder` puis date de
+        // création) : c'est **l'ordre que voient les clients**. On la regroupe
+        // par section pour que le classement porte sur ce que l'acheteur voit
+        // réellement côte à côte — les deux clients rendent la carte groupée.
+        final sections = _groupBySection(products);
+
         return RefreshIndicator(
           onRefresh: () => ref.read(productsProvider.notifier).refresh(),
-          child: ListView.builder(
+          child: ListView(
             padding: const EdgeInsets.all(16),
-            itemCount: products.length,
-            itemBuilder: (context, index) {
-              final product = products[index];
-              return _ProductCard(product: product);
-            },
+            children: [
+              for (final section in sections) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          section.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      if (section.products.length > 1)
+                        Text(
+                          'Maintenez pour classer',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                ReorderableListView(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  buildDefaultDragHandles: section.products.length > 1,
+                  // `onReorderItem` et non `onReorder` : il ajuste lui-même
+                  // l'index après retrait de l'élément déplacé. L'API dépréciée
+                  // laissait ce décalage à l'appelant, source classique d'un
+                  // décalage d'un cran vers le bas.
+                  onReorderItem: (oldIndex, newIndex) =>
+                      _reorder(ref, section, oldIndex, newIndex),
+                  children: [
+                    for (final product in section.products)
+                      _ProductCard(key: ValueKey(product.id), product: product),
+                  ],
+                ),
+              ],
+            ],
           ),
         );
       },
@@ -129,12 +173,67 @@ class ProductsScreen extends ConsumerWidget {
       ),
     );
   }
+
+  /// Regroupe le catalogue par section, **en préservant l'ordre serveur**.
+  ///
+  /// `LinkedHashMap` par construction en Dart : les sections sortent dans
+  /// l'ordre où leur premier produit apparaît, c'est-à-dire dans l'ordre du
+  /// vendeur. Les produits sans section rejoignent « Autres » — même libellé
+  /// que les deux applications clientes.
+  List<_Section> _groupBySection(List<Product> products) {
+    final grouped = <String, _Section>{};
+    for (final product in products) {
+      final id = product.categoryId ?? _uncategorizedKey;
+      final name = product.category?.name ?? 'Autres';
+      grouped.putIfAbsent(id, () => _Section(id: id, name: name, products: []));
+      grouped[id]!.products.add(product);
+    }
+    return grouped.values.toList();
+  }
+
+  /// Envoie la liste ordonnée **complète de la section**.
+  ///
+  /// Un couple `(id, position)` suffirait pour un seul appelant ; à deux,
+  /// chacun partant d'un ordre différent, le résultat ne serait celui d'aucun
+  /// des deux.
+  Future<void> _reorder(
+    WidgetRef ref,
+    _Section section,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    // `onReorderItem` livre déjà l'index **après** retrait : aucun ajustement
+    // à faire ici (contrairement à `onReorder`, déprécié).
+    final next = [...section.products];
+    next.insert(newIndex, next.removeAt(oldIndex));
+
+    try {
+      await ref
+          .read(productsProvider.notifier)
+          .reorder(next.map((p) => p.id).toList());
+    } catch (_) {
+      // `refresh()` du provider remet l'ordre serveur : on ne laisse pas
+      // l'interface afficher un classement que la base n'a pas accepté.
+      await ref.read(productsProvider.notifier).refresh();
+    }
+  }
+}
+
+/// Clé de la section fourre-tout — jamais un identifiant réel de catégorie.
+const String _uncategorizedKey = '__sans_section__';
+
+class _Section {
+  final String id;
+  final String name;
+  final List<Product> products;
+
+  _Section({required this.id, required this.name, required this.products});
 }
 
 class _ProductCard extends ConsumerWidget {
   final Product product;
 
-  const _ProductCard({required this.product});
+  const _ProductCard({super.key, required this.product});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

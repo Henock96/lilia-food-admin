@@ -55,7 +55,7 @@ class MenuService {
   }) async {
     final res = await _api.postJson('/menus', body: {
       ...menuData,
-      if (restaurantId != null) 'restaurantId': restaurantId,
+      'restaurantId': ?restaurantId,
     });
     final menuJson =
         (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>?;
