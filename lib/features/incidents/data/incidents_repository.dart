@@ -60,7 +60,7 @@ class IncidentsRepository {
   }) async {
     final payload = <String, dynamic>{
       if (status != null) 'status': status.wireValue,
-      if (resolution != null) 'resolution': resolution,
+      'resolution': ?resolution,
     };
     if (payload.isEmpty) {
       throw ArgumentError('Aucun champ à mettre à jour.');

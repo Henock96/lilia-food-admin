@@ -181,22 +181,35 @@ class _CreateRestaurantScreenState
             const SizedBox(height: 20),
 
             _sectionTitle('Type de vendeur'),
-            for (final type in VendorType.values)
-              if (type != VendorType.GROCERY)
-                RadioListTile<VendorType>(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  value: type,
-                  groupValue: _vendorType,
-                  onChanged: (v) => setState(() => _vendorType = v!),
-                  title: Text('${type.emoji} ${type.label}'),
-                  subtitle: Text(
-                    type == VendorType.RESTAURANT
-                        ? 'Validé d’office'
-                        : 'Validation marketplace requise',
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                ),
+            // `groupValue` / `onChanged` par tuile sont dépréciés depuis
+            // Flutter 3.32 : l'état du groupe est désormais porté par un
+            // `RadioGroup` parent, et chaque tuile ne déclare plus que sa
+            // `value`. Même migration que celle déjà faite dans `lilia-app`
+            // (`delivery_options_page.dart`).
+            RadioGroup<VendorType>(
+              groupValue: _vendorType,
+              onChanged: (v) {
+                if (v != null) setState(() => _vendorType = v);
+              },
+              child: Column(
+                children: [
+                  for (final type in VendorType.values)
+                    if (type != VendorType.GROCERY)
+                      RadioListTile<VendorType>(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        value: type,
+                        title: Text('${type.emoji} ${type.label}'),
+                        subtitle: Text(
+                          type == VendorType.RESTAURANT
+                              ? 'Validé d’office'
+                              : 'Validation marketplace requise',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                ],
+              ),
+            ),
 
             const SizedBox(height: 20),
             _sectionTitle('Propriétaire'),

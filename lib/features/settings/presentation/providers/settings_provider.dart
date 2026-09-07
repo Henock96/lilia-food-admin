@@ -60,11 +60,14 @@ class RestaurantSettings extends _$RestaurantSettings {
     });
   }
 
+  /// Montants en `int` : le XAF n'a pas de sous-unité, et le serveur les
+  /// valide en `@IsInt` depuis la migration `money_integers`. Un `double`
+  /// portant une décimale se faisait refuser en 400.
   Future<void> updateDeliverySettings({
-    double? fixedDeliveryFee,
+    int? fixedDeliveryFee,
     int? estimatedDeliveryTimeMin,
     int? estimatedDeliveryTimeMax,
-    double? minimumOrderAmount,
+    int? minimumOrderAmount,
     String? deliveryPriceMode,
   }) async {
     final currentRestaurant = state.value;

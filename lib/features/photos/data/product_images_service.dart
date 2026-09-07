@@ -27,7 +27,7 @@ class ProductImagesService {
       'productId': productId,
       'url': url,
       'publicId': publicId,
-      if (alt != null) 'alt': alt,
+      'alt': ?alt,
       'isCover': isCover,
     });
     return Photo.fromJson(ApiResponse.mapOf(res.data));

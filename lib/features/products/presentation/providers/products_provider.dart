@@ -55,6 +55,43 @@ class Products extends _$Products {
     await refresh();
   }
 
+  /// Réassort explicite — distinct de la modification de la fiche produit.
+  ///
+  /// Le formulaire décrit la **capacité** du produit ; ce geste-ci décrit un
+  /// **réassort**. Les confondre était la moitié du bug S-1 : `stockQuotidien`
+  /// était absent du DTO de mise à jour côté serveur, donc supprimé en silence
+  /// par le `ValidationPipe` — l'application affichait « Produit mis à jour »
+  /// et la base ne bougeait pas.
+  Future<void> restock(String productId, int? stockQuotidien) async {
+    await ref.read(productServiceProvider).restock(productId, stockQuotidien);
+    await refresh();
+  }
+
+  /// Retire ou remet un produit à la vente. Distinct du stock : « retiré » est
+  /// une décision, « épuisé » une conséquence.
+  Future<void> setAvailability(String productId, bool isAvailable) async {
+    await ref
+        .read(productServiceProvider)
+        .setAvailability(productId, isAvailable);
+    await refresh();
+  }
+
+  /// Classe les produits d'une section, dans l'ordre reçu.
+  ///
+  /// ⚠️ La liste doit être **celle d'une seule section**. Les deux clients
+  /// rendent la carte groupée par section : classer une liste qui en mélange
+  /// plusieurs déplacerait un produit par rapport à des voisins qu'aucun
+  /// acheteur ne voit à côté de lui — un geste sans effet visible.
+  Future<void> reorder(
+    List<String> orderedIds, {
+    String? restaurantId,
+  }) async {
+    await ref
+        .read(productServiceProvider)
+        .reorderProducts(orderedIds, restaurantId: restaurantId);
+    await refresh();
+  }
+
   Future<void> deleteProduct(String productId) async {
     await ref.read(productServiceProvider).deleteProduct(productId);
     await refresh();

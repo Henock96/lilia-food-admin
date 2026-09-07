@@ -87,7 +87,7 @@ class AuditLogService {
       query: {
         'page': '$page',
         'limit': '50',
-        if (action != null) 'action': action,
+        'action': ?action,
       },
     );
     return ApiResponse.listOf(res.data)

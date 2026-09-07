@@ -76,15 +76,15 @@ class VendorOnboardingService {
     List<String>? specialties,
   }) =>
       _patchSection('$restaurantId/identity', {
-        if (nom != null) 'nom': nom,
-        if (description != null) 'description': description,
-        if (phone != null) 'phone': phone,
+        'nom': ?nom,
+        'description': ?description,
+        'phone': ?phone,
         if (email != null && email.isNotEmpty) 'email': email,
-        if (imageUrl != null) 'imageUrl': imageUrl,
+        'imageUrl': ?imageUrl,
         // Le publicId accompagne toujours l'URL : sans lui, remplacer le logo
         // laisserait l'ancien fichier orphelin dans Cloudinary.
-        if (imagePublicId != null) 'imagePublicId': imagePublicId,
-        if (specialties != null) 'specialties': specialties,
+        'imagePublicId': ?imagePublicId,
+        'specialties': ?specialties,
       });
 
   Future<OnboardingReport?> updateLocation(
@@ -96,12 +96,11 @@ class VendorOnboardingService {
     String? deliveryInstructions,
   }) =>
       _patchSection('$restaurantId/location', {
-        if (adresse != null) 'adresse': adresse,
-        if (quartierId != null) 'quartierId': quartierId,
-        if (latitude != null) 'latitude': latitude,
-        if (longitude != null) 'longitude': longitude,
-        if (deliveryInstructions != null)
-          'deliveryInstructions': deliveryInstructions,
+        'adresse': ?adresse,
+        'quartierId': ?quartierId,
+        'latitude': ?latitude,
+        'longitude': ?longitude,
+        'deliveryInstructions': ?deliveryInstructions,
       });
 
   Future<OnboardingReport?> updateHours(
@@ -120,14 +119,12 @@ class VendorOnboardingService {
     int? estimatedDeliveryTimeMax,
   }) =>
       _patchSection('$restaurantId/delivery', {
-        if (supportsDelivery != null) 'supportsDelivery': supportsDelivery,
-        if (supportsPickup != null) 'supportsPickup': supportsPickup,
-        if (deliveryPriceMode != null) 'deliveryPriceMode': deliveryPriceMode,
-        if (fixedDeliveryFee != null) 'fixedDeliveryFee': fixedDeliveryFee,
-        if (estimatedDeliveryTimeMin != null)
-          'estimatedDeliveryTimeMin': estimatedDeliveryTimeMin,
-        if (estimatedDeliveryTimeMax != null)
-          'estimatedDeliveryTimeMax': estimatedDeliveryTimeMax,
+        'supportsDelivery': ?supportsDelivery,
+        'supportsPickup': ?supportsPickup,
+        'deliveryPriceMode': ?deliveryPriceMode,
+        'fixedDeliveryFee': ?fixedDeliveryFee,
+        'estimatedDeliveryTimeMin': ?estimatedDeliveryTimeMin,
+        'estimatedDeliveryTimeMax': ?estimatedDeliveryTimeMax,
       });
 
   /// Étape 7 — commission et minimum de commande. **ADMIN uniquement** : la
@@ -142,9 +139,8 @@ class VendorOnboardingService {
       // `null` explicite = revenir au taux plateforme. Sans ce drapeau, on ne
       // pourrait pas distinguer « ne pas modifier » de « remettre à zéro ».
       if (clearCommission) 'commissionPercent': null
-      else if (commissionPercent != null)
-        'commissionPercent': commissionPercent,
-      if (minimumOrderAmount != null) 'minimumOrderAmount': minimumOrderAmount,
+      else 'commissionPercent': ?commissionPercent,
+      'minimumOrderAmount': ?minimumOrderAmount,
     });
   }
 

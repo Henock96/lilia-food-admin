@@ -11,6 +11,7 @@ import 'package:lilia_admin/models/role.dart';
 import 'package:lilia_admin/features/home/presentation/screens/restaurant_orders_screen.dart';
 import 'package:lilia_admin/models/app_user.dart';
 import 'package:lilia_admin/models/order.dart';
+import '../../../admin/presentation/providers/admin_operations_provider.dart';
 
 class ClientDetailScreen extends ConsumerWidget {
   final AppUser client;
@@ -331,6 +332,10 @@ class ClientDetailScreen extends ConsumerWidget {
 
   Widget _buildLoyaltySection(BuildContext context, WidgetRef ref, String clientId) {
     final loyaltyAsync = ref.watch(clientLoyaltyProvider(clientId));
+    // Le barème vient du serveur : aucune conversion points → FCFA n'est
+    // écrite en dur ici. Le jour où l'administrateur change la valeur du point,
+    // cet écran afficherait sinon encore l'ancienne.
+    final settings = ref.watch(platformSettingsProvider).value;
     return loyaltyAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.all(16),
@@ -358,7 +363,8 @@ class ClientDetailScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(left: 28, top: 2),
               child: Text(
-                '≈ ${formatXaf(loyalty.balance * 5)} de réduction disponible',
+                // Le barème vient du serveur : aucune conversion en dur ici.
+                '≈ ${formatXaf(settings?.pointsToXaf(loyalty.balance).toDouble() ?? (loyalty.balance * 50).toDouble())} de réduction disponible',
                 style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
             ),
@@ -372,9 +378,48 @@ class ClientDetailScreen extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Row(
+                                children: [
+                                  // La nature de l'écriture vient de la base,
+                                  // pas d'une chaîne libre : elle ne peut pas
+                                  // mentir sur l'origine d'un point.
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      t.typeLabel,
+                                      style: TextStyle(
+                                          fontSize: 10, color: Colors.grey[700]),
+                                    ),
+                                  ),
+                                  if (t.orderId != null) ...[
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '#${t.orderId!.substring(t.orderId!.length - 6).toUpperCase()}',
+                                      style: TextStyle(
+                                          fontSize: 10, color: Colors.grey[500]),
+                                    ),
+                                  ],
+                                  if (t.actorId != null) ...[
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'par un admin',
+                                      style: TextStyle(
+                                          fontSize: 10, color: Colors.blue[600]),
+                                    ),
+                                  ],
+                                ],
+                              ),
                               Text(t.reason, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
                               Text(
-                                DateFormat('dd/MM/yyyy', 'fr_FR').format(t.createdAt),
+                                DateFormat('dd/MM/yyyy', 'fr_FR').format(t.createdAt) +
+                                    (t.sourceUserId != null
+                                        ? ' · filleul ${t.sourceUserId!.substring(t.sourceUserId!.length - 6)}'
+                                        : ''),
                                 style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                               ),
                             ],

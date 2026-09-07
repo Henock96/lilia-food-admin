@@ -11,7 +11,7 @@ class BannerService {
   Future<List<AppBanner>> getBanners({String? restaurantId}) async {
     final res = await _api.getJson(
       '/banners',
-      query: {if (restaurantId != null) 'restaurantId': restaurantId},
+      query: {'restaurantId': ?restaurantId},
     );
     // Tolère liste brute / simple wrap / double wrap (interceptor backend).
     final data = ApiResponse.listOf(res.data);

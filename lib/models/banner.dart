@@ -34,13 +34,13 @@ class AppBanner {
 
   Map<String, dynamic> toJson() {
     return {
-      if (title != null) 'title': title,
+      'title': ?title,
       'imageUrl': imageUrl,
-      if (description != null) 'description': description,
-      if (linkUrl != null) 'linkUrl': linkUrl,
+      'description': ?description,
+      'linkUrl': ?linkUrl,
       'isActive': isActive,
       'displayOrder': displayOrder,
-      if (restaurantId != null) 'restaurantId': restaurantId,
+      'restaurantId': ?restaurantId,
     };
   }
 }
