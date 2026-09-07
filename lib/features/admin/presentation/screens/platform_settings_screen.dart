@@ -59,11 +59,10 @@ class _PlatformSettingsForm extends ConsumerStatefulWidget {
 
 class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
   late final TextEditingController _serviceFee;
-  late final TextEditingController _loyaltyPer100;
+  late final TextEditingController _loyaltyPerOrder;
   late final TextEditingController _loyaltyValue;
   late final TextEditingController _loyaltyMin;
   late final TextEditingController _referrerBonus;
-  late final TextEditingController _referredBonus;
   late final TextEditingController _maintenanceMessage;
   late bool _maintenanceMode;
   bool _saving = false;
@@ -73,16 +72,14 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
     super.initState();
     final s = widget.settings;
     _serviceFee = TextEditingController(text: s.serviceFeePercent.toString());
-    _loyaltyPer100 =
-        TextEditingController(text: s.loyaltyPointsPer100Xaf.toString());
+    _loyaltyPerOrder =
+        TextEditingController(text: s.loyaltyPointsPerOrder.toString());
     _loyaltyValue =
         TextEditingController(text: s.loyaltyPointValueXaf.toString());
     _loyaltyMin =
         TextEditingController(text: s.loyaltyMinRedemption.toString());
     _referrerBonus =
         TextEditingController(text: s.referrerBonusPoints.toString());
-    _referredBonus =
-        TextEditingController(text: s.referredBonusPoints.toString());
     _maintenanceMessage =
         TextEditingController(text: s.maintenanceMessage ?? '');
     _maintenanceMode = s.maintenanceMode;
@@ -91,11 +88,10 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
   @override
   void dispose() {
     _serviceFee.dispose();
-    _loyaltyPer100.dispose();
+    _loyaltyPerOrder.dispose();
     _loyaltyValue.dispose();
     _loyaltyMin.dispose();
     _referrerBonus.dispose();
-    _referredBonus.dispose();
     _maintenanceMessage.dispose();
     super.dispose();
   }
@@ -105,16 +101,15 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
     final dto = <String, dynamic>{
       'serviceFeePercent':
           double.tryParse(_serviceFee.text.trim()) ?? s.serviceFeePercent,
-      'loyaltyPointsPer100Xaf':
-          int.tryParse(_loyaltyPer100.text.trim()) ?? s.loyaltyPointsPer100Xaf,
+      'loyaltyPointsPerOrder':
+          int.tryParse(_loyaltyPerOrder.text.trim()) ?? s.loyaltyPointsPerOrder,
       'loyaltyPointValueXaf':
           int.tryParse(_loyaltyValue.text.trim()) ?? s.loyaltyPointValueXaf,
       'loyaltyMinRedemption':
           int.tryParse(_loyaltyMin.text.trim()) ?? s.loyaltyMinRedemption,
       'referrerBonusPoints':
           int.tryParse(_referrerBonus.text.trim()) ?? s.referrerBonusPoints,
-      'referredBonusPoints':
-          int.tryParse(_referredBonus.text.trim()) ?? s.referredBonusPoints,
+
       'maintenanceMode': _maintenanceMode,
       'maintenanceMessage': _maintenanceMessage.text.trim(),
     };
@@ -154,13 +149,34 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
           _numberField(_serviceFee, 'Frais de service', '%'),
         ]),
         _section('Fidélité', [
-          _numberField(_loyaltyPer100, 'Points gagnés / 100 XAF', 'pts'),
+          _numberField(_loyaltyPerOrder, 'Points / commande livrée', 'pts'),
           _numberField(_loyaltyValue, "Valeur d'un point", 'XAF'),
+          // Le seul réglage de cet écran dont la modification a un effet
+          // RÉTROACTIF : la valeur est lue au moment de la dépense, jamais
+          // figée à l'acquisition.
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Text(
+              '⚠️ Effet rétroactif : ce montant revalorise tous les points déjà '
+              'distribués. Ne pas modifier sans exécuter la procédure de '
+              'redénomination (docs/LOYALTY.md).',
+              style: TextStyle(fontSize: 11, color: Color(0xFFB45309)),
+            ),
+          ),
           _numberField(_loyaltyMin, "Seuil minimum d'utilisation", 'pts'),
         ]),
         _section('Parrainage', [
           _numberField(_referrerBonus, 'Bonus parrain', 'pts'),
-          _numberField(_referredBonus, 'Bonus filleul', 'pts'),
+          // Le bonus filleul a été supprimé du programme : seul le parrain est
+          // récompensé, et seulement quand la première commande est LIVRÉE.
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text(
+              'Versé au parrain à la première commande LIVRÉE de son filleul. '
+              'Le filleul, lui, ne reçoit plus de bonus d\'inscription.',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+          ),
         ]),
         _section('Maintenance', [
           SwitchListTile(
