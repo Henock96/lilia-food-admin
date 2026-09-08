@@ -194,4 +194,117 @@ void main() {
       );
     });
   });
+
+  group('AppVersionRef.tryParse — corrections défaut 4', () {
+    test('rend null au lieu de lever sur entier hors bornes', () {
+      expect(AppVersionRef.tryParse('99999999999999999999.0.0'), isNull);
+      expect(AppVersionRef.tryParse('1.99999999999999999999.0'), isNull);
+      expect(AppVersionRef.tryParse('1.0.99999999999999999999'), isNull);
+      expect(AppVersionRef.tryParse('1.0.0+99999999999999999999'),
+          isNull);
+    });
+  });
+
+  group('validateAppUpdate — correction défaut 1 (asymétrie build)', () {
+    List<String> run({
+      String min = '',
+      String latest = '',
+      String android = '',
+      String ios = '',
+    }) =>
+        validateAppUpdate(
+          minVersion: min,
+          latestVersion: latest,
+          urlAndroid: android,
+          urlIos: ios,
+        );
+
+    test('refuse minVersion avec build quand latestVersion n\'en a pas', () {
+      final refus = run(min: '1.3.0+40', latest: '1.3.0');
+      expect(refus, hasLength(1));
+      expect(refus.first, contains('Impossible de vérifier'));
+    });
+
+    test('refuse latestVersion avec build quand minVersion n\'en a pas', () {
+      final refus = run(min: '1.3.0', latest: '1.3.0+40');
+      expect(refus, hasLength(1));
+      expect(refus.first, contains('Impossible de vérifier'));
+    });
+
+    test('accepte build symétrique', () {
+      expect(run(min: '1.3.0+34', latest: '1.3.0+40'), isEmpty);
+      expect(run(min: '1.3.0', latest: '1.3.0'), isEmpty);
+    });
+  });
+
+  group('validateAppUpdate — correction défaut 2 (hôte manquant)', () {
+    List<String> run({
+      String min = '',
+      String latest = '',
+      String android = '',
+      String ios = '',
+    }) =>
+        validateAppUpdate(
+          minVersion: min,
+          latestVersion: latest,
+          urlAndroid: android,
+          urlIos: ios,
+        );
+
+    test('refuse https:// ou market:// sans hôte', () {
+      expect(run(android: 'https://'), hasLength(1));
+      expect(run(android: 'market://'), hasLength(1));
+      expect(run(ios: 'https://'), hasLength(1));
+      expect(run(ios: 'itms-apps://'), hasLength(1));
+    });
+
+    test('accepte URLs avec hôte', () {
+      expect(run(android: 'https://play.google.com'), isEmpty);
+      expect(run(android: 'market://details?id=x'), isEmpty);
+      expect(run(ios: 'https://apps.apple.com/app/id1'), isEmpty);
+      expect(run(ios: 'itms-apps://apps.apple.com/app/id1'), isEmpty);
+    });
+  });
+
+  group('buildAppUpdatePatch — correction défaut 3 (préfixe v)', () {
+    test('normalise v au lieu de l\'envoyer', () {
+      final patch = buildAppUpdatePatch(
+        minVersion: 'v1.3.0',
+        latestVersion: 'V1.4.0+50',
+        urlAndroid: '',
+        urlIos: '',
+        message: '',
+      );
+
+      expect(patch['minAppVersion'], '1.3.0');
+      expect(patch['latestAppVersion'], '1.4.0+50');
+    });
+
+    test('retombe sur valeur trimée si parsing échoue', () {
+      final patch = buildAppUpdatePatch(
+        minVersion: '  v1.2  ',
+        latestVersion: 'pas-valide',
+        urlAndroid: '',
+        urlIos: '',
+        message: '',
+      );
+
+      expect(patch['minAppVersion'], 'v1.2');
+      expect(patch['latestAppVersion'], 'pas-valide');
+    });
+
+    test('autres champs gardent simple trim()', () {
+      final patch = buildAppUpdatePatch(
+        minVersion: '',
+        latestVersion: '',
+        urlAndroid: '  https://play.google.com  ',
+        urlIos: '  itms-apps://apps.apple.com  ',
+        message: '  v1.3 disponible  ',
+      );
+
+      expect(patch['updateUrlAndroid'], 'https://play.google.com');
+      expect(patch['updateUrlIos'], 'itms-apps://apps.apple.com');
+      expect(patch['updateMessage'], 'v1.3 disponible');
+    });
+  });
 }

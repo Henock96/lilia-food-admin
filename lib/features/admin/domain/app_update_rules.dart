@@ -44,12 +44,20 @@ class AppVersionRef implements Comparable<AppVersionRef> {
     final match = _pattern.firstMatch(sanitized);
     if (match == null) return null;
 
-    final build = match.group(4);
+    final major = int.tryParse(match.group(1)!);
+    final minor = int.tryParse(match.group(2)!);
+    final patch = int.tryParse(match.group(3)!);
+    if (major == null || minor == null || patch == null) return null;
+
+    final buildStr = match.group(4);
+    final buildNumber = buildStr == null ? null : int.tryParse(buildStr);
+    if (buildStr != null && buildNumber == null) return null;
+
     return AppVersionRef(
-      major: int.parse(match.group(1)!),
-      minor: int.parse(match.group(2)!),
-      patch: int.parse(match.group(3)!),
-      buildNumber: build == null ? null : int.parse(build),
+      major: major,
+      minor: minor,
+      patch: patch,
+      buildNumber: buildNumber,
     );
   }
 
@@ -131,12 +139,27 @@ List<String> validateAppUpdate({
     );
   }
 
-  if (minParsed != null && latestParsed != null && minParsed > latestParsed) {
-    refus.add(
-      'Vous exigeriez une version que personne ne peut installer : la version '
-      'minimale ($minParsed) dépasse la dernière version publiée '
-      '($latestParsed).',
-    );
+  if (minParsed != null && latestParsed != null) {
+    // Détecte l'asymétrie de build : si l'une des deux versions a un build et
+    // l'autre pas, compareTo neutralise le build (rend égales 1.3.0 et 1.3.0+34).
+    // Donc minParsed > latestParsed est faux, mais le seuil est indécidable :
+    // le client en 1.3.0+34 < 1.3.0+40 serait bloqué, alors que la règle
+    // prétendait pouvoir vérifier.
+    final minHasBuild = minParsed.buildNumber != null;
+    final latestHasBuild = latestParsed.buildNumber != null;
+    if (minHasBuild != latestHasBuild) {
+      refus.add(
+        'Impossible de vérifier que le blocage est installable : '
+        'l\'une des deux versions a un build et l\'autre pas. '
+        'Renseignez les deux avec ou sans build.',
+      );
+    } else if (minParsed > latestParsed) {
+      refus.add(
+        'Vous exigeriez une version que personne ne peut installer : la version '
+        'minimale ($minParsed) dépasse la dernière version publiée '
+        '($latestParsed).',
+      );
+    }
   }
 
   refus.addAll(_validerUrl(
@@ -157,7 +180,7 @@ List<String> _validerUrl(String raw, List<String> schemes, String message) {
   final url = raw.trim();
   if (url.isEmpty) return const [];
   final uri = Uri.tryParse(url);
-  if (uri == null || !schemes.contains(uri.scheme) || !uri.hasAuthority) {
+  if (uri == null || !schemes.contains(uri.scheme) || uri.host.isEmpty) {
     return [message];
   }
   return const [];
@@ -182,9 +205,19 @@ Map<String, dynamic> buildAppUpdatePatch({
     return v.isEmpty ? null : v;
   }
 
+  String? normalizeVersion(String raw) {
+    final v = raw.trim();
+    if (v.isEmpty) return null;
+    // Normalise le préfixe v/V en sérialisant la version parsée, sinon retombe
+    // sur la valeur trimée (le serveur la rejettera avec un @Matches, ce qui
+    // est mieux qu'une 400 silencieuse).
+    final parsed = AppVersionRef.tryParse(v);
+    return parsed?.toString() ?? v;
+  }
+
   return <String, dynamic>{
-    'minAppVersion': nullSiVide(minVersion),
-    'latestAppVersion': nullSiVide(latestVersion),
+    'minAppVersion': normalizeVersion(minVersion),
+    'latestAppVersion': normalizeVersion(latestVersion),
     'updateUrlAndroid': nullSiVide(urlAndroid),
     'updateUrlIos': nullSiVide(urlIos),
     'updateMessage': nullSiVide(message),
