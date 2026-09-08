@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lilia_admin/features/admin/domain/app_update_rules.dart';
 import 'package:lilia_admin/features/admin/presentation/providers/admin_operations_provider.dart';
 import 'package:lilia_admin/models/platform_settings.dart';
 
@@ -64,6 +65,17 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
   late final TextEditingController _loyaltyMin;
   late final TextEditingController _referrerBonus;
   late final TextEditingController _maintenanceMessage;
+  late final TextEditingController _minAppVersion;
+  late final TextEditingController _latestAppVersion;
+  late final TextEditingController _updateUrlAndroid;
+  late final TextEditingController _updateUrlIos;
+  late final TextEditingController _updateMessage;
+  late final TextEditingController _blockConfirmation;
+
+  /// Déplié d'office si un blocage est déjà actif : un blocage en vigueur ne
+  /// doit pas être caché derrière un repli devant l'administrateur qui vient
+  /// précisément le lever.
+  late bool _blocageDeplie;
   late bool _maintenanceMode;
   bool _saving = false;
 
@@ -82,6 +94,14 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
         TextEditingController(text: s.referrerBonusPoints.toString());
     _maintenanceMessage =
         TextEditingController(text: s.maintenanceMessage ?? '');
+    _minAppVersion = TextEditingController(text: s.minAppVersion ?? '');
+    _latestAppVersion = TextEditingController(text: s.latestAppVersion ?? '');
+    _updateUrlAndroid =
+        TextEditingController(text: s.updateUrlAndroid ?? '');
+    _updateUrlIos = TextEditingController(text: s.updateUrlIos ?? '');
+    _updateMessage = TextEditingController(text: s.updateMessage ?? '');
+    _blockConfirmation = TextEditingController();
+    _blocageDeplie = (s.minAppVersion ?? '').isNotEmpty;
     _maintenanceMode = s.maintenanceMode;
   }
 
@@ -93,11 +113,48 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
     _loyaltyMin.dispose();
     _referrerBonus.dispose();
     _maintenanceMessage.dispose();
+    _minAppVersion.dispose();
+    _latestAppVersion.dispose();
+    _updateUrlAndroid.dispose();
+    _updateUrlIos.dispose();
+    _updateMessage.dispose();
+    _blockConfirmation.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
     final s = widget.settings;
+
+    final refus = validateAppUpdate(
+      minVersion: _minAppVersion.text,
+      latestVersion: _latestAppVersion.text,
+      urlAndroid: _updateUrlAndroid.text,
+      urlIos: _updateUrlIos.text,
+    );
+
+    if (requiresBlockConfirmation(
+          minVersion: _minAppVersion.text,
+          savedMinVersion: s.minAppVersion,
+        ) &&
+        _blockConfirmation.text.trim().toUpperCase() != 'BLOQUER') {
+      refus.add(
+        'Vous êtes sur le point de bloquer le parc : tapez BLOQUER dans le '
+        'champ de confirmation.',
+      );
+    }
+
+    if (refus.isNotEmpty) {
+      setState(() => _blocageDeplie = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(refus.join('\n')),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 6),
+        ),
+      );
+      return;
+    }
+
     final dto = <String, dynamic>{
       'serviceFeePercent':
           double.tryParse(_serviceFee.text.trim()) ?? s.serviceFeePercent,
@@ -112,6 +169,13 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
 
       'maintenanceMode': _maintenanceMode,
       'maintenanceMessage': _maintenanceMessage.text.trim(),
+      ...buildAppUpdatePatch(
+        minVersion: _minAppVersion.text,
+        latestVersion: _latestAppVersion.text,
+        urlAndroid: _updateUrlAndroid.text,
+        urlIos: _updateUrlIos.text,
+        message: _updateMessage.text,
+      ),
     };
 
     setState(() => _saving = true);
@@ -121,6 +185,7 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
           .updatePlatformSettings(dto);
       if (!mounted) return;
       ref.invalidate(platformSettingsProvider);
+      _blockConfirmation.clear();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Configuration enregistrée'),
@@ -199,6 +264,75 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
             ),
           ),
         ]),
+        _section('Mise à jour de l\'application', [
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Text(
+              'Réglages de l\'application cliente, pas de celle-ci. '
+              'Laisser un champ vide efface la valeur.',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+          ),
+          _textField(
+            _latestAppVersion,
+            'Dernière version publiée',
+            '1.3.0 ou 1.3.0+34',
+          ),
+          _textField(
+            _updateMessage,
+            'Message affiché au client',
+            'Nouveautés du panier…',
+          ),
+          _textField(
+            _updateUrlAndroid,
+            'URL Android',
+            'https://play.google.com/…',
+          ),
+          _textField(_updateUrlIos, 'URL iOS', 'https://apps.apple.com/…'),
+          if (_updateUrlIos.text.trim().isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text(
+                '⚠️ Sans URL iOS, le client retombe sur un lien placeholder '
+                '(id6740000000) : les utilisateurs iPhone atterriraient sur '
+                'une fiche App Store inexistante.',
+                style: TextStyle(fontSize: 11, color: Color(0xFFB45309)),
+              ),
+            ),
+          ExpansionTile(
+            initiallyExpanded: _blocageDeplie,
+            onExpansionChanged: (v) => setState(() => _blocageDeplie = v),
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.zero,
+            title: const Text(
+              '⚠ Blocage du parc (avancé)',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'En dessous de cette version, les clients ne peuvent plus '
+                  'commander du tout. Réservé à une faille de sécurité ou une '
+                  'rupture de contrat d\'API. Pour pousser une nouveauté, '
+                  'utilisez « Dernière version publiée » ci-dessus, qui laisse '
+                  'reporter.',
+                  style: TextStyle(fontSize: 11, color: Color(0xFFB45309)),
+                ),
+              ),
+              _textField(
+                _minAppVersion,
+                'Version minimale',
+                'vide = aucun blocage',
+              ),
+              _textField(
+                _blockConfirmation,
+                'Tapez BLOQUER pour confirmer',
+                'BLOQUER',
+              ),
+            ],
+          ),
+        ]),
         const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
@@ -269,6 +403,26 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Champ texte pleine largeur. `_numberField` place son libellé à gauche
+  /// d'une case étroite, ce qui convient à un pourcentage mais tronquerait une
+  /// URL.
+  Widget _textField(
+      TextEditingController controller, String label, String hint) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: TextField(
+        controller: controller,
+        onChanged: (_) => setState(() {}),
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          border: const OutlineInputBorder(),
+          isDense: true,
+        ),
       ),
     );
   }
