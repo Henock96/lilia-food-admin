@@ -140,18 +140,19 @@ List<String> validateAppUpdate({
   }
 
   if (minParsed != null && latestParsed != null) {
-    // Détecte l'asymétrie de build : si l'une des deux versions a un build et
-    // l'autre pas, compareTo neutralise le build (rend égales 1.3.0 et 1.3.0+34).
-    // Donc minParsed > latestParsed est faux, mais le seuil est indécidable :
-    // le client en 1.3.0+34 < 1.3.0+40 serait bloqué, alors que la règle
-    // prétendait pouvoir vérifier.
+    // Seul le cas minVersion+build vs latestVersion sans build est indécidable :
+    // 1.3.0+40 exige un build précis alors que la référence n'en déclare aucun,
+    // donc impossible de vérifier l'installabilité. À l'inverse, minVersion sans
+    // build (1.3.0) signifie « n'importe quel build de 1.3.0 », et latestVersion
+    // avec build (1.3.0+41) le satisfait trivialement — c'est valide et sûr.
     final minHasBuild = minParsed.buildNumber != null;
     final latestHasBuild = latestParsed.buildNumber != null;
-    if (minHasBuild != latestHasBuild) {
+    if (minHasBuild && !latestHasBuild) {
       refus.add(
         'Impossible de vérifier que le blocage est installable : '
-        'l\'une des deux versions a un build et l\'autre pas. '
-        'Renseignez les deux avec ou sans build.',
+        'la version minimale exige un build ($minParsed) alors que la dernière '
+        'version publiée n\'en déclare aucun ($latestParsed). '
+        'Renseignez la dernière version avec un build aussi, ou la minimale sans.',
       );
     } else if (minParsed > latestParsed) {
       refus.add(

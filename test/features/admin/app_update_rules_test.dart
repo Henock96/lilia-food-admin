@@ -225,15 +225,23 @@ void main() {
       expect(refus.first, contains('Impossible de vérifier'));
     });
 
-    test('refuse latestVersion avec build quand minVersion n\'en a pas', () {
-      final refus = run(min: '1.3.0', latest: '1.3.0+40');
-      expect(refus, hasLength(1));
-      expect(refus.first, contains('Impossible de vérifier'));
+    test('accepte latestVersion avec build quand minVersion n\'en a pas', () {
+      // minVersion sans build = « n'importe quel build de 1.3.0 »
+      // latestVersion+41 le satisfait trivialement
+      expect(run(min: '1.3.0', latest: '1.3.0+40'), isEmpty);
     });
 
     test('accepte build symétrique', () {
       expect(run(min: '1.3.0+34', latest: '1.3.0+40'), isEmpty);
       expect(run(min: '1.3.0', latest: '1.3.0'), isEmpty);
+    });
+
+    test('message prioritaire si minVersion dépasse latestVersion+build', () {
+      final refus = run(min: '1.4.0', latest: '1.3.0+99');
+      expect(refus, hasLength(1));
+      // "personne ne peut installer" prime sur le message d'asymétrie
+      expect(refus.first, contains('personne ne peut installer'));
+      expect(refus.first, isNot(contains('Impossible de vérifier')));
     });
   });
 
