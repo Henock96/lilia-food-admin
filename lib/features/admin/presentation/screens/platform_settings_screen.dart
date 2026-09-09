@@ -72,9 +72,21 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
   late final TextEditingController _updateMessage;
   late final TextEditingController _blockConfirmation;
 
-  /// Déplié d'office si un blocage est déjà actif : un blocage en vigueur ne
-  /// doit pas être caché derrière un repli devant l'administrateur qui vient
-  /// précisément le lever.
+  /// Contrôleur du repli « Blocage du parc », détenu par ce `State`.
+  ///
+  /// `ExpansionTile.initiallyExpanded` n'est lu qu'une fois, dans son propre
+  /// `initState` — un `setState` ultérieur ne le rouvre jamais, et la
+  /// `ListView` construisant ses enfants paresseusement, faire sortir le bloc
+  /// du viewport puis revenir recrée le `State` de la tuile et relit ce
+  /// paramètre figé. En pilotant l'ouverture depuis un `ExpansibleController`
+  /// qui survit à ces recréations, un refus de validation peut rouvrir le
+  /// repli de façon fiable.
+  late final ExpansibleController _blocageController;
+
+  /// Source de vérité de l'ouverture **initiale** (et mise à jour par
+  /// `onExpansionChanged` quand l'admin ouvre/ferme à la main) : ne pilote
+  /// plus directement l'`ExpansionTile`, c'est `_blocageController` qui le
+  /// fait, mais elle reste lue pour construire l'état initial du contrôleur.
   late bool _blocageDeplie;
   late bool _maintenanceMode;
   bool _saving = false;
@@ -102,6 +114,10 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
     _updateMessage = TextEditingController(text: s.updateMessage ?? '');
     _blockConfirmation = TextEditingController();
     _blocageDeplie = (s.minAppVersion ?? '').isNotEmpty;
+    _blocageController = ExpansibleController();
+    if (_blocageDeplie) {
+      _blocageController.expand();
+    }
     _maintenanceMode = s.maintenanceMode;
   }
 
@@ -119,6 +135,10 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
     _updateUrlIos.dispose();
     _updateMessage.dispose();
     _blockConfirmation.dispose();
+    // `ExpansionTile` ne dispose que le contrôleur qu'il crée lui-même quand
+    // aucun n'est fourni : le nôtre lui est passé explicitement, donc c'est à
+    // nous de le libérer.
+    _blocageController.dispose();
     super.dispose();
   }
 
@@ -145,6 +165,10 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
 
     if (refus.isNotEmpty) {
       setState(() => _blocageDeplie = true);
+      // `setState` seul ne rouvrirait pas le repli si l'admin l'a fermé à la
+      // main : `ExpansionTile.initiallyExpanded` n'est lu qu'une fois. C'est
+      // le contrôleur, pas `_blocageDeplie`, qui pilote l'ouverture réelle.
+      _blocageController.expand();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(refus.join('\n')),
@@ -300,7 +324,7 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
               ),
             ),
           ExpansionTile(
-            initiallyExpanded: _blocageDeplie,
+            controller: _blocageController,
             onExpansionChanged: (v) => setState(() => _blocageDeplie = v),
             tilePadding: EdgeInsets.zero,
             childrenPadding: EdgeInsets.zero,
