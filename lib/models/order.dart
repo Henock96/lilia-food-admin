@@ -10,6 +10,32 @@ enum OrderStatus {
   unknown
 }
 
+/// Sens enum → libellé backend.
+///
+/// ⚠️ Il vivait dans un `switch` recopié à l'intérieur d'`OrderService`, avec
+/// un `default: 'EN_ATTENTE'` : une valeur non prévue n'était pas refusée, elle
+/// était traduite en **demande de remise à zéro du cycle de vie**. Écrit ici, à
+/// côté du parseur inverse, il est vérifiable par aller-retour
+/// (`order_service_test.dart`).
+extension OrderStatusWire on OrderStatus {
+  String toWire() => switch (this) {
+    OrderStatus.enattente => 'EN_ATTENTE',
+    OrderStatus.payer => 'PAYER',
+    OrderStatus.enpreparation => 'EN_PREPARATION',
+    OrderStatus.pret => 'PRET',
+    OrderStatus.enRoute => 'EN_ROUTE',
+    OrderStatus.livrer => 'LIVRER',
+    OrderStatus.annuler => 'ANNULER',
+    // `unknown` est ce que rend le parseur sur une valeur qu'il ne connaît
+    // pas. La renvoyer au serveur n'aurait aucun sens : on le dit ici plutôt
+    // que de laisser un `default` inventer un statut.
+    OrderStatus.unknown => throw ArgumentError(
+      'OrderStatus.unknown ne correspond à aucun statut backend — '
+      'il signale une valeur que cette version de l’app ne connaît pas.',
+    ),
+  };
+}
+
 class Order {
   final String id;
   final double total;
@@ -115,6 +141,14 @@ class Order {
           : null,
     );
   }
+
+  /// Traduit le libellé backend en valeur d'enum.
+  ///
+  /// Exposé publiquement pour que le sens inverse ([OrderStatusWire.toWire])
+  /// soit vérifiable par aller-retour : c'est la seule façon de garantir qu'une
+  /// commande relue après écriture retrouve son statut.
+  static OrderStatus statusFromWire(String? status) =>
+      _statusFromString(status);
 
   static OrderStatus _statusFromString(String? status) {
     switch (status) {

@@ -74,7 +74,7 @@ final class MenusProvider
   Menus create() => Menus();
 }
 
-String _$menusHash() => r'd361e8ec2f2170e8c20bd5e689516a492f6213aa';
+String _$menusHash() => r'c7377ec70912533369ff114c4c2947c2e56c887a';
 
 abstract class _$Menus extends $AsyncNotifier<List<MenuDuJour>> {
   FutureOr<List<MenuDuJour>> build();

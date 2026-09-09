@@ -1,7 +1,11 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:lilia_admin/models/order.dart';
-import 'order_service.dart';
+
 import 'package:lilia_admin/core/network/api_client.dart';
+import 'package:lilia_admin/features/auth/user_sync_provider.dart';
+import 'package:lilia_admin/models/order.dart';
+import 'package:lilia_admin/models/role.dart';
+
+import 'order_service.dart';
 
 part 'order_controller.g.dart';
 
@@ -10,62 +14,101 @@ OrderService orderServiceRepository(Ref ref) {
   return OrderService(ref.watch(apiClientProvider));
 }
 
+/// Commandes du back-office, **paginées par le serveur**, une instance par
+/// onglet de statut (`null` = « Toutes »).
+///
+/// ## Pourquoi une famille par statut
+///
+/// L'écran chargeait une seule liste — les vingt dernières commandes de toute
+/// la plateforme, faute de pagination transmise — et les sept onglets la
+/// filtraient en mémoire. Deux conséquences : une commande plus ancienne était
+/// inatteignable, et les compteurs d'onglets comptaient dans ces vingt lignes.
+///
+/// Le filtre appartient donc à la requête, et chaque onglet a la sienne. Les
+/// compteurs, eux, viennent de `meta.statusCounts` et portent sur le périmètre
+/// entier : ils sont identiques quel que soit l'onglet chargé.
+///
+/// `search` fait partie de la clé de famille, et du périmètre : chercher
+/// « Marie » doit dire combien de commandes de Marie sont dans chaque statut.
+/// L'écran envoie un terme **débouncé** — une instance par frappe serait créée
+/// et jetée aussitôt.
 @riverpod
 class RestaurantOrders extends _$RestaurantOrders {
-  // La méthode `build` est appelée automatiquement et doit retourner l'état initial.
-  // Riverpod gère les états `loading` et `error` pour nous.
   @override
-  Future<List<Order>> build() async {
-    // On récupère le service et on charge les données initiales.
-    final orderService = ref.watch(orderServiceRepositoryProvider);
-    return orderService.getRestaurantOrders();
+  Future<OrderPage> build(OrderStatus? status, String search) async {
+    // Le rôle décide de la route, pas des droits : `/admin/orders` est
+    // ADMIN-only et renverrait un 403 à un vendeur, sur l'écran le plus
+    // consulté de son back-office.
+    final isAdmin = ref.watch(currentUserProfileProvider)?.role == Role.admin;
+
+    return ref
+        .watch(orderServiceRepositoryProvider)
+        .getRestaurantOrders(isAdmin: isAdmin, status: status, search: search);
   }
 
-  // Méthode pour mettre à jour le statut d'une commande via l'API.
-  Future<void> updateOrderStatus(String orderId, OrderStatus newStatus) async {
-    final orderService = ref.read(orderServiceRepositoryProvider);
+  /// Charge la page suivante et l'ajoute à la liste courante.
+  ///
+  /// Ne fait rien si la page est déjà complète ou si un chargement est en
+  /// cours : un double appui ne doit pas insérer deux fois la même page.
+  Future<void> loadMore() async {
+    final current = state.value;
+    if (current == null || !current.hasMore || state.isLoading) return;
 
-    // Mettre à jour l'état local immédiatement pour une meilleure réactivité
-    final List<Order>? previousState = state.value;
-    final currentState = <Order>[...?previousState];
-    final index = currentState.indexWhere((o) => o.id == orderId);
-
-    if (index != -1) {
-      final updatedOrder = currentState[index].copyWith(status: newStatus);
-      currentState[index] = updatedOrder;
-      state = AsyncData([...currentState]);
-    }
+    final isAdmin = ref.read(currentUserProfileProvider)?.role == Role.admin;
+    final service = ref.read(orderServiceRepositoryProvider);
 
     try {
-      await orderService.updateOrderStatus(orderId, newStatus);
+      final next = await service.getRestaurantOrders(
+        isAdmin: isAdmin,
+        page: current.page + 1,
+        status: status,
+        search: search,
+      );
+      state = AsyncData(current.append(next));
     } catch (_) {
-      if (previousState != null) {
-        state = AsyncData(previousState);
-      }
+      // On garde la liste déjà affichée : basculer l'écran entier en erreur
+      // parce que la *page suivante* n'est pas arrivée effacerait les
+      // commandes que l'utilisateur est en train de lire. L'échec est rapporté
+      // à l'appelant, qui l'affiche là où le geste a eu lieu — le pied de
+      // liste.
+      state = AsyncData(current);
       rethrow;
     }
   }
 
-  // Méthode pour mettre à jour ou ajouter une commande dans l'état local.
-  // Elle sera appelée depuis l'écran lorsque l'événement SSE est reçu.
-  void updateOrAddOrder(Order order) {
-    // `state.value` récupère la liste actuelle si elle existe.
-    final currentState = <Order>[...?state.value];
-    final index = currentState.indexWhere((o) => o.id == order.id);
+  /// Change le statut d'une commande, avec bascule optimiste.
+  ///
+  /// La commande peut sortir du filtre courant (passer « Prête » depuis
+  /// l'onglet « En préparation ») : on n'essaie donc pas de deviner la nouvelle
+  /// liste, on invalide toute la famille au succès. Les compteurs des sept
+  /// onglets bougent de toute façon ensemble.
+  Future<void> updateOrderStatus(String orderId, OrderStatus newStatus) async {
+    final previous = state.value;
+    final service = ref.read(orderServiceRepositoryProvider);
 
-    if (index != -1) {
-      // La commande existe, on la met à jour.
-      currentState[index] = order;
-    } else {
-      // Nouvelle commande, on l'ajoute au début.
-      currentState.insert(0, order);
+    if (previous != null) {
+      final items = [...previous.items];
+      final index = items.indexWhere((o) => o.id == orderId);
+      if (index != -1) {
+        items[index] = items[index].copyWith(status: newStatus);
+        state = AsyncData(
+          OrderPage(
+            items: items,
+            total: previous.total,
+            page: previous.page,
+            totalPages: previous.totalPages,
+            statusCounts: previous.statusCounts,
+          ),
+        );
+      }
     }
 
-    // On trie pour s'assurer que les nouvelles commandes sont en haut.
-    currentState.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-    // On met à jour l'état avec la nouvelle liste.
-    // `AsyncData` signifie que la mise à jour a réussi.
-    state = AsyncData([...currentState]);
+    try {
+      await service.updateOrderStatus(orderId, newStatus);
+      ref.invalidateSelf();
+    } catch (_) {
+      if (previous != null) state = AsyncData(previous);
+      rethrow;
+    }
   }
 }
