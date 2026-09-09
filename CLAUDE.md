@@ -201,6 +201,48 @@ distincts — l'ancien `/activate` en `PATCH` a été renommé.
   - `PATCH /admin/vendors/:id/suspend { reason }` — `isActive=false` réversible
 - Dashboard vendeurs : `GET /dashboard/vendors` (total / pending / suspended / byType)
 
+### Canal de mise à jour de l'app client (08/09/2026)
+
+`platform_settings_screen.dart` règle les cinq champs de `PlatformSettings`
+que lit `lilia-app` au démarrage (`lib/core/update/`). Ils étaient déployés
+depuis le 07/09/2026 et **tous à `null`**, faute d'interface pour les poser.
+
+⚠️ `minAppVersion` **bloque** : en dessous, le client ne peut plus commander.
+Les règles vivent dans `features/admin/domain/app_update_rules.dart` — pur et
+testé, comme `notification_router` :
+
+- **`minAppVersion ≤ latestAppVersion`**, sans quoi on exigerait une version
+  que personne ne peut installer. L'admin ne connaît pas la version du client
+  (autre app, versionnée à part) : `latestAppVersion` sert donc de plafond.
+- **Le build ne départage que si les deux versions en portent un.** Recopie
+  exacte de `lilia-app` — le serveur publie souvent `1.3.0` sans build.
+  **Un `minAppVersion` porteur d'un build alors que `latestAppVersion` n'en
+  porte pas est refusé** : l'invariant devient indécidable (exiger `1.3.0+40`
+  quand la référence n'annonce que `1.3.0` sans build). L'inverse est accepté
+  — un min sans build (`1.3.0`) signifie « n'importe quel build convient »,
+  satisfait par `1.3.0+41`.
+- **Un champ vidé part en `null`, jamais en `""`.** `""` échoue le `@Matches`
+  du DTO ; `null` efface la colonne. C'est la sortie de secours d'un blocage.
+- Confirmation par le mot `BLOQUER`, exigée seulement quand on **pose ou
+  modifie** un blocage — jamais pour le lever.
+
+⚠️ Le repli « Blocage du parc » est piloté par un `ExpansibleController`
+détenu par le `State`, jamais par `initiallyExpanded`. Ce dernier n'est lu
+qu'une fois dans son propre `initState` — un `setState` ultérieur du parent ne
+le rouvre jamais, et la `ListView` construisant ses enfants paresseusement, une
+scroll qui sort le bloc du viewport puis revient recrée le `State` de la tuile
+et relit ce paramètre figé. Un refus de validation peut donc rouvrir le repli
+de façon fiable en appelant `_blocageController.expand()`.
+
+⚠️ `lilia-food-admin` et `lilia_food_delivery` n'ont **aucun** mécanisme de
+mise à jour : cet écran ne pilote que l'app client.
+
+**Note technique — validation backend** : `updateUrlAndroid` porte
+`require_tld: false` dans son `@IsUrl`, sans quoi le serveur rejetterait les
+`market://details?id=…` qu'il annonce pourtant accepter (l'hôte `details` n'a
+pas de TLD). Effet de bord assumé : les URL `https://` sans TLD y sont
+désormais acceptées aussi.
+
 ### Marketplace — modèles (`lib/models/`)
 - `vendor_type.dart` — enum `VendorType` : RESTAURANT 🍽️ / HOME_COOK (Cuisine maison) 🥧 /
   BAKERY (Boulangerie) 🥐 / BEVERAGE_SHOP (Boissons) 🥤 / GROCERY (Épicerie) 🛒
