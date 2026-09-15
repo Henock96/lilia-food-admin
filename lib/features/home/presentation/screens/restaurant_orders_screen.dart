@@ -10,6 +10,7 @@ import 'package:lilia_admin/core/utils/date_format.dart';
 import '../../../../models/order.dart';
 import '../../../../services/admin_tracking_socket_service.dart';
 import '../../data/order_controller.dart';
+import '../../data/order_service.dart';
 
 class RestaurantOrdersScreen extends ConsumerStatefulWidget {
   const RestaurantOrdersScreen({super.key});
@@ -28,6 +29,15 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
   /// S'applique avant le filtre par statut, pour aider le restaurateur à voir
   /// les commandes à préparer aujourd'hui en priorité.
   bool _todayOnly = false;
+
+  /// Recherche libre, appliquée par le serveur sur tout l'historique.
+  ///
+  /// Deux états : ce qui est tapé, et ce qui est envoyé. Sans le second, chaque
+  /// frappe créerait une instance de provider — donc une requête — aussitôt
+  /// jetée. 350 ms, comme les écrans Clients et Livreurs.
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
+  String _search = '';
 
   /// Statuts considérés "actifs" — on s'abonne en WebSocket à chaque
   /// commande dans l'un de ces états. LIVRER et ANNULER sont terminaux,
@@ -73,8 +83,24 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _wsSubscription?.cancel();
+    _searchDebounce?.cancel();
+    _searchController.dispose();
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted || _search == value.trim()) return;
+      setState(() => _search = value.trim());
+    });
+  }
+
+  void _clearSearch() {
+    _searchDebounce?.cancel();
+    _searchController.clear();
+    setState(() => _search = '');
   }
 
   @override
@@ -146,16 +172,15 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
     return filtered;
   }
 
-  List<Order> _filterOrders(List<Order> orders, OrderStatus? status) {
-    final base = _applyTodayFilter(orders);
-    if (status == null) return base;
-    return base.where((o) => o.status == status).toList();
-  }
-
-  int _countByStatus(List<Order> orders, OrderStatus? status) {
-    final base = _applyTodayFilter(orders);
-    if (status == null) return base.length;
-    return base.where((o) => o.status == status).length;
+  /// Compteur d'un onglet, pris dans `meta.statusCounts` — donc calculé par le
+  /// serveur sur le périmètre entier. Il était auparavant calculé sur les
+  /// vingt lignes reçues : « En attente (2) » pouvait s'afficher pendant que
+  /// quarante commandes attendaient.
+  int _countByStatus(OrderPage page, OrderStatus? status) {
+    if (status == null) {
+      return page.statusCounts.values.fold(0, (a, b) => a + b);
+    }
+    return page.statusCounts[status] ?? 0;
   }
 
   int _todayPreorderCount(List<Order> orders) {
@@ -171,18 +196,14 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
 
   @override
   Widget build(BuildContext context) {
-    final ordersState = ref.watch(restaurantOrdersProvider);
+    // Les compteurs d'onglets viennent de `meta.statusCounts` de l'onglet
+    // « Toutes ». Ils portent sur le périmètre entier, donc la barre reste
+    // chiffrée même quand on consulte un onglet filtré — et un onglet vide
+    // affiche « (0) » au lieu de disparaître.
+    final countsState = ref.watch(restaurantOrdersProvider(null, _search));
 
-    // Synchronise les abonnements WebSocket avec les commandes actives
-    // dès qu'une nouvelle liste arrive. `ref.listen` est asynchrone donc
-    // l'opération ne déclenche pas de rebuild ; le diff interne du service
-    // évite les `order:watch` doublons.
-    ref.listen<AsyncValue<List<Order>>>(restaurantOrdersProvider, (_, next) {
-      next.whenData(_syncSocketSubscriptions);
-    });
-
-    final todayPreorderCount = ordersState.maybeWhen(
-      data: (orders) => _todayPreorderCount(orders),
+    final todayPreorderCount = countsState.maybeWhen(
+      data: (page) => _todayPreorderCount(page.items),
       orElse: () => 0,
     );
 
@@ -206,8 +227,11 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
                 ),
                 onPressed: () => setState(() => _todayOnly = !_todayOnly),
                 icon: const Icon(Icons.event_note_outlined, size: 16),
+                // Le compte porte sur la page chargée, faute de filtre serveur
+                // sur `scheduledFor` : le libellé le dit plutôt que de laisser
+                // croire qu'il balaie tout l'historique.
                 label: Text(
-                  'Aujourd\'hui ($todayPreorderCount)',
+                  'Aujourd\'hui ($todayPreorderCount sur cette page)',
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ),
@@ -218,110 +242,323 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
             tooltip: 'Actualiser',
           ),
         ],
-        bottom: ordersState.whenOrNull(
-          data: (orders) => TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            tabs: _filterStatuses.map((status) {
-              final count = _countByStatus(orders, status);
-              return Tab(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(_getTabLabel(status)),
-                    if (count > 0) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: status == OrderStatus.enattente
-                              ? Colors.orange
-                              : Theme.of(context).colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          count.toString(),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: status == OrderStatus.enattente
-                                ? Colors.white
-                                : Theme.of(
-                                    context,
-                                  ).colorScheme.onPrimaryContainer,
-                          ),
+        bottom: _OrdersHeader(
+          searchController: _searchController,
+          onSearchChanged: _onSearchChanged,
+          onClearSearch: _clearSearch,
+          hasSearch: _search.isNotEmpty,
+          tabBar: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          tabs: _filterStatuses.map((status) {
+            final count = countsState.maybeWhen(
+              data: (page) => _countByStatus(page, status),
+              orElse: () => null,
+            );
+            return Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_getTabLabel(status)),
+                  if (count != null) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: status == OrderStatus.enattente && count > 0
+                            ? Colors.orange
+                            : Theme.of(context).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        count.toString(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: status == OrderStatus.enattente && count > 0
+                              ? Colors.white
+                              : Theme.of(
+                                  context,
+                                ).colorScheme.onPrimaryContainer,
                         ),
                       ),
-                    ],
+                    ),
                   ],
-                ),
-              );
+                ],
+              ),
+            );
             }).toList(),
           ),
         ),
       ),
-      body: ordersState.when(
-        data: (orders) {
-          if (orders.isEmpty) {
-            return const _EmptyOrdersState();
-          }
-
-          return TabBarView(
-            controller: _tabController,
-            children: _filterStatuses.map((status) {
-              final filteredOrders = _filterOrders(orders, status);
-              if (filteredOrders.isEmpty) {
-                final emptyMsg = _todayOnly
-                    ? 'Aucune pré-commande programmée pour aujourd\'hui'
-                    : 'Aucune commande ${status != null ? _getStatusLabel(status).toLowerCase() : ''}';
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        _todayOnly ? Icons.event_note_outlined : Icons.inbox_outlined,
-                        size: 64,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        emptyMsg,
-                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return RefreshIndicator(
-                onRefresh: () => ref.refresh(restaurantOrdersProvider.future),
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(12.0),
-                  itemCount: filteredOrders.length,
-                  itemBuilder: (context, index) {
-                    return OrderCard(order: filteredOrders[index]);
-                  },
-                ),
-              );
-            }).toList(),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => _ErrorState(
-          error: error.toString(),
-          onRetry: () => ref.invalidate(restaurantOrdersProvider),
-        ),
+      // Chaque onglet a sa propre requête, filtrée par le serveur. L'écran
+      // chargeait auparavant une seule liste — les vingt dernières commandes
+      // de la plateforme — que les sept onglets filtraient en mémoire.
+      body: TabBarView(
+        controller: _tabController,
+        children: _filterStatuses
+            .map(
+              (status) => _OrdersTab(
+                status: status,
+                search: _search,
+                todayOnly: _todayOnly,
+                applyTodayFilter: _applyTodayFilter,
+                emptyLabel: _search.isNotEmpty
+                    ? 'Aucune commande ne correspond à « $_search »'
+                    : status == null
+                        ? 'Aucune commande'
+                        : 'Aucune commande ${_getStatusLabel(status).toLowerCase()}',
+                onOrdersLoaded: _syncSocketSubscriptions,
+              ),
+            )
+            .toList(),
       ),
     );
   }
 }
 
-class _EmptyOrdersState extends StatelessWidget {
-  const _EmptyOrdersState();
+/// En-tête de l'écran : champ de recherche puis onglets de statut.
+///
+/// Les deux vivent dans le `bottom` de l'`AppBar` parce qu'ils doivent rester
+/// visibles pendant que la liste défile — chercher une commande en ayant à
+/// remonter d'abord serait un aller-retour de plus à chaque appel client.
+///
+/// `PreferredSizeWidget` est requis par `AppBar.bottom` : la hauteur doit être
+/// annoncée, elle ne peut pas être mesurée.
+class _OrdersHeader extends StatelessWidget implements PreferredSizeWidget {
+  const _OrdersHeader({
+    required this.searchController,
+    required this.onSearchChanged,
+    required this.onClearSearch,
+    required this.hasSearch,
+    required this.tabBar,
+  });
+
+  final TextEditingController searchController;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onClearSearch;
+  final bool hasSearch;
+  final TabBar tabBar;
+
+  static const double _searchFieldHeight = 60;
+
+  @override
+  Size get preferredSize =>
+      Size.fromHeight(tabBar.preferredSize.height + _searchFieldHeight);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: SizedBox(
+            height: 44,
+            child: TextField(
+              controller: searchController,
+              onChanged: onSearchChanged,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                isDense: true,
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surface,
+                hintText: 'Numéro, client, téléphone ou vendeur…',
+                hintStyle: const TextStyle(fontSize: 14),
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: hasSearch || searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        tooltip: 'Effacer la recherche',
+                        onPressed: onClearSearch,
+                      )
+                    : null,
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+        ),
+        tabBar,
+      ],
+    );
+  }
+}
+
+/// Contenu d'un onglet : une requête paginée, filtrée par le serveur.
+///
+/// Séparé de l'écran pour que chaque onglet observe **sa** requête. Un onglet
+/// qui filtrerait la liste d'un autre ne montrerait que les commandes de la
+/// page reçue, en annonçant qu'il n'y en a pas d'autres.
+class _OrdersTab extends ConsumerWidget {
+  const _OrdersTab({
+    required this.status,
+    required this.search,
+    required this.todayOnly,
+    required this.applyTodayFilter,
+    required this.emptyLabel,
+    required this.onOrdersLoaded,
+  });
+
+  final OrderStatus? status;
+  final String search;
+  final bool todayOnly;
+  final List<Order> Function(List<Order>) applyTodayFilter;
+  final String emptyLabel;
+  final void Function(List<Order>) onOrdersLoaded;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(restaurantOrdersProvider(status, search));
+
+    ref.listen<AsyncValue<OrderPage>>(restaurantOrdersProvider(status, search), (
+      _,
+      next,
+    ) {
+      next.whenData((page) => onOrdersLoaded(page.items));
+    });
+
+    return state.when(
+      data: (page) {
+        final orders = applyTodayFilter(page.items);
+
+        if (orders.isEmpty) {
+          return _TabEmptyState(
+            todayOnly: todayOnly,
+            label: todayOnly
+                ? 'Aucune pré-commande programmée pour aujourd\'hui sur cette page'
+                : emptyLabel,
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: () => ref.refresh(restaurantOrdersProvider(status, search).future),
+          child: ListView.builder(
+            padding: const EdgeInsets.all(12.0),
+            // +1 pour le pied de liste : compte serveur et bouton « charger
+            // plus ». Il porte l'information qui manquait — combien de
+            // commandes existent au-delà de celles affichées.
+            itemCount: orders.length + 1,
+            itemBuilder: (context, index) {
+              if (index < orders.length) {
+                return OrderCard(order: orders[index]);
+              }
+              return _OrdersFooter(
+                page: page,
+                shown: orders.length,
+                // Le filtre local du jour masque une partie de la page :
+                // proposer « charger plus » chargerait des commandes qu'il
+                // masquerait aussi. On affiche alors le seul décompte.
+                onLoadMore: todayOnly
+                    ? null
+                    : () => ref
+                        .read(restaurantOrdersProvider(status, search).notifier)
+                        .loadMore(),
+              );
+            },
+          ),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) => _ErrorState(
+        error: error.toString(),
+        onRetry: () => ref.invalidate(restaurantOrdersProvider(status, search)),
+      ),
+    );
+  }
+}
+
+/// Pied de liste : ce que le serveur dit du reste.
+class _OrdersFooter extends StatefulWidget {
+  const _OrdersFooter({
+    required this.page,
+    required this.shown,
+    required this.onLoadMore,
+  });
+
+  final OrderPage page;
+  final int shown;
+  final Future<void> Function()? onLoadMore;
+
+  @override
+  State<_OrdersFooter> createState() => _OrdersFooterState();
+}
+
+class _OrdersFooterState extends State<_OrdersFooter> {
+  bool _loading = false;
+
+  Future<void> _load() async {
+    final callback = widget.onLoadMore;
+    if (callback == null || _loading) return;
+    setState(() => _loading = true);
+    try {
+      await callback();
+    } catch (e) {
+      // L'échec est rapporté ici, où le geste a eu lieu. Le contrôleur, lui,
+      // a conservé la liste déjà affichée : une page suivante qui n'arrive pas
+      // ne doit pas effacer les commandes qu'on est en train de lire.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Impossible de charger la suite : $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final page = widget.page;
+    final total = page.total;
+    final canLoadMore = page.hasMore && widget.onLoadMore != null;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 24),
+      child: Column(
+        children: [
+          Text(
+            '${widget.shown} affichée${widget.shown > 1 ? 's' : ''} '
+            'sur $total commande${total > 1 ? 's' : ''}',
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
+          if (canLoadMore) ...[
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _loading ? null : _load,
+              icon: _loading
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.expand_more, size: 18),
+              label: Text(_loading ? 'Chargement…' : 'Charger plus'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// État vide d'un onglet.
+class _TabEmptyState extends StatelessWidget {
+  const _TabEmptyState({required this.todayOnly, required this.label});
+
+  final bool todayOnly;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -329,18 +566,19 @@ class _EmptyOrdersState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.receipt_long_outlined, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 24),
-          Text(
-            'Aucune commande pour le moment',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(color: Colors.grey[600]),
+          Icon(
+            todayOnly ? Icons.event_note_outlined : Icons.inbox_outlined,
+            size: 64,
+            color: Colors.grey[400],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Les nouvelles commandes apparaîtront ici',
-            style: TextStyle(color: Colors.grey[500]),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
           ),
         ],
       ),
@@ -857,7 +1095,7 @@ class OrderCard extends ConsumerWidget {
 
     try {
       await ref
-          .read(restaurantOrdersProvider.notifier)
+          .read(restaurantOrdersProvider(null, '').notifier)
           .updateOrderStatus(order.id, status);
 
       if (context.mounted) {

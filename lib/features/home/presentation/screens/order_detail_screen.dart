@@ -37,13 +37,18 @@ class OrderDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Écouter les mises à jour de la commande en temps réel
-    final ordersState = ref.watch(restaurantOrdersProvider);
+    // Écouter les mises à jour de la commande en temps réel.
+    //
+    // On lit l'onglet « Toutes » (`null`) : c'est le seul dont le périmètre
+    // contient la commande quel que soit son statut. Lire l'onglet filtré
+    // ferait disparaître la commande de sa propre fiche à la seconde où son
+    // statut change.
+    final ordersState = ref.watch(restaurantOrdersProvider(null, ''));
     final currentOrder =
         ordersState.whenOrNull(
-          data: (orders) {
+          data: (page) {
             try {
-              return orders.firstWhere((o) => o.id == order.id);
+              return page.items.firstWhere((o) => o.id == order.id);
             } catch (_) {
               return null;
             }
@@ -882,7 +887,7 @@ class OrderDetailScreen extends ConsumerWidget {
 
     try {
       await ref
-          .read(restaurantOrdersProvider.notifier)
+          .read(restaurantOrdersProvider(null, '').notifier)
           .updateOrderStatus(order.id, status);
 
       if (context.mounted) {
