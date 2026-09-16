@@ -217,31 +217,92 @@ class PlatformMargin {
   final int serviceFee;
   final int restaurantCommission;
 
+  /// Frais de livraison encaissés auprès du client. C'est un **revenu** de
+  /// Lilia : le vendeur ne les reçoit pas (`grossAmount = subTotal`). Ce
+  /// qu'ils coûtent réellement — la course — est `driverCost`, qui n'existe
+  /// pas encore.
+  final int deliveryFeeCollected;
+
+  /// Remises offertes par Lilia (promo + fidélité). Un **coût**.
+  final int discountGranted;
+
+  /// Remboursement réellement versé. `0` tant qu'il n'est pas `COMPLETED` :
+  /// un remboursement en cours est une dette, pas une sortie d'argent.
+  final int refundPaid;
+
   /// Frais du prestataire — **charges de Lilia Food**, jamais déduites de ce
   /// que touche le vendeur. `null` tant que le prestataire ne les a pas
   /// communiqués.
   final int? collectionFee;
   final int? payoutFee;
+
+  /// Contribution réelle de la commande, ou `null` si un poste **obligatoire**
+  /// est inconnu — `missingInputs` dit alors lesquels.
+  final int? contributionMargin;
+
+  /// Postes manquants qui empêchent de conclure. Aujourd'hui `driverCost` sur
+  /// toute commande livrée : le coût d'une course n'existe nulle part dans le
+  /// système.
+  ///
+  /// ⚠️ **Ne jamais le traiter comme un zéro.** Un `driverCost` absent
+  /// remplacé par `0` transformerait « inconnu » en « gratuit » et produirait
+  /// une marge surestimée avec l'air d'être exacte.
+  final List<String> missingInputs;
+
+  /// @deprecated Alias serveur de [contributionMargin], conservé le temps que
+  /// les deux back-offices migrent. Ne plus l'afficher.
   final int? netMargin;
 
   const PlatformMargin({
     required this.serviceFee,
     required this.restaurantCommission,
+    this.deliveryFeeCollected = 0,
+    this.discountGranted = 0,
+    this.refundPaid = 0,
     this.collectionFee,
     this.payoutFee,
+    this.contributionMargin,
+    this.missingInputs = const [],
     this.netMargin,
   });
 
   factory PlatformMargin.fromJson(Map<String, dynamic> json) {
+    // `contributionMargin` est le champ courant ; `netMargin` en est l'alias
+    // déprécié. On lit le premier et on retombe sur le second, pour qu'une app
+    // à jour reste lisible contre un backend qui n'a pas encore été déployé.
+    final contribution = json['contributionMargin'] ?? json['netMargin'];
+
     return PlatformMargin(
       serviceFee: _asInt(json['serviceFee']),
       restaurantCommission: _asInt(json['restaurantCommission']),
+      deliveryFeeCollected: _asInt(json['deliveryFeeCollected']),
+      discountGranted: _asInt(json['discountGranted']),
+      refundPaid: _asInt(json['refundPaid']),
       collectionFee:
           json['collectionFee'] == null ? null : _asInt(json['collectionFee']),
       payoutFee: json['payoutFee'] == null ? null : _asInt(json['payoutFee']),
+      contributionMargin: contribution == null ? null : _asInt(contribution),
+      // Un backend antérieur ne porte pas ce champ : liste vide, et la marge
+      // s'affiche alors sans explication — c'est le comportement d'avant.
+      missingInputs: (json['missingInputs'] as List<dynamic>? ?? const [])
+          .map((e) => e.toString())
+          .toList(growable: false),
       netMargin: json['netMargin'] == null ? null : _asInt(json['netMargin']),
     );
   }
+
+  /// Libellés lisibles des postes manquants, dans l'ordre rendu par le serveur.
+  ///
+  /// Un poste inconnu du front est rendu tel quel plutôt que masqué : mieux
+  /// vaut un identifiant technique à l'écran qu'une explication tronquée.
+  List<String> get missingInputLabels => missingInputs
+      .map((key) => switch (key) {
+            'driverCost' => 'le coût du livreur',
+            'collectionFee' => 'les frais d’encaissement',
+            'payoutFee' => 'les frais de reversement',
+            _ => key,
+          })
+      .toList(growable: false);
 }
 
 class OrderFinancials {

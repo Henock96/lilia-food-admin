@@ -119,6 +119,101 @@ void main() {
       expect(known.payoutAmount, 4500);
     });
 
+    test('une contribution inconnue porte la raison, elle ne disparaît pas', () {
+      // Le cas de TOUTE commande livrée depuis que le coût du livreur est
+      // reconnu manquant : le serveur refuse de conclure et dit pourquoi.
+      final f = OrderFinancials.fromJson(
+        payload(liliaOverrides: {
+          'collectionFee': 96,
+          'payoutFee': 45,
+          'contributionMargin': null,
+          'netMargin': null,
+          'missingInputs': ['driverCost'],
+        }),
+      );
+
+      expect(f.margin.contributionMargin, isNull);
+      expect(f.margin.missingInputs, ['driverCost']);
+      expect(f.margin.missingInputLabels, ['le coût du livreur']);
+    });
+
+    test('ne confond jamais un poste manquant avec un zéro', () {
+      final f = OrderFinancials.fromJson(
+        payload(liliaOverrides: {
+          'contributionMargin': null,
+          'missingInputs': ['driverCost'],
+        }),
+      );
+
+      // C'est l'invariant que tout ce chantier protège : `null` veut dire
+      // « inconnu », jamais « gratuit ». Un front qui écrirait `?? 0` ici
+      // afficherait une marge surestimée avec l'air d'être exacte.
+      expect(f.margin.contributionMargin, isNot(0));
+      expect(f.margin.contributionMargin, isNull);
+    });
+
+    test('lit contributionMargin en priorité, netMargin en repli', () {
+      // Backend à jour : les deux champs existent, le premier fait foi.
+      final moderne = OrderFinancials.fromJson(
+        payload(liliaOverrides: {
+          'contributionMargin': 1325,
+          'netMargin': 1325,
+        }),
+      );
+      expect(moderne.margin.contributionMargin, 1325);
+
+      // Backend antérieur : `contributionMargin` absent. L'application reste
+      // lisible au lieu d'afficher « non calculable » à tort.
+      final ancien = OrderFinancials.fromJson(
+        payload(liliaOverrides: {'netMargin': 759}),
+      );
+      expect(ancien.margin.contributionMargin, 759);
+      expect(ancien.margin.missingInputs, isEmpty);
+    });
+
+    test('énumère plusieurs postes manquants de façon lisible', () {
+      final f = OrderFinancials.fromJson(
+        payload(liliaOverrides: {
+          'contributionMargin': null,
+          'missingInputs': ['collectionFee', 'payoutFee', 'driverCost'],
+        }),
+      );
+
+      expect(
+        f.margin.missingInputLabels.join(' | '),
+        'les frais d’encaissement | les frais de reversement | le coût du livreur',
+      );
+    });
+
+    test('rend tel quel un poste manquant que le front ne connaît pas', () {
+      // Mieux vaut un identifiant technique à l'écran qu'une explication
+      // tronquée : le serveur peut nommer un poste ajouté après cette version.
+      final f = OrderFinancials.fromJson(
+        payload(liliaOverrides: {
+          'contributionMargin': null,
+          'missingInputs': ['insuranceCost'],
+        }),
+      );
+
+      expect(f.margin.missingInputLabels, ['insuranceCost']);
+    });
+
+    test('expose les postes que l’ancienne carte omettait', () {
+      final f = OrderFinancials.fromJson(
+        payload(liliaOverrides: {
+          'deliveryFeeCollected': 1000,
+          'discountGranted': 500,
+          'refundPaid': 0,
+        }),
+      );
+
+      // Les frais de livraison sont un REVENU de Lilia (le vendeur ne les
+      // reçoit pas) et la remise un COÛT. Les deux manquaient à l'écran.
+      expect(f.margin.deliveryFeeCollected, 1000);
+      expect(f.margin.discountGranted, 500);
+      expect(f.margin.refundPaid, 0);
+    });
+
     test('traduit tous les motifs de non-éligibilité du serveur', () {
       const codes = {
         'ORDER_CANCELLED': PayoutIneligibility.orderCancelled,

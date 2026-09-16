@@ -41,7 +41,17 @@ class _Strings {
   static const registeredSince = 'Inscrit depuis le';
   static const statTotalDeliveries = 'Total livraisons';
   static const statSuccessRate = 'Taux de succès';
-  static const statRevenue = 'Revenu généré';
+  /// ⚠️ **Ce n'est le revenu de personne.**
+  ///
+  /// `totalRevenueXAF` est la somme des `Order.total` des commandes que ce
+  /// livreur a livrées — donc ce que les **clients** ont payé, dont le gros
+  /// va au vendeur. Ce n'est ni ce que le livreur a gagné (il n'a aucune
+  /// rémunération dans le système), ni ce que Lilia Food a gardé.
+  ///
+  /// Le libellé disait « Revenu généré » : lu sur la fiche d'une personne,
+  /// il se comprend forcément comme « ce qu'elle a gagné » ou « ce qu'elle
+  /// nous a rapporté ». Les deux sont faux d'un ordre de grandeur.
+  static const statRevenue = 'Commandes livrées (valeur)';
   static const statAvgTime = 'Temps moyen';
   static const statLastDelivery = 'Dernière livraison';
   static const statLast30d = '30 derniers jours';

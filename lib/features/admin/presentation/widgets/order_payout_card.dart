@@ -171,6 +171,24 @@ class _OrderPayoutCardState extends ConsumerState<OrderPayoutCard> {
               label: 'Commission restaurant',
               value: formatXaf(f.margin.restaurantCommission),
             ),
+            // Encaissés auprès du client, jamais reversés au vendeur : c'est
+            // un revenu, et il manquait à cette carte.
+            if (f.margin.deliveryFeeCollected > 0)
+              _Row(
+                label: 'Frais de livraison encaissés',
+                value: formatXaf(f.margin.deliveryFeeCollected),
+              ),
+            // Remises offertes par Lilia — un coût, pas une ligne neutre.
+            if (f.margin.discountGranted > 0)
+              _Row(
+                label: 'Remises offertes',
+                value: '− ${formatXaf(f.margin.discountGranted)}',
+              ),
+            if (f.margin.refundPaid > 0)
+              _Row(
+                label: 'Remboursement versé',
+                value: '− ${formatXaf(f.margin.refundPaid)}',
+              ),
             // Les frais du prestataire sont des CHARGES de Lilia Food — jamais
             // déduites du vendeur. Affichés séparément pour que ça se voie.
             _Row(
@@ -187,12 +205,23 @@ class _OrderPayoutCardState extends ConsumerState<OrderPayoutCard> {
                   : '− ${formatXaf(f.margin.payoutFee!)}',
               muted: f.margin.payoutFee == null,
             ),
-            if (f.margin.netMargin != null)
+
+            // ⚠️ Cette ligne DISPARAISSAIT quand la marge était inconnue.
+            //
+            // Depuis que le coût du livreur est reconnu manquant, le serveur
+            // rend `contributionMargin: null` sur **toute commande livrée** :
+            // l'administrateur voyait donc la ligne « Marge nette » s'évanouir
+            // sans savoir si elle valait zéro, si l'écran était cassé, ou si
+            // la commande n'en avait pas. Une absence muette se lit comme un
+            // bug ; une absence qui se nomme se lit comme une information.
+            if (f.margin.contributionMargin != null)
               _Row(
-                label: 'Marge nette',
-                value: formatXaf(f.margin.netMargin!),
+                label: 'Contribution',
+                value: formatXaf(f.margin.contributionMargin!),
                 bold: true,
-              ),
+              )
+            else
+              _MissingContribution(reasons: f.margin.missingInputLabels),
 
             const SizedBox(height: 20),
             _buildAction(context, f),
@@ -573,6 +602,70 @@ class _SectionTitle extends StatelessWidget {
               ),
         ),
       );
+}
+
+/// Ce qui remplace la ligne « Contribution » quand elle ne peut pas être
+/// calculée — et qui dit **pourquoi**.
+///
+/// Le serveur ne remplace jamais un poste inconnu par zéro : écrire
+/// `driverCost = 0` transformerait « inconnu » en « gratuit » et afficherait
+/// une marge surestimée avec l'air d'être exacte. Il rend `null` et nomme ce
+/// qui manque. Cet encart est l'endroit où ce refus devient lisible.
+class _MissingContribution extends StatelessWidget {
+  const _MissingContribution({required this.reasons});
+
+  final List<String> reasons;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    // Le serveur devrait toujours nommer ce qui manque. S'il ne le fait pas
+    // (backend antérieur au champ), on reste honnête sans inventer de cause.
+    final explanation = reasons.isEmpty
+        ? 'Un poste de coût est inconnu.'
+        : 'Il manque ${_enumerate(reasons)}.';
+
+    return Container(
+      margin: const EdgeInsets.only(top: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 16, color: cs.outline),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Contribution non calculable',
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  explanation,
+                  style: theme.textTheme.bodySmall?.copyWith(color: cs.outline),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// « a », « a et b », « a, b et c » — une énumération qui se lit.
+  static String _enumerate(List<String> items) {
+    if (items.length == 1) return items.first;
+    return '${items.sublist(0, items.length - 1).join(', ')} et ${items.last}';
+  }
 }
 
 class _Row extends StatelessWidget {
