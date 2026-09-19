@@ -206,6 +206,29 @@ class _OrderPayoutCardState extends ConsumerState<OrderPayoutCard> {
               muted: f.margin.payoutFee == null,
             ),
 
+            // Coût de la course, figé à l'acceptation du livreur.
+            //
+            // ⚠️ `null` = INCONNU, jamais zéro. On affiche la ligne quand même,
+            // marquée comme telle : la masquer laisserait croire qu'il n'y a
+            // rien à déduire, alors que c'est le poste de coût variable
+            // principal d'une marketplace de livraison.
+            _Row(
+              label: f.margin.driverCompensationModel == 'SALARY'
+                  ? 'Coût livreur (au salaire)'
+                  : f.margin.driverSharePercent != null
+                  ? 'Coût livreur (${_formatPercent(f.margin.driverSharePercent!)} %)'
+                  : 'Coût livreur',
+              value: f.margin.driverCost == null
+                  ? 'non enregistré'
+                  : '− ${formatXaf(f.margin.driverCost!)}',
+              muted: f.margin.driverCost == null,
+            ),
+            if (f.margin.liliaDeliveryShare != null)
+              _Row(
+                label: 'dont course gardée',
+                value: formatXaf(f.margin.liliaDeliveryShare!),
+              ),
+
             // ⚠️ Cette ligne DISPARAISSAIT quand la marge était inconnue.
             //
             // Depuis que le coût du livreur est reconnu manquant, le serveur
@@ -214,10 +237,29 @@ class _OrderPayoutCardState extends ConsumerState<OrderPayoutCard> {
             // sans savoir si elle valait zéro, si l'écran était cassé, ou si
             // la commande n'en avait pas. Une absence muette se lit comme un
             // bug ; une absence qui se nomme se lit comme une information.
+            // Deux nombres, jamais confondus.
+            //
+            // La contribution STRICTE reste `null` tant que les frais du
+            // prestataire sont inconnus — et ils le sont toujours : nos types
+            // pawaPay n'en modélisent aucun, et la production n'a jamais reçu
+            // un seul webhook. L'attendre revient à ne jamais rien afficher.
+            //
+            // On montre donc la contribution HORS frais prestataire, exacte dès
+            // que le coût livreur est connu, avec cette mention dans le
+            // libellé : sans elle, le chiffre serait lu comme la marge réelle
+            // et la surestimerait du montant des frais.
             if (f.margin.contributionMargin != null)
               _Row(
                 label: 'Contribution',
                 value: formatXaf(f.margin.contributionMargin!),
+                bold: true,
+              )
+            else if (f.margin.contributionMarginBeforeProviderFees != null)
+              _Row(
+                label: 'Contribution (hors frais prestataire)',
+                value: formatXaf(
+                  f.margin.contributionMarginBeforeProviderFees!,
+                ),
                 bold: true,
               )
             else

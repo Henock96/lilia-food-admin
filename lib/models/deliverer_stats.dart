@@ -51,6 +51,11 @@ class DelivererStats {
   /// coûté », et produirait une marge surestimée avec l'air d'être exacte.
   final int? driverPayXaf;
 
+  /// Courses livrées sans économie connue — toutes celles antérieures au
+  /// 18/09/2026, aucun backfill n'ayant été fait. Sans ce compteur,
+  /// [driverPayXaf] se lirait comme un cumul exhaustif.
+  final int coursesWithoutEconomics;
+
   /// Durée moyenne de livraison (entre `pickedUpAt` et `deliveredAt`),
   /// en minutes (2 décimales). `null` si aucune livraison ne fournit
   /// les deux timestamps.
@@ -71,6 +76,7 @@ class DelivererStats {
     required this.handledOrderValueXaf,
     required this.totalRevenueXAF,
     this.driverPayXaf,
+    this.coursesWithoutEconomics = 0,
     required this.avgDeliveryMinutes,
     required this.last30dDeliveries,
     required this.lastDeliveryAt,
@@ -91,6 +97,8 @@ class DelivererStats {
               0,
       totalRevenueXAF: (json['totalRevenueXAF'] as num?)?.toInt() ?? 0,
       driverPayXaf: (json['driverPayXaf'] as num?)?.toInt(),
+      coursesWithoutEconomics:
+          (json['coursesWithoutEconomics'] as num?)?.toInt() ?? 0,
       avgDeliveryMinutes: (json['avgDeliveryMinutes'] as num?)?.toDouble(),
       last30dDeliveries: (json['last30dDeliveries'] as num?)?.toInt() ?? 0,
       lastDeliveryAt: _parseDate(json['lastDeliveryAt']),
@@ -108,6 +116,7 @@ class DelivererStats {
     totalRevenueXAF: 0,
     // `null`, pas `0` : sans course, on ne sait pas — on n'affirme pas.
     driverPayXaf: null,
+    coursesWithoutEconomics: 0,
     avgDeliveryMinutes: null,
     last30dDeliveries: 0,
     lastDeliveryAt: null,

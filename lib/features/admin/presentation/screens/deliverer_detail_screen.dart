@@ -52,6 +52,10 @@ class _Strings {
   /// il se comprend forcément comme « ce qu'elle a gagné » ou « ce qu'elle
   /// nous a rapporté ». Les deux sont faux d'un ordre de grandeur.
   static const statRevenue = 'Commandes livrées (valeur)';
+  static const statDriverPay = 'Rémunération livreur';
+  /// `_StatCardData` ne porte pas de sous-titre : le motif passe donc par le
+  /// libellé. Un tiret seul se lirait comme un écran cassé.
+  static const statDriverPayUnknown = 'Rémunération livreur (non enregistrée)';
   static const statAvgTime = 'Temps moyen';
   static const statLastDelivery = 'Dernière livraison';
   static const statLast30d = '30 derniers jours';
@@ -578,6 +582,22 @@ class _StatsGrid extends StatelessWidget {
         icon: Iconsax.wallet,
         label: _Strings.statRevenue,
         value: _formatRevenue(stats.handledOrderValueXaf),
+      ),
+      // Ce que le livreur a RÉELLEMENT touché — distinct de la valeur des
+      // commandes qu'il a portées, juste au-dessus. Les deux côte à côte
+      // rendent l'écart visible : ~350 XAF contre ~6 750.
+      //
+      // ⚠️ Un tiret quand c'est inconnu, jamais « 0 XAF » : toutes les courses
+      // antérieures au 18/09/2026 sont sans économie, et un zéro se lirait
+      // « ce livreur n'a rien gagné ».
+      _StatCardData(
+        icon: Iconsax.wallet_money,
+        label: stats.driverPayXaf == null
+            ? _Strings.statDriverPayUnknown
+            : _Strings.statDriverPay,
+        value: stats.driverPayXaf == null
+            ? _Strings.placeholderNoValue
+            : _formatRevenue(stats.driverPayXaf!),
       ),
       _StatCardData(
         icon: Iconsax.timer_1,
