@@ -16,6 +16,7 @@ import 'package:lilia_admin/models/delivery_mission_summary.dart';
 import 'package:lilia_admin/models/delivery_status.dart';
 import 'package:lilia_admin/theme/lilia_tokens.dart';
 import 'package:lilia_admin/features/admin/data/deliverer_rating_service.dart';
+import 'package:lilia_admin/features/admin/presentation/widgets/driver_settlement_card.dart';
 
 /// Strings UI groupés ici pour rester centralisé (cf. règle « zéro string
 /// métier hardcoded »).
@@ -309,6 +310,15 @@ class _DelivererDetailScreenState extends ConsumerState<DelivererDetailScreen> {
           // consulte n'a aucun effet sur la qualité de service.
           SliverToBoxAdapter(
             child: _RatingCard(delivererId: detail.user.id),
+          ),
+          // Ce que Lilia Food lui doit, et ce qu'elle lui a versé. Aucun
+          // virement n'est déclenché d'ici : l'argent est remis hors
+          // application, cette carte en tient le registre.
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: DriverSettlementCard(driverId: detail.user.id),
+            ),
           ),
           if (detail.currentMission != null)
             SliverToBoxAdapter(

@@ -196,6 +196,198 @@ final class DelivererStatsFamily extends $Family
   String toString() => r'delivererStatsProvider';
 }
 
+/// Ce qui reste dû à un livreur.
+///
+/// ⚠️ Lecture pure côté serveur : aucune course n'est verrouillée. Le
+/// rafraîchir librement est donc sans conséquence — c'est précisément ce qui
+/// distingue ce modèle d'un « compte arrêté ».
+
+@ProviderFor(driverOutstanding)
+final driverOutstandingProvider = DriverOutstandingFamily._();
+
+/// Ce qui reste dû à un livreur.
+///
+/// ⚠️ Lecture pure côté serveur : aucune course n'est verrouillée. Le
+/// rafraîchir librement est donc sans conséquence — c'est précisément ce qui
+/// distingue ce modèle d'un « compte arrêté ».
+
+final class DriverOutstandingProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<DriverOutstanding>,
+          DriverOutstanding,
+          FutureOr<DriverOutstanding>
+        >
+    with
+        $FutureModifier<DriverOutstanding>,
+        $FutureProvider<DriverOutstanding> {
+  /// Ce qui reste dû à un livreur.
+  ///
+  /// ⚠️ Lecture pure côté serveur : aucune course n'est verrouillée. Le
+  /// rafraîchir librement est donc sans conséquence — c'est précisément ce qui
+  /// distingue ce modèle d'un « compte arrêté ».
+  DriverOutstandingProvider._({
+    required DriverOutstandingFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'driverOutstandingProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$driverOutstandingHash();
+
+  @override
+  String toString() {
+    return r'driverOutstandingProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<DriverOutstanding> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<DriverOutstanding> create(Ref ref) {
+    final argument = this.argument as String;
+    return driverOutstanding(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is DriverOutstandingProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$driverOutstandingHash() => r'211ba2a4ec70e3a55c81a299e812c57c0c4a839e';
+
+/// Ce qui reste dû à un livreur.
+///
+/// ⚠️ Lecture pure côté serveur : aucune course n'est verrouillée. Le
+/// rafraîchir librement est donc sans conséquence — c'est précisément ce qui
+/// distingue ce modèle d'un « compte arrêté ».
+
+final class DriverOutstandingFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<DriverOutstanding>, String> {
+  DriverOutstandingFamily._()
+    : super(
+        retry: null,
+        name: r'driverOutstandingProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Ce qui reste dû à un livreur.
+  ///
+  /// ⚠️ Lecture pure côté serveur : aucune course n'est verrouillée. Le
+  /// rafraîchir librement est donc sans conséquence — c'est précisément ce qui
+  /// distingue ce modèle d'un « compte arrêté ».
+
+  DriverOutstandingProvider call(String id) =>
+      DriverOutstandingProvider._(argument: id, from: this);
+
+  @override
+  String toString() => r'driverOutstandingProvider';
+}
+
+/// Les versements déjà enregistrés pour un livreur.
+
+@ProviderFor(driverSettlements)
+final driverSettlementsProvider = DriverSettlementsFamily._();
+
+/// Les versements déjà enregistrés pour un livreur.
+
+final class DriverSettlementsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<DriverSettlement>>,
+          List<DriverSettlement>,
+          FutureOr<List<DriverSettlement>>
+        >
+    with
+        $FutureModifier<List<DriverSettlement>>,
+        $FutureProvider<List<DriverSettlement>> {
+  /// Les versements déjà enregistrés pour un livreur.
+  DriverSettlementsProvider._({
+    required DriverSettlementsFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'driverSettlementsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$driverSettlementsHash();
+
+  @override
+  String toString() {
+    return r'driverSettlementsProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<List<DriverSettlement>> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<List<DriverSettlement>> create(Ref ref) {
+    final argument = this.argument as String;
+    return driverSettlements(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is DriverSettlementsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$driverSettlementsHash() => r'e109aab25a83ef09093cacb10a1e9bbc06252519';
+
+/// Les versements déjà enregistrés pour un livreur.
+
+final class DriverSettlementsFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<List<DriverSettlement>>, String> {
+  DriverSettlementsFamily._()
+    : super(
+        retry: null,
+        name: r'driverSettlementsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Les versements déjà enregistrés pour un livreur.
+
+  DriverSettlementsProvider call(String id) =>
+      DriverSettlementsProvider._(argument: id, from: this);
+
+  @override
+  String toString() => r'driverSettlementsProvider';
+}
+
 /// Livraison associée à une commande — point d'entrée pour
 /// [DeliveryTrackingScreen] (LIL-86) qui a besoin de l'adresse client +
 /// info livreur avant d'ouvrir le stream WebSocket.
