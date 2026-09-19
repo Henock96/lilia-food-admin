@@ -31,8 +31,25 @@ class DelivererStats {
   /// calculé sur `deliveredCount / (deliveredCount + failedCount)`.
   final double successRate;
 
-  /// Revenu total généré par les livraisons LIVRER, en XAF (entiers).
+  /// Valeur des commandes que ce livreur a portées, en XAF (entiers).
+  ///
+  /// ⚠️ **Ce n'est le revenu de personne**, et surtout pas le sien : c'est la
+  /// somme des `Order.total`, donc ce que les CLIENTS ont payé, dont le gros
+  /// va au vendeur. Le champ s'appelait `totalRevenueXAF` côté serveur — un
+  /// nom qui, sur la fiche d'une personne, se lit « ce qu'elle a gagné ».
+  final int handledOrderValueXaf;
+
+  /// @Deprecated Alias serveur de [handledOrderValueXaf], le temps que les
+  /// back-offices migrent. Ne plus l'utiliser pour de l'affichage.
   final int totalRevenueXAF;
+
+  /// Ce que le livreur a réellement touché sur ces courses.
+  ///
+  /// `null` = **inconnu** : le coût d'une course n'existe nulle part dans le
+  /// système (ni colonne, ni table, ni règle métier). Ne jamais afficher `0` à
+  /// la place — cela transformerait « on ne sait pas » en « il n'a rien
+  /// coûté », et produirait une marge surestimée avec l'air d'être exacte.
+  final int? driverPayXaf;
 
   /// Durée moyenne de livraison (entre `pickedUpAt` et `deliveredAt`),
   /// en minutes (2 décimales). `null` si aucune livraison ne fournit
@@ -51,7 +68,9 @@ class DelivererStats {
     required this.failedCount,
     required this.inProgressCount,
     required this.successRate,
+    required this.handledOrderValueXaf,
     required this.totalRevenueXAF,
+    this.driverPayXaf,
     required this.avgDeliveryMinutes,
     required this.last30dDeliveries,
     required this.lastDeliveryAt,
@@ -64,7 +83,14 @@ class DelivererStats {
       failedCount: (json['failedCount'] as num?)?.toInt() ?? 0,
       inProgressCount: (json['inProgressCount'] as num?)?.toInt() ?? 0,
       successRate: (json['successRate'] as num?)?.toDouble() ?? 0.0,
+      // On lit le nom courant et on retombe sur l'ancien : une app à jour reste
+      // lisible contre un backend pas encore redéployé.
+      handledOrderValueXaf:
+          (json['handledOrderValueXaf'] as num?)?.toInt() ??
+              (json['totalRevenueXAF'] as num?)?.toInt() ??
+              0,
       totalRevenueXAF: (json['totalRevenueXAF'] as num?)?.toInt() ?? 0,
+      driverPayXaf: (json['driverPayXaf'] as num?)?.toInt(),
       avgDeliveryMinutes: (json['avgDeliveryMinutes'] as num?)?.toDouble(),
       last30dDeliveries: (json['last30dDeliveries'] as num?)?.toInt() ?? 0,
       lastDeliveryAt: _parseDate(json['lastDeliveryAt']),
@@ -78,7 +104,10 @@ class DelivererStats {
     failedCount: 0,
     inProgressCount: 0,
     successRate: 0.0,
+    handledOrderValueXaf: 0,
     totalRevenueXAF: 0,
+    // `null`, pas `0` : sans course, on ne sait pas — on n'affirme pas.
+    driverPayXaf: null,
     avgDeliveryMinutes: null,
     last30dDeliveries: 0,
     lastDeliveryAt: null,

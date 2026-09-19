@@ -36,6 +36,7 @@ PlatformSettings _settingsAvecBlocageActif() {
   return PlatformSettings(
     id: 'singleton',
     serviceFeePercent: 8,
+    restaurantCommissionPercent: 10,
     loyaltyPointsPerOrder: 1,
     loyaltyPointValueXaf: 50,
     loyaltyMinRedemption: 1,

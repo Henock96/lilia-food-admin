@@ -3,6 +3,18 @@ class PlatformSettings {
   final String id;
   final double serviceFeePercent;
 
+  /// Commission vendeur par défaut, en pourcentage.
+  ///
+  /// Retenue **sur le vendeur** au moment du reversement — le client ne la paie
+  /// pas. À ne jamais confondre avec [serviceFeePercent], qui est un frais
+  /// ajouté au panier : les confondre facturerait deux fois la même chose.
+  ///
+  /// ⚠️ N'affecte que les commandes **futures**. Le taux est figé sur chaque
+  /// commande à sa création, et c'est ce snapshot que lit le reversement :
+  /// modifier ce réglage ne réécrit aucun montant passé. Un taux propre à un
+  /// vendeur, défini sur sa fiche, prime sur celui-ci.
+  final double restaurantCommissionPercent;
+
   /// Forfait de points gagné par commande **livrée**.
   ///
   /// A remplacé `loyaltyPointsPer100Xaf` : le gain n'est plus proportionnel au
@@ -53,6 +65,7 @@ class PlatformSettings {
   PlatformSettings({
     required this.id,
     required this.serviceFeePercent,
+    required this.restaurantCommissionPercent,
     required this.loyaltyPointsPerOrder,
     required this.loyaltyPointValueXaf,
     required this.loyaltyMinRedemption,
@@ -78,6 +91,8 @@ class PlatformSettings {
     return PlatformSettings(
       id: json['id'] as String? ?? 'singleton',
       serviceFeePercent: (json['serviceFeePercent'] as num?)?.toDouble() ?? 8,
+      restaurantCommissionPercent:
+          (json['restaurantCommissionPercent'] as num?)?.toDouble() ?? 10,
       loyaltyPointsPerOrder: json['loyaltyPointsPerOrder'] as int? ?? 1,
       loyaltyPointValueXaf: json['loyaltyPointValueXaf'] as int? ?? 50,
       loyaltyMinRedemption: json['loyaltyMinRedemption'] as int? ?? 1,

@@ -577,7 +577,7 @@ class _StatsGrid extends StatelessWidget {
       _StatCardData(
         icon: Iconsax.wallet,
         label: _Strings.statRevenue,
-        value: _formatRevenue(stats.totalRevenueXAF),
+        value: _formatRevenue(stats.handledOrderValueXaf),
       ),
       _StatCardData(
         icon: Iconsax.timer_1,
