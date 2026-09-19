@@ -236,6 +236,33 @@ class PlatformMargin {
   final int? collectionFee;
   final int? payoutFee;
 
+  /// Rémunération due au livreur pour cette course, en XAF. Figée à
+  /// l'acceptation, jamais recalculée à la lecture.
+  ///
+  /// ⚠️ `null` = **inconnu** : soit la course n'a pas d'économie gelée, soit
+  /// elle n'existe pas (retrait au comptoir, ou livraison hors système).
+  /// Ne jamais afficher `0` à la place.
+  final int? driverCost;
+
+  /// Part de Lilia sur la course : `driverBaseXaf − driverPayXaf`.
+  final int? liliaDeliveryShare;
+
+  /// Rend un [driverCost] de 0 lisible : au salaire, zéro est la bonne réponse.
+  final String? driverCompensationModel;
+  final String? driverEmploymentType;
+  final double? driverSharePercent;
+
+  /// Contribution **hors frais prestataire**.
+  ///
+  /// `collectionFee` et `payoutFee` ne sont jamais renseignés : nos types
+  /// pawaPay n'en modélisent aucun et la production n'a jamais reçu un seul
+  /// webhook. Attendre ces deux valeurs revient à n'afficher aucune marge,
+  /// jamais. Ce nombre est exact dès que le coût livreur est connu.
+  ///
+  /// ⚠️ Il ne remplace PAS [contributionMargin] : l'écran doit dire lequel il
+  /// montre, sans quoi il surestimerait le résultat du montant des frais.
+  final int? contributionMarginBeforeProviderFees;
+
   /// Contribution réelle de la commande, ou `null` si un poste **obligatoire**
   /// est inconnu — `missingInputs` dit alors lesquels.
   final int? contributionMargin;
@@ -261,6 +288,12 @@ class PlatformMargin {
     this.refundPaid = 0,
     this.collectionFee,
     this.payoutFee,
+    this.driverCost,
+    this.liliaDeliveryShare,
+    this.driverCompensationModel,
+    this.driverEmploymentType,
+    this.driverSharePercent,
+    this.contributionMarginBeforeProviderFees,
     this.contributionMargin,
     this.missingInputs = const [],
     this.netMargin,
@@ -281,6 +314,20 @@ class PlatformMargin {
       collectionFee:
           json['collectionFee'] == null ? null : _asInt(json['collectionFee']),
       payoutFee: json['payoutFee'] == null ? null : _asInt(json['payoutFee']),
+      driverCost:
+          json['driverCost'] == null ? null : _asInt(json['driverCost']),
+      liliaDeliveryShare: json['liliaDeliveryShare'] == null
+          ? null
+          : _asInt(json['liliaDeliveryShare']),
+      driverCompensationModel: _asString(json['driverCompensationModel']),
+      driverEmploymentType: _asString(json['driverEmploymentType']),
+      driverSharePercent: json['driverSharePercent'] == null
+          ? null
+          : _asDouble(json['driverSharePercent']),
+      contributionMarginBeforeProviderFees:
+          json['contributionMarginBeforeProviderFees'] == null
+          ? null
+          : _asInt(json['contributionMarginBeforeProviderFees']),
       contributionMargin: contribution == null ? null : _asInt(contribution),
       // Un backend antérieur ne porte pas ce champ : liste vide, et la marge
       // s'affiche alors sans explication — c'est le comportement d'avant.

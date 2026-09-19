@@ -5,6 +5,7 @@ import 'package:lilia_admin/models/delivery_mission_summary.dart';
 import 'package:lilia_admin/models/delivery_status.dart';
 import 'package:lilia_admin/models/deliverer_detail.dart';
 import 'package:lilia_admin/models/deliverer_stats.dart';
+import 'package:lilia_admin/models/driver_settlement.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'deliverer_detail_provider.g.dart';
@@ -23,6 +24,22 @@ Future<DelivererDetail> delivererDetail(Ref ref, String id) {
 @riverpod
 Future<DelivererStats> delivererStats(Ref ref, String id) {
   return ref.watch(adminOperationsRepositoryProvider).getDelivererStats(id);
+}
+
+/// Ce qui reste dû à un livreur.
+///
+/// ⚠️ Lecture pure côté serveur : aucune course n'est verrouillée. Le
+/// rafraîchir librement est donc sans conséquence — c'est précisément ce qui
+/// distingue ce modèle d'un « compte arrêté ».
+@riverpod
+Future<DriverOutstanding> driverOutstanding(Ref ref, String id) {
+  return ref.watch(adminOperationsRepositoryProvider).fetchDriverOutstanding(id);
+}
+
+/// Les versements déjà enregistrés pour un livreur.
+@riverpod
+Future<List<DriverSettlement>> driverSettlements(Ref ref, String id) {
+  return ref.watch(adminOperationsRepositoryProvider).fetchDriverSettlements(id);
 }
 
 /// Livraison associée à une commande — point d'entrée pour

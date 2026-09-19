@@ -60,6 +60,7 @@ class _PlatformSettingsForm extends ConsumerStatefulWidget {
 
 class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
   late final TextEditingController _serviceFee;
+  late final TextEditingController _restaurantCommission;
   late final TextEditingController _loyaltyPerOrder;
   late final TextEditingController _loyaltyValue;
   late final TextEditingController _loyaltyMin;
@@ -96,6 +97,8 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
     super.initState();
     final s = widget.settings;
     _serviceFee = TextEditingController(text: s.serviceFeePercent.toString());
+    _restaurantCommission =
+        TextEditingController(text: s.restaurantCommissionPercent.toString());
     _loyaltyPerOrder =
         TextEditingController(text: s.loyaltyPointsPerOrder.toString());
     _loyaltyValue =
@@ -124,6 +127,7 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
   @override
   void dispose() {
     _serviceFee.dispose();
+    _restaurantCommission.dispose();
     _loyaltyPerOrder.dispose();
     _loyaltyValue.dispose();
     _loyaltyMin.dispose();
@@ -182,6 +186,9 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
     final dto = <String, dynamic>{
       'serviceFeePercent':
           double.tryParse(_serviceFee.text.trim()) ?? s.serviceFeePercent,
+      'restaurantCommissionPercent':
+          double.tryParse(_restaurantCommission.text.trim()) ??
+              s.restaurantCommissionPercent,
       'loyaltyPointsPerOrder':
           int.tryParse(_loyaltyPerOrder.text.trim()) ?? s.loyaltyPointsPerOrder,
       'loyaltyPointValueXaf':
@@ -236,6 +243,29 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
       children: [
         _section('Frais de service', [
           _numberField(_serviceFee, 'Frais de service', '%'),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 4),
+            child: Text(
+              'Payés EN PLUS par le client, ajoutés au panier.',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+          ),
+        ]),
+        // Ce réglage n'était éditable par AUCUNE interface : absent du DTO
+        // serveur, il était retiré en silence des requêtes, qui répondaient
+        // 200 sans rien changer. Le mettre à 0 imposait une écriture SQL.
+        _section('Commission vendeur', [
+          _numberField(_restaurantCommission, 'Commission vendeur', '%'),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Text(
+              'Retenue SUR le vendeur au reversement — le client ne la paie '
+              'pas. N’affecte que les commandes futures : le taux est figé sur '
+              'chaque commande à sa création. Un taux propre à un vendeur, '
+              'défini sur sa fiche, prime sur celui-ci.',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+          ),
         ]),
         _section('Fidélité', [
           _numberField(_loyaltyPerOrder, 'Points / commande livrée', 'pts'),

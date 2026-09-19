@@ -5,6 +5,7 @@ import 'package:lilia_admin/models/payments_stats.dart';
 import 'package:lilia_admin/models/admin_deliverer.dart';
 import 'package:lilia_admin/models/deliverer_detail.dart';
 import 'package:lilia_admin/models/deliverer_stats.dart';
+import 'package:lilia_admin/models/driver_settlement.dart';
 import 'package:lilia_admin/models/delivery.dart';
 import 'package:lilia_admin/models/delivery_mission_summary.dart';
 import 'package:lilia_admin/models/delivery_status.dart';
@@ -101,6 +102,65 @@ class AdminOperationsRepository {
       total: p.total,
       page: p.page,
       limit: p.limit,
+    );
+  }
+
+  // ─── Règlements livreurs ─────────────────────────────────────────────────
+
+  /// Ce qui reste dû à un livreur (GET .../outstanding/:driverId).
+  ///
+  /// ⚠️ Lecture pure côté serveur : elle ne verrouille aucune course. On peut
+  /// donc l'appeler librement, y compris pour rafraîchir un écran ouvert.
+  Future<DriverOutstanding> fetchDriverOutstanding(String driverId) async {
+    final res = await _api.getJson(
+      '/admin/driver-settlements/outstanding/$driverId',
+    );
+    return DriverOutstanding.fromJson(ApiResponse.mapOf(res.data));
+  }
+
+  /// Historique des règlements d'un livreur.
+  Future<List<DriverSettlement>> fetchDriverSettlements(
+    String driverId, {
+    int page = 1,
+  }) async {
+    final res = await _api.getJson('/admin/driver-settlements', query: {
+      'driverId': driverId,
+      'page': '$page',
+      'limit': '${AppConstants.adminPageSize}',
+    });
+    return _paginated(res.data, page)
+        .items
+        .map((j) => DriverSettlement.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Enregistre un versement **déjà effectué**.
+  ///
+  /// ⚠️ `coveredUntil` est celui de l'aperçu consulté, jamais un `DateTime.now()`
+  /// calculé au moment du clic : entre l'affichage du montant et l'envoi, le
+  /// livreur peut terminer une course, et l'absorber dans une somme déjà remise
+  /// le sous-paierait en silence.
+  Future<void> recordDriverSettlement({
+    required String driverId,
+    required DateTime coveredUntil,
+    required SettlementMethod method,
+    String? reference,
+    String? note,
+  }) async {
+    await _api.postJson('/admin/driver-settlements', body: {
+      'driverId': driverId,
+      'coveredUntil': coveredUntil.toIso8601String(),
+      'method': method.apiValue,
+      if (reference != null && reference.isNotEmpty) 'reference': reference,
+      if (note != null && note.isNotEmpty) 'note': note,
+    });
+  }
+
+  /// Annule une saisie erronée — les courses redeviennent dues.
+  Future<void> cancelDriverSettlement(String id, String reason) async {
+    await _api.postJson(
+      '/admin/driver-settlements/$id/cancel',
+      body: {'reason': reason},
     );
   }
 
