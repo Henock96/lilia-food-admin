@@ -22,10 +22,14 @@ const _paymentStatusLabels = <String, String>{
   'CANCELLED': 'Annulé',
 };
 
+// ⚠️ `CASH_ON_DELIVERY` a été retiré : la valeur n'existe plus dans l'enum
+// Prisma depuis la migration `20260515000000_remove_cash_on_delivery`. La
+// garder ici entretenait l'idée qu'un paiement à la livraison pouvait encore
+// arriver — le lookup est nullable, le libellé n'aurait simplement jamais été
+// rendu. Même nettoyage que côté web (`@lilia/types`).
 const _paymentMethodLabels = <String, String>{
   'MTN_MOMO': 'MTN Mobile Money',
   'AIRTEL_MONEY': 'Airtel Money',
-  'CASH_ON_DELIVERY': 'À la livraison',
 };
 
 // Couleurs d'identité des opérateurs de paiement externes — intentionnellement
@@ -34,7 +38,6 @@ const _paymentMethodLabels = <String, String>{
 const _paymentMethodColors = <String, Color>{
   'MTN_MOMO': Color(0xFFFACC15),     // jaune marque MTN
   'AIRTEL_MONEY': Color(0xFFEF4444), // rouge marque Airtel
-  'CASH_ON_DELIVERY': Color(0xFF9CA3AF), // gris neutre (espèces)
 };
 
 /// LIL-132 : emoji par vendorType — local au payments screen pour éviter
