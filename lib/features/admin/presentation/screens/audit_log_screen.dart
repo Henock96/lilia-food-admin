@@ -24,6 +24,9 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
     'USER_BANNED': 'Bannissements',
     'VENDOR_SUSPENDED': 'Suspensions',
     'PAYMENT_CONFIRMED': 'Paiements',
+    // « Qui a posé ce blocage de version, qui a changé la valeur du point ? »
+    'PLATFORM_SETTINGS_CHANGED': 'Configuration',
+    'PAYOUT_REQUESTED': 'Reversements',
   };
 
   @override

@@ -62,6 +62,12 @@ class PlatformSettings {
 
   final DateTime updatedAt;
 
+  /// `updatedAt` **tel que servi** par le serveur, renvoyé tel quel en
+  /// `expectedUpdatedAt` (verrou optimiste, SET-001). Gardé brut : une
+  /// réécriture par `DateTime` pourrait changer la précision et faire refuser
+  /// à tort l'enregistrement. `null` si absent — le verrou est alors omis.
+  final String? updatedAtRaw;
+
   PlatformSettings({
     required this.id,
     required this.serviceFeePercent,
@@ -78,6 +84,7 @@ class PlatformSettings {
     this.updateUrlIos,
     this.updateMessage,
     required this.updatedAt,
+    this.updatedAtRaw,
   });
 
   /// Convertit un nombre de points en FCFA. Point de passage **unique** de
@@ -119,6 +126,8 @@ class PlatformSettings {
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)
           : DateTime.now(),
+      updatedAtRaw:
+          json['updatedAt'] is String ? json['updatedAt'] as String : null,
     );
   }
 }
