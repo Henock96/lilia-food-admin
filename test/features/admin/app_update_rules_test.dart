@@ -98,13 +98,40 @@ void main() {
       expect(run(latest: '1.3.0'), isEmpty);
     });
 
-    test('valide les protocoles d\'URL', () {
-      expect(run(android: 'http://play.google.com'), hasLength(1));
-      expect(run(android: 'https://play.google.com'), isEmpty);
-      expect(run(android: 'market://details?id=x'), isEmpty);
+    // UPD-002 : le schéma ne suffit plus. Seule la fiche de NOTRE application
+    // est une destination — mêmes vecteurs que `app-update-policy.spec.ts`.
+    const play =
+        'https://play.google.com/store/apps/details?id=com.dreesis.lilia.lilia_app';
+
+    test('Android : la fiche Play de Lilia Food, rien d\'autre', () {
+      expect(run(android: play), isEmpty);
+      expect(run(android: '$play&hl=fr'), isEmpty);
+      expect(run(android: 'market://details?id=com.dreesis.lilia.lilia_app'),
+          isEmpty);
+      expect(run(android: 'http://play.google.com/store/apps/details?id=com.dreesis.lilia.lilia_app'),
+          hasLength(1));
+      expect(run(android: 'https://play.google.com'), hasLength(1));
+      expect(run(android: 'https://play.google.com/store/apps/details?id=com.lilia.food'),
+          hasLength(1));
+      expect(run(android: 'https://example.com/store/apps/details?id=com.dreesis.lilia.lilia_app'),
+          hasLength(1));
+      expect(run(android: 'https://play.google.com@evil.com/store/apps/details?id=com.dreesis.lilia.lilia_app'),
+          hasLength(1));
+    });
+
+    test('iOS : une fiche App Store, jamais une recherche ni un gabarit', () {
+      expect(run(ios: 'https://apps.apple.com/app/lilia-food/id1234567890'),
+          isEmpty);
+      expect(run(ios: 'https://apps.apple.com/fr/app/lilia-food/id1234567890'),
+          isEmpty);
+      expect(run(ios: 'itms-apps://apps.apple.com/app/id1234567890'), isEmpty);
+      expect(run(ios: 'itms-apps://itunes.apple.com/app/id1234567890'), isEmpty);
+      expect(run(ios: 'https://apps.apple.com/app/lilia-food/id6740000000'),
+          hasLength(1));
+      expect(run(ios: 'https://apps.apple.com/search?term=Lilia%20Food'),
+          hasLength(1));
+      expect(run(ios: 'https://apps.apple.com/app/id1'), hasLength(1));
       expect(run(ios: 'market://details?id=x'), hasLength(1));
-      expect(run(ios: 'https://apps.apple.com/app/id1'), isEmpty);
-      expect(run(ios: 'itms-apps://apps.apple.com/app/id1'), isEmpty);
     });
 
     test('cumule les refus', () {
@@ -266,11 +293,14 @@ void main() {
       expect(run(ios: 'itms-apps://'), hasLength(1));
     });
 
-    test('accepte URLs avec hôte', () {
-      expect(run(android: 'https://play.google.com'), isEmpty);
-      expect(run(android: 'market://details?id=x'), isEmpty);
-      expect(run(ios: 'https://apps.apple.com/app/id1'), isEmpty);
-      expect(run(ios: 'itms-apps://apps.apple.com/app/id1'), isEmpty);
+    test('accepte les fiches de Lilia Food', () {
+      expect(
+          run(android: 'https://play.google.com/store/apps/details?id=com.dreesis.lilia.lilia_app'),
+          isEmpty);
+      expect(run(android: 'market://details?id=com.dreesis.lilia.lilia_app'),
+          isEmpty);
+      expect(run(ios: 'https://apps.apple.com/app/id1234567890'), isEmpty);
+      expect(run(ios: 'itms-apps://apps.apple.com/app/id1234567890'), isEmpty);
     });
   });
 

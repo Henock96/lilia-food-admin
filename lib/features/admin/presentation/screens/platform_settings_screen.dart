@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lilia_admin/features/admin/domain/app_update_rules.dart';
+import 'package:lilia_admin/core/network/api_exception.dart';
+import 'package:lilia_admin/features/admin/domain/platform_settings_form.dart';
 import 'package:lilia_admin/features/admin/presentation/providers/admin_operations_provider.dart';
 import 'package:lilia_admin/models/platform_settings.dart';
 
@@ -42,14 +43,22 @@ class PlatformSettingsScreen extends ConsumerWidget {
             ),
           ),
         ),
-        data: (settings) => _PlatformSettingsForm(settings: settings),
+        // Clé = version chargée : après un enregistrement ou un rechargement
+        // (409), le formulaire repart des valeurs du serveur au lieu de
+        // garder des contrôleurs remplis avec l'ancienne base de comparaison.
+        data: (settings) => _PlatformSettingsForm(
+          key: ValueKey(
+            settings.updatedAtRaw ?? settings.updatedAt.toIso8601String(),
+          ),
+          settings: settings,
+        ),
       ),
     );
   }
 }
 
 class _PlatformSettingsForm extends ConsumerStatefulWidget {
-  const _PlatformSettingsForm({required this.settings});
+  const _PlatformSettingsForm({super.key, required this.settings});
 
   final PlatformSettings settings;
 
@@ -147,27 +156,32 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     final s = widget.settings;
 
-    final refus = validateAppUpdate(
-      minVersion: _minAppVersion.text,
-      latestVersion: _latestAppVersion.text,
-      urlAndroid: _updateUrlAndroid.text,
-      urlIos: _updateUrlIos.text,
+    final result = buildSettingsPatch(
+      SettingsFormValues(
+        numbers: {
+          'serviceFeePercent': _serviceFee.text,
+          'restaurantCommissionPercent': _restaurantCommission.text,
+          'loyaltyPointsPerOrder': _loyaltyPerOrder.text,
+          'loyaltyPointValueXaf': _loyaltyValue.text,
+          'loyaltyMinRedemption': _loyaltyMin.text,
+          'referrerBonusPoints': _referrerBonus.text,
+        },
+        maintenanceMode: _maintenanceMode,
+        maintenanceMessage: _maintenanceMessage.text,
+        minAppVersion: _minAppVersion.text,
+        latestAppVersion: _latestAppVersion.text,
+        updateUrlAndroid: _updateUrlAndroid.text,
+        updateUrlIos: _updateUrlIos.text,
+        updateMessage: _updateMessage.text,
+        blockConfirmation: _blockConfirmation.text,
+      ),
+      s,
     );
 
-    if (requiresBlockConfirmation(
-          minVersion: _minAppVersion.text,
-          savedMinVersion: s.minAppVersion,
-        ) &&
-        _blockConfirmation.text.trim().toUpperCase() != 'BLOQUER') {
-      refus.add(
-        'Vous êtes sur le point de bloquer le parc : tapez BLOQUER dans le '
-        'champ de confirmation.',
-      );
-    }
-
-    if (refus.isNotEmpty) {
+    if (!result.ok) {
       setState(() => _blocageDeplie = true);
       // `setState` seul ne rouvrirait pas le repli si l'admin l'a fermé à la
       // main : `ExpansionTile.initiallyExpanded` n'est lu qu'une fois. C'est
@@ -175,7 +189,7 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
       _blocageController.expand();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(refus.join('\n')),
+          content: Text(result.errors.join('\n')),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 6),
         ),
@@ -183,57 +197,73 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
       return;
     }
 
-    final dto = <String, dynamic>{
-      'serviceFeePercent':
-          double.tryParse(_serviceFee.text.trim()) ?? s.serviceFeePercent,
-      'restaurantCommissionPercent':
-          double.tryParse(_restaurantCommission.text.trim()) ??
-              s.restaurantCommissionPercent,
-      'loyaltyPointsPerOrder':
-          int.tryParse(_loyaltyPerOrder.text.trim()) ?? s.loyaltyPointsPerOrder,
-      'loyaltyPointValueXaf':
-          int.tryParse(_loyaltyValue.text.trim()) ?? s.loyaltyPointValueXaf,
-      'loyaltyMinRedemption':
-          int.tryParse(_loyaltyMin.text.trim()) ?? s.loyaltyMinRedemption,
-      'referrerBonusPoints':
-          int.tryParse(_referrerBonus.text.trim()) ?? s.referrerBonusPoints,
-
-      'maintenanceMode': _maintenanceMode,
-      'maintenanceMessage': _maintenanceMessage.text.trim(),
-      ...buildAppUpdatePatch(
-        minVersion: _minAppVersion.text,
-        latestVersion: _latestAppVersion.text,
-        urlAndroid: _updateUrlAndroid.text,
-        urlIos: _updateUrlIos.text,
-        message: _updateMessage.text,
-      ),
-    };
+    if (!result.changed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aucune modification à enregistrer.')),
+      );
+      return;
+    }
 
     setState(() => _saving = true);
     try {
       await ref
           .read(adminOperationsRepositoryProvider)
-          .updatePlatformSettings(dto);
+          .updatePlatformSettings(result.patch);
       if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      // Recrée le formulaire (clé = nouvel `updatedAt`) sur les valeurs
+      // enregistrées : la prochaine sauvegarde partira de cette base.
       ref.invalidate(platformSettingsProvider);
-      _blockConfirmation.clear();
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(
           content: Text('Configuration enregistrée'),
           backgroundColor: Colors.green,
         ),
       );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.statusCode == 409) {
+        await _signalerConflit();
+        return;
+      }
+      _signalerErreur(e.message);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _signalerErreur(e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  void _signalerErreur(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  /// 409 : un autre administrateur a enregistré depuis l'ouverture de l'écran.
+  /// On ne réessaie pas à sa place : on recharge ses valeurs, et l'admin
+  /// refait ses changements en connaissance de cause.
+  Future<void> _signalerConflit() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Configuration modifiée entre-temps'),
+        content: const Text(
+          'Un autre administrateur a enregistré la configuration depuis que '
+          'vous avez ouvert cet écran. Vos changements n\'ont pas été '
+          'enregistrés. Les valeurs actuelles vont être rechargées : '
+          'refaites vos changements si nécessaire.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Recharger'),
+          ),
+        ],
+      ),
+    );
+    if (mounted) ref.invalidate(platformSettingsProvider);
   }
 
   @override
@@ -347,9 +377,9 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
             const Padding(
               padding: EdgeInsets.only(bottom: 8),
               child: Text(
-                '⚠️ Sans URL iOS, le client retombe sur un lien placeholder '
-                '(id6740000000) : les utilisateurs iPhone atterriraient sur '
-                'une fiche App Store inexistante.',
+                'Sans URL iOS, l\'app envoie vers une recherche « Lilia Food » '
+                'dans l\'App Store (l\'app n\'y a pas encore de fiche). Seule '
+                'une vraie fiche (apps.apple.com/…/id…) est acceptée ici.',
                 style: TextStyle(fontSize: 11, color: Color(0xFFB45309)),
               ),
             ),

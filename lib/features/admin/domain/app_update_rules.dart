@@ -163,28 +163,64 @@ List<String> validateAppUpdate({
     }
   }
 
-  refus.addAll(_validerUrl(
-    urlAndroid,
-    const ['https', 'market'],
-    'L\'URL Android doit commencer par https:// ou market://.',
-  ));
-  refus.addAll(_validerUrl(
-    urlIos,
-    const ['https', 'itms-apps'],
-    'L\'URL iOS doit commencer par https:// ou itms-apps://.',
-  ));
+  final android = urlAndroid.trim();
+  if (android.isNotEmpty && !isAllowedAndroidStoreUrl(android)) {
+    refus.add(androidUrlMessage);
+  }
+  final ios = urlIos.trim();
+  if (ios.isNotEmpty && !isAllowedIosStoreUrl(ios)) {
+    refus.add(iosUrlMessage);
+  }
 
   return refus;
 }
 
-List<String> _validerUrl(String raw, List<String> schemes, String message) {
-  final url = raw.trim();
-  if (url.isEmpty) return const [];
-  final uri = Uri.tryParse(url);
-  if (uri == null || !schemes.contains(uri.scheme) || uri.host.isEmpty) {
-    return [message];
+// ── Destinations de store — miroir de `app-update-policy.ts` (backend) ─────
+//
+// Vérifier seulement le schéma et la présence d'un hôte laissait passer
+// `https://example.com/typo` : combiné à un blocage, l'utilisateur restait
+// devant un dialogue non fermable dont le bouton menait ailleurs (UPD-002).
+// Le serveur refuse désormais ces liens ; l'écran le dit avant l'envoi.
+
+/// `applicationId` de l'app cliente (lilia-app/android/app/build.gradle.kts).
+const androidApplicationId = 'com.dreesis.lilia.lilia_app';
+
+/// Identifiants App Store de gabarit qui ont circulé dans le code.
+const _placeholderAppStoreIds = {'6740000000', '000000000'};
+
+const androidUrlMessage =
+    'L\'URL Android doit être la fiche Google Play de Lilia Food '
+    '(https://play.google.com/store/apps/details?id=$androidApplicationId).';
+const iosUrlMessage =
+    'L\'URL iOS doit être une fiche App Store (https://apps.apple.com/app/…/id…), '
+    'pas une recherche ni un identifiant de gabarit.';
+
+bool _sansExtras(Uri uri) => uri.userInfo.isEmpty && !uri.hasPort;
+
+bool isAllowedAndroidStoreUrl(String raw) {
+  final uri = Uri.tryParse(raw);
+  if (uri == null || !_sansExtras(uri)) return false;
+  if (uri.queryParameters['id'] != androidApplicationId) return false;
+  if (uri.scheme == 'https') {
+    return uri.host == 'play.google.com' && uri.path == '/store/apps/details';
   }
-  return const [];
+  if (uri.scheme == 'market') {
+    return uri.host == 'details' && (uri.path.isEmpty || uri.path == '/');
+  }
+  return false;
+}
+
+final _iosAppPath = RegExp(r'^/(?:[a-z]{2}/)?app/(?:[^/]+/)?id(\d{9,10})/?$');
+
+bool isAllowedIosStoreUrl(String raw) {
+  final uri = Uri.tryParse(raw);
+  if (uri == null || !_sansExtras(uri)) return false;
+  final hostOk = (uri.scheme == 'https' && uri.host == 'apps.apple.com') ||
+      (uri.scheme == 'itms-apps' &&
+          (uri.host == 'apps.apple.com' || uri.host == 'itunes.apple.com'));
+  if (!hostOk) return false;
+  final match = _iosAppPath.firstMatch(uri.path);
+  return match != null && !_placeholderAppStoreIds.contains(match.group(1));
 }
 
 /// La portion de DTO du canal de mise à jour.
@@ -236,5 +272,8 @@ bool requiresBlockConfirmation({
 }) {
   final saisi = minVersion.trim();
   if (saisi.isEmpty) return false;
-  return saisi != (savedMinVersion?.trim() ?? '');
+  // Comparée sous forme canonique, comme l'Admin Web : « v1.3.0 » face à un
+  // « 1.3.0 » enregistré ne pose ni ne modifie rien.
+  final canonique = AppVersionRef.tryParse(saisi)?.toString() ?? saisi;
+  return canonique != (savedMinVersion?.trim() ?? '');
 }
