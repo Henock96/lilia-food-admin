@@ -12,6 +12,7 @@ import 'package:lilia_admin/features/admin/presentation/widgets/order_payout_car
 import 'package:lilia_admin/features/auth/user_sync_provider.dart';
 import 'package:lilia_admin/models/role.dart';
 import '../../../../models/order.dart';
+import '../../../../models/order_transitions.dart';
 import '../../../../models/app_deliverer.dart';
 import '../../../deliveries/data/delivery_service.dart';
 import '../../data/order_controller.dart';
@@ -807,8 +808,12 @@ class OrderDetailScreen extends ConsumerWidget {
       );
     }
 
-    final availableStatuses = _getAvailableStatuses(
-      order.status,
+    // Source unique, partagée avec l'écran de liste et alignée sur
+    // `ORDER_TRANSITION_MATRIX` côté serveur. Les deux écrans portaient chacun
+    // leur copie, et elles avaient divergé — cf. `models/order_transitions.dart`.
+    final availableStatuses = availableOrderTransitions(
+      current: order.status,
+      role: ref.watch(currentUserProfileProvider)?.role ?? Role.unknown,
       isDelivery: order.isDelivery,
     );
     return Column(
@@ -924,51 +929,6 @@ class OrderDetailScreen extends ConsumerWidget {
           ),
         );
       }
-    }
-  }
-
-  /// Transitions que le backend acceptera réellement, pour ce vendeur et cette
-  /// commande.
-  ///
-  /// Doit rester le miroir d'`ORDER_TRANSITION_MATRIX` côté backend, restreint
-  /// au rôle vendeur : proposer un bouton que l'API refusera par un 403
-  /// n'apprend rien au vendeur, sinon que l'application est cassée.
-  ///
-  /// Deux absences sont volontaires :
-  ///  - **`EN_ROUTE` n'est jamais proposé.** Ce statut annonce au client
-  ///    « votre livreur est en chemin » ; seul le livreur peut l'établir, en
-  ///    confirmant la récupération. Le backend le refuse au vendeur depuis
-  ///    l'audit du 29/08/2026.
-  ///  - **`LIVRER` n'apparaît que sur les commandes à emporter** : là, le
-  ///    vendeur remet le sac en main propre, il est donc le mieux placé pour
-  ///    clôturer. Sur une livraison, c'est le livreur qui constate.
-  List<OrderStatus> _getAvailableStatuses(
-    OrderStatus current, {
-    required bool isDelivery,
-  }) {
-    switch (current) {
-      case OrderStatus.enattente:
-        return [
-          OrderStatus.enpreparation,
-          OrderStatus.payer,
-          OrderStatus.annuler,
-        ];
-      case OrderStatus.payer:
-        return [OrderStatus.enpreparation, OrderStatus.annuler];
-      case OrderStatus.enpreparation:
-        return [OrderStatus.pret, OrderStatus.annuler];
-      case OrderStatus.pret:
-        // Retrait au comptoir : sans ce bouton, la commande n'avait aucune
-        // sortie autre que l'annulation et restait « Prête » indéfiniment.
-        return [
-          if (!isDelivery) OrderStatus.livrer,
-          OrderStatus.annuler,
-        ];
-      case OrderStatus.enRoute:
-        // Le livreur est en transit : le vendeur n'a plus la main.
-        return [];
-      default:
-        return [];
     }
   }
 

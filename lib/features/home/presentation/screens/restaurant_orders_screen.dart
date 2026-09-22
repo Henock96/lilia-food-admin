@@ -8,9 +8,12 @@ import 'package:intl/intl.dart';
 import 'package:lilia_admin/core/utils/currency.dart';
 import 'package:lilia_admin/core/utils/date_format.dart';
 import '../../../../models/order.dart';
+import '../../../../models/order_transitions.dart';
+import '../../../../models/role.dart';
 import '../../../../services/admin_tracking_socket_service.dart';
 import '../../data/order_controller.dart';
 import '../../data/order_service.dart';
+import '../../../auth/user_sync_provider.dart';
 
 class RestaurantOrdersScreen extends ConsumerStatefulWidget {
   const RestaurantOrdersScreen({super.key});
@@ -1049,7 +1052,15 @@ class OrderCard extends ConsumerWidget {
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: _getAvailableStatuses(order.status).map((status) {
+          // Source unique, partagée avec l'écran de détail et alignée sur
+          // `ORDER_TRANSITION_MATRIX` côté serveur. Cet écran-ci proposait
+          // « Livrée » sur une commande à livrer, que le détail conditionnait
+          // pourtant déjà — deux écrans, deux règles.
+          children: availableOrderTransitions(
+            current: order.status,
+            role: ref.watch(currentUserProfileProvider)?.role ?? Role.unknown,
+            isDelivery: order.isDelivery,
+          ).map((status) {
             final info = _getStatusInfo(status);
             return _StatusButton(
               label: info.label,
@@ -1134,25 +1145,6 @@ class OrderCard extends ConsumerWidget {
           ),
         );
       }
-    }
-  }
-
-  List<OrderStatus> _getAvailableStatuses(OrderStatus current) {
-    switch (current) {
-      case OrderStatus.enattente:
-        return [
-          OrderStatus.enpreparation,
-          OrderStatus.payer,
-          OrderStatus.annuler,
-        ];
-      case OrderStatus.payer:
-        return [OrderStatus.enpreparation, OrderStatus.annuler];
-      case OrderStatus.enpreparation:
-        return [OrderStatus.pret, OrderStatus.annuler];
-      case OrderStatus.pret:
-        return [OrderStatus.livrer, OrderStatus.annuler];
-      default:
-        return [];
     }
   }
 
