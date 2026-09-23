@@ -2,6 +2,7 @@ import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/utils/api_response.dart';
 
 import '../../../models/order.dart';
+import '../../../models/vendor_rejection_reason.dart';
 
 /// Une page de commandes, avec les compteurs d'onglets du serveur.
 class OrderPage {
@@ -136,6 +137,31 @@ class OrderService {
     await _api.patchJson(
       '/orders/$orderId/status',
       body: {'status': status.toWire()},
+    );
+  }
+
+  /// Accepte une commande payée (Phase 3, F3-01). Le temps de préparation est
+  /// annoncé au client : il devient son heure de fin estimée.
+  Future<void> acceptOrder(String orderId, {required int prepMinutes}) async {
+    await _api.postJson(
+      '/orders/$orderId/accept',
+      body: {'prepMinutes': prepMinutes},
+    );
+  }
+
+  /// Refuse une commande payée ou acceptée : le client est remboursé.
+  Future<void> rejectOrder(
+    String orderId, {
+    required VendorRejectionReason reason,
+    String? note,
+  }) async {
+    final trimmed = note?.trim();
+    await _api.postJson(
+      '/orders/$orderId/reject',
+      body: {
+        'reason': reason.wire,
+        if (trimmed != null && trimmed.isNotEmpty) 'note': trimmed,
+      },
     );
   }
 

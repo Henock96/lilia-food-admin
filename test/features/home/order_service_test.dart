@@ -3,6 +3,7 @@ import 'package:http_mock_adapter/http_mock_adapter.dart';
 import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/features/home/data/order_service.dart';
 import 'package:lilia_admin/models/order.dart';
+import 'package:lilia_admin/models/vendor_rejection_reason.dart';
 
 /// Contrat de lecture de l'écran Commandes.
 ///
@@ -306,6 +307,52 @@ void main() {
         if (s == OrderStatus.unknown) continue;
         expect(Order.statusFromWire(s.toWire()), s);
       }
+    });
+  });
+
+  group('acceptation vendeur (F3-01)', () {
+    test('accepter : POST /orders/:id/accept avec le temps de préparation', () async {
+      final t = build();
+      t.adapter.onPost(
+        '/orders/o1/accept',
+        (s) => s.reply(200, {'data': orderJson('o1', status: 'ACCEPTEE')}),
+        data: {'prepMinutes': 20},
+      );
+
+      await t.service.acceptOrder('o1', prepMinutes: 20);
+    });
+
+    test('refuser : POST /orders/:id/reject avec motif et précision', () async {
+      final t = build();
+      t.adapter.onPost(
+        '/orders/o1/reject',
+        (s) => s.reply(200, {'data': orderJson('o1', status: 'ANNULER')}),
+        data: {'reason': 'OUT_OF_STOCK', 'note': 'Plus de poulet'},
+      );
+
+      await t.service.rejectOrder(
+        'o1',
+        reason: VendorRejectionReason.outOfStock,
+        note: 'Plus de poulet',
+      );
+    });
+
+    test('refuser sans précision : la note n’est pas envoyée', () async {
+      final t = build();
+      t.adapter.onPost(
+        '/orders/o1/reject',
+        (s) => s.reply(200, {'data': orderJson('o1', status: 'ANNULER')}),
+        data: {'reason': 'TOO_BUSY'},
+      );
+
+      await t.service.rejectOrder('o1', reason: VendorRejectionReason.tooBusy);
+    });
+
+    test('les motifs sont ceux du serveur, liste fermée', () {
+      expect(
+        VendorRejectionReason.values.map((r) => r.wire).toList(),
+        ['OUT_OF_STOCK', 'TOO_BUSY', 'CLOSING', 'OUT_OF_ZONE', 'OTHER'],
+      );
     });
   });
 }
