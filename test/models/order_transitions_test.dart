@@ -48,14 +48,16 @@ void main() {
       }
     });
 
-    test('réserve PAYER à l’ADMIN', () {
+    test('ne propose PAYER à personne — « payée » ne se déclare pas (F-07)', () {
+      // Le serveur refuse EN_ATTENTE → PAYER sur la route de statut, même à
+      // l'ADMIN : la confirmation passe par l'écran Paiements.
       expect(
         availableOrderTransitions(
           current: OrderStatus.enattente,
           role: Role.admin,
           isDelivery: true,
         ),
-        contains(OrderStatus.payer),
+        isNot(contains(OrderStatus.payer)),
       );
       expect(
         availableOrderTransitions(
