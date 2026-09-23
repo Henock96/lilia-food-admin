@@ -52,12 +52,11 @@ List<OrderStatus> availableOrderTransitions({
 
   switch (current) {
     case OrderStatus.enattente:
-      return [
-        // `EN_ATTENTE → PAYER` est la confirmation manuelle d'un virement :
-        // ADMIN uniquement. Un vendeur qui appuyait dessus recevait un 403.
-        if (isAdmin) OrderStatus.payer,
-        OrderStatus.annuler,
-      ];
+      // `EN_ATTENTE → PAYER` n'est plus proposé, même à l'ADMIN (Master Audit
+      // v1, F-07) : le serveur le refuse sur la route de statut. « Payée » est
+      // la conséquence d'un encaissement confirmé, pas un statut qu'on
+      // déclare — un virement manuel se confirme depuis l'écran Paiements.
+      return const [OrderStatus.annuler];
 
     case OrderStatus.payer:
       return [OrderStatus.enpreparation, OrderStatus.annuler];
