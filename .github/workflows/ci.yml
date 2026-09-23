@@ -1,0 +1,53 @@
+name: CI
+
+# Validation bloquante de l'app vendeurs / admin (L0-7, blueprint Phase 3).
+#
+# Ce dépôt n'avait aucune CI, alors que c'est l'app de service des vendeurs :
+# la Phase 3 y remplace la matrice de transitions recopiée par `allowedActions`
+# (règle R1). Un bouton qui propose un geste refusé par le serveur doit casser
+# ici, pas devant une cuisine en plein service.
+#
+# Même forme que la CI de `lilia-app` : analyse + tests, rien qui exige un
+# secret (`firebase_options.dart` est versionné, clés client publiques par conception).
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Même version que les postes de développement (flutter --version).
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+
+      - name: Dépendances
+        run: flutter pub get
+
+      # Les `.g.dart` sont versionnés : un `@riverpod` modifié sans relancer
+      # build_runner doit casser ici, pas en production.
+      - name: Code généré à jour
+        run: |
+          dart run build_runner build --delete-conflicting-outputs
+          git diff --exit-code -- '*.g.dart'
+
+      # Les infos restent fatales (défaut de `flutter analyze`) : un lint
+      # toléré une fois devient cinquante.
+      - name: Analyse
+        run: flutter analyze
+
+      - name: Tests
+        run: flutter test
