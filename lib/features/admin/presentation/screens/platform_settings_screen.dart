@@ -222,7 +222,11 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
       );
     } on ApiException catch (e) {
       if (!mounted) return;
-      if (e.statusCode == 409) {
+      // Seul `SETTINGS_STALE` dit « un autre administrateur a modifié la
+      // configuration ». Un autre 409 (bascule refusée faute de grille de
+      // livraison publiée…) porte un message à afficher tel quel — le
+      // maquiller en conflit le rendait incompréhensible (24/09/2026).
+      if (isStaleSettingsConflict(e)) {
         await _signalerConflit();
         return;
       }
