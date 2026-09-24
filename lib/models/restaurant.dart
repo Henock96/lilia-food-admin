@@ -35,6 +35,13 @@ class Restaurant {
   // Delivery settings
   final String deliveryPriceMode;
   final double fixedDeliveryFee;
+
+  /// F3-02 — part de la livraison offerte par le vendeur (`NONE`, `FIXED`,
+  /// `FREE_ABOVE`), retenue sur son reversement. Servie par la vue
+  /// gestionnaire (`/restaurants/mine`) seulement.
+  final String deliverySubsidyMode;
+  final int? deliverySubsidyXaf;
+  final int? freeDeliveryThresholdXaf;
   final int estimatedDeliveryTimeMin;
   final int estimatedDeliveryTimeMax;
   final double minimumOrderAmount;
@@ -104,6 +111,9 @@ class Restaurant {
     this.operatingHours = const [],
     this.deliveryPriceMode = 'FIXED',
     this.fixedDeliveryFee = 500,
+    this.deliverySubsidyMode = 'NONE',
+    this.deliverySubsidyXaf,
+    this.freeDeliveryThresholdXaf,
     this.estimatedDeliveryTimeMin = 15,
     this.estimatedDeliveryTimeMax = 30,
     this.minimumOrderAmount = 0,
@@ -161,6 +171,10 @@ class Restaurant {
           : [],
       deliveryPriceMode: json['deliveryPriceMode'] as String? ?? 'FIXED',
       fixedDeliveryFee: (json['fixedDeliveryFee'] as num?)?.toDouble() ?? 500,
+      deliverySubsidyMode: json['deliverySubsidyMode'] as String? ?? 'NONE',
+      deliverySubsidyXaf: (json['deliverySubsidyXaf'] as num?)?.toInt(),
+      freeDeliveryThresholdXaf: (json['freeDeliveryThresholdXaf'] as num?)
+          ?.toInt(),
       estimatedDeliveryTimeMin:
           (json['estimatedDeliveryTimeMin'] as num?)?.toInt() ?? 15,
       estimatedDeliveryTimeMax:
@@ -231,6 +245,7 @@ class Restaurant {
     List<OperatingHours>? operatingHours,
     String? deliveryPriceMode,
     double? fixedDeliveryFee,
+    String? deliverySubsidyMode,
     int? estimatedDeliveryTimeMin,
     int? estimatedDeliveryTimeMax,
     double? minimumOrderAmount,
@@ -259,6 +274,11 @@ class Restaurant {
       operatingHours: operatingHours ?? this.operatingHours,
       deliveryPriceMode: deliveryPriceMode ?? this.deliveryPriceMode,
       fixedDeliveryFee: fixedDeliveryFee ?? this.fixedDeliveryFee,
+      deliverySubsidyMode: deliverySubsidyMode ?? this.deliverySubsidyMode,
+      // Montant et seuil : recopiés tels quels. Un `null` y est une valeur
+      // (mode sans montant), `??` ne saurait pas l'effacer.
+      deliverySubsidyXaf: deliverySubsidyXaf,
+      freeDeliveryThresholdXaf: freeDeliveryThresholdXaf,
       estimatedDeliveryTimeMin:
           estimatedDeliveryTimeMin ?? this.estimatedDeliveryTimeMin,
       estimatedDeliveryTimeMax:
