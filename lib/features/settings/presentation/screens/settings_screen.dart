@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/features/closures/presentation/closures_tab.dart';
 import 'package:lilia_admin/features/delivery_pricing/data/delivery_pricing_service.dart';
 import 'package:lilia_admin/features/delivery_pricing/presentation/delivery_pricing_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -48,7 +49,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
   }
 
   @override
@@ -275,6 +276,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 Tab(text: 'General'),
                 Tab(text: 'Horaires'),
                 Tab(text: 'Livraison'),
+                Tab(text: 'Fermetures'),
                 Tab(text: 'Specialites'),
                 Tab(text: 'Pre-commande'),
               ],
@@ -289,6 +291,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             _GeneralInfoTab(restaurant: restaurant),
             _OperatingHoursTab(restaurant: restaurant),
             _DeliverySettingsTab(restaurant: restaurant),
+            ClosuresTab(vendorId: restaurant.id),
             _SpecialtiesTab(restaurant: restaurant),
             _PreorderTab(restaurant: restaurant),
           ],
