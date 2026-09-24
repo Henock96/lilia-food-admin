@@ -16,7 +16,13 @@ enum IncidentType {
   stockIssue,
   wrongDelivery,
   refundRequest,
-  other;
+  other,
+
+  /// F3-04 — ouvert et clos par le système : une file « À traiter » en retard.
+  opsSlaBreach,
+
+  /// F3-04 — un indicateur (ex. taux d'échec de paiement) a franchi son seuil.
+  metricAnomaly;
 
   String get wireValue {
     switch (this) {
@@ -42,6 +48,10 @@ enum IncidentType {
         return 'REFUND_REQUEST';
       case IncidentType.other:
         return 'OTHER';
+      case IncidentType.opsSlaBreach:
+        return 'OPS_SLA_BREACH';
+      case IncidentType.metricAnomaly:
+        return 'METRIC_ANOMALY';
     }
   }
 
@@ -70,6 +80,10 @@ enum IncidentType {
         return 'Demande de remboursement';
       case IncidentType.other:
         return 'Autre';
+      case IncidentType.opsSlaBreach:
+        return 'À traiter en retard';
+      case IncidentType.metricAnomaly:
+        return 'Indicateur anormal';
     }
   }
 
@@ -95,6 +109,10 @@ enum IncidentType {
         return IncidentType.wrongDelivery;
       case 'REFUND_REQUEST':
         return IncidentType.refundRequest;
+      case 'OPS_SLA_BREACH':
+        return IncidentType.opsSlaBreach;
+      case 'METRIC_ANOMALY':
+        return IncidentType.metricAnomaly;
       case 'OTHER':
       default:
         return IncidentType.other;

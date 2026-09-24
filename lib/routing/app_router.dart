@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/features/ops/presentation/ops_queue_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_admin/features/auth/presentation/signin_page.dart';
@@ -296,6 +297,14 @@ GoRouter router(Ref ref) {
                     name: 'platform-settings',
                     pageBuilder: (context, state) => const MaterialPage(
                       child: _AdminOnlyGuard(child: PlatformSettingsScreen()),
+                    ),
+                  ),
+                  // Cockpit ops « À traiter » (F3-04), en lecture.
+                  GoRoute(
+                    path: 'a-traiter',
+                    name: 'admin-ops-queue',
+                    pageBuilder: (context, state) => const MaterialPage(
+                      child: _AdminOnlyGuard(child: OpsQueueScreen()),
                     ),
                   ),
                   GoRoute(

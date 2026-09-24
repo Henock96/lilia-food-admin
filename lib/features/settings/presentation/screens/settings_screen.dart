@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/features/ops/data/ops_queue_service.dart';
 import 'package:lilia_admin/features/closures/presentation/closures_tab.dart';
 import 'package:lilia_admin/features/delivery_pricing/data/delivery_pricing_service.dart';
 import 'package:lilia_admin/features/delivery_pricing/presentation/delivery_pricing_card.dart';
@@ -150,6 +151,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   ),
                 ],
               ),
+            ),
+            // Cockpit ops (F3-04) : en tête, c'est ce qui se regarde en premier.
+            Consumer(
+              builder: (context, ref, _) {
+                final total = ref
+                    .watch(opsQueueProvider)
+                    .maybeWhen(data: (q) => q.total, orElse: () => 0);
+                return _AdminMenuTile(
+                  icon: Icons.notification_important_outlined,
+                  iconColor: _AppColors.danger,
+                  title: total > 0 ? 'À traiter ($total)' : 'À traiter',
+                  subtitle: 'Commandes en retard, remboursements, incidents',
+                  onTap: () => context.goNamed('admin-ops-queue'),
+                );
+              },
             ),
             _AdminMenuTile(
               icon: Icons.storefront_outlined,
