@@ -61,6 +61,11 @@ List<OrderStatus> availableOrderTransitions({
     case OrderStatus.payer:
       return [OrderStatus.enpreparation, OrderStatus.annuler];
 
+    case OrderStatus.acceptee:
+      // Jamais rendu par un serveur antérieur à la Phase 3 (seul cas où ce
+      // repli sert) ; traité pour que le `switch` reste exhaustif.
+      return [OrderStatus.enpreparation, OrderStatus.annuler];
+
     case OrderStatus.enpreparation:
       return [OrderStatus.pret, OrderStatus.annuler];
 
@@ -88,6 +93,7 @@ List<OrderStatus> availableOrderTransitions({
     // construction : 403 pour le vendeur, 400 pour l'admin.
     case OrderStatus.livrer:
     case OrderStatus.annuler:
+    case OrderStatus.echecLivraison:
       return const []; // terminaux
 
     case OrderStatus.unknown:

@@ -12,7 +12,8 @@ import 'package:lilia_admin/features/admin/presentation/widgets/order_payout_car
 import 'package:lilia_admin/features/auth/user_sync_provider.dart';
 import 'package:lilia_admin/models/role.dart';
 import '../../../../models/order.dart';
-import '../../../../models/order_transitions.dart';
+import '../widgets/order_action_dispatch.dart';
+import '../widgets/order_actions_panel.dart';
 import '../../../../models/app_deliverer.dart';
 import '../../../deliveries/data/delivery_service.dart';
 import '../../data/order_controller.dart';
@@ -772,7 +773,8 @@ class OrderDetailScreen extends ConsumerWidget {
     }
 
     if (order.status == OrderStatus.livrer ||
-        order.status == OrderStatus.annuler) {
+        order.status == OrderStatus.annuler ||
+        order.status == OrderStatus.echecLivraison) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
@@ -808,14 +810,8 @@ class OrderDetailScreen extends ConsumerWidget {
       );
     }
 
-    // Source unique, partagée avec l'écran de liste et alignée sur
-    // `ORDER_TRANSITION_MATRIX` côté serveur. Les deux écrans portaient chacun
-    // leur copie, et elles avaient divergé — cf. `models/order_transitions.dart`.
-    final availableStatuses = availableOrderTransitions(
-      current: order.status,
-      role: ref.watch(currentUserProfileProvider)?.role ?? Role.unknown,
-      isDelivery: order.isDelivery,
-    );
+    // Gestes publiés par le serveur (`allowedActions`, règle R1) : cet écran
+    // ne recopie plus la matrice de transitions. Panneau partagé avec la liste.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -828,108 +824,13 @@ class OrderDetailScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 12),
-        ...availableStatuses.map((status) {
-          final info = _getStatusInfo(status);
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => _updateStatus(context, ref, order, status),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: info.color,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                icon: Icon(info.icon),
-                label: Text(
-                  info.label,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }),
+        OrderActionsPanel(
+          order: order,
+          role: ref.watch(currentUserProfileProvider)?.role ?? Role.unknown,
+          onAction: (request) => performOrderAction(context, ref, order, request),
+        ),
       ],
     );
-  }
-
-  Future<void> _updateStatus(
-    BuildContext context,
-    WidgetRef ref,
-    Order order,
-    OrderStatus status,
-  ) async {
-    if (status == OrderStatus.annuler) {
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Annuler la commande ?'),
-          content: const Text(
-            'Cette action est irréversible. Le client sera notifié.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Non'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Oui, annuler'),
-            ),
-          ],
-        ),
-      );
-      if (confirm != true) return;
-    }
-
-    try {
-      await ref
-          .read(restaurantOrdersProvider(null, '').notifier)
-          .updateOrderStatus(order.id, status);
-
-      if (context.mounted) {
-        final info = _getStatusInfo(status);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 8),
-                Text('Statut mis à jour: ${info.label}'),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        ref.invalidate(restaurantOrdersProvider);
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text('Erreur: $e')),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
   }
 
   _StatusInfo _getStatusInfo(OrderStatus status) {
@@ -945,6 +846,18 @@ class OrderDetailScreen extends ConsumerWidget {
           label: 'Payée',
           color: Colors.blue,
           icon: Icons.payment,
+        );
+      case OrderStatus.acceptee:
+        return _StatusInfo(
+          label: 'Acceptée',
+          color: Colors.lightGreen,
+          icon: Icons.thumb_up_alt_outlined,
+        );
+      case OrderStatus.echecLivraison:
+        return _StatusInfo(
+          label: 'Livraison non aboutie',
+          color: Colors.deepOrange,
+          icon: Icons.report_problem_outlined,
         );
       case OrderStatus.enpreparation:
         return _StatusInfo(

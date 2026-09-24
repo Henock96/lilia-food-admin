@@ -1,12 +1,18 @@
 // Models (can be moved to their own files)
+import 'order_actions.dart';
+
 enum OrderStatus {
   enattente,
   payer,
+  /// Acceptée par le vendeur, pas encore en préparation (Phase 3, F3-01).
+  acceptee,
   enpreparation,
   pret,
   enRoute,
   livrer,
   annuler,
+  /// Terminal : le repas est parti et n'est pas arrivé (F3-05).
+  echecLivraison,
   unknown
 }
 
@@ -21,11 +27,13 @@ extension OrderStatusWire on OrderStatus {
   String toWire() => switch (this) {
     OrderStatus.enattente => 'EN_ATTENTE',
     OrderStatus.payer => 'PAYER',
+    OrderStatus.acceptee => 'ACCEPTEE',
     OrderStatus.enpreparation => 'EN_PREPARATION',
     OrderStatus.pret => 'PRET',
     OrderStatus.enRoute => 'EN_ROUTE',
     OrderStatus.livrer => 'LIVRER',
     OrderStatus.annuler => 'ANNULER',
+    OrderStatus.echecLivraison => 'ECHEC_LIVRAISON',
     // `unknown` est ce que rend le parseur sur une valeur qu'il ne connaît
     // pas. La renvoyer au serveur n'aurait aucun sens : on le dit ici plutôt
     // que de laisser un `default` inventer un statut.
@@ -59,6 +67,15 @@ class Order {
   // LIL-124 : pré-commande (LIL-121)
   final bool isPreorder;
   final DateTime? scheduledFor;
+  // Phase 3, F3-01 — acceptation vendeur.
+  /// Gestes que le SERVEUR accepte sur cette commande, pour ce compte.
+  /// `null` = serveur antérieur qui ne les publie pas (repli, cf.
+  /// `resolveOrderActions`) ; liste vide = aucun geste permis.
+  final List<OrderAction>? allowedActions;
+  /// Au-delà, une commande payée non acceptée est annulée et remboursée.
+  final DateTime? acceptDeadlineAt;
+  /// Heure de fin de préparation annoncée au client à l'acceptation.
+  final DateTime? estimatedReadyAt;
 
   Order({
     required this.id,
@@ -81,6 +98,9 @@ class Order {
     this.customerId,
     this.isPreorder = false,
     this.scheduledFor,
+    this.allowedActions,
+    this.acceptDeadlineAt,
+    this.estimatedReadyAt,
   });
 
   Order copyWith({OrderStatus? status}) {
@@ -105,6 +125,9 @@ class Order {
       customerId: customerId,
       isPreorder: isPreorder,
       scheduledFor: scheduledFor,
+      allowedActions: allowedActions,
+      acceptDeadlineAt: acceptDeadlineAt,
+      estimatedReadyAt: estimatedReadyAt,
     );
   }
 
@@ -139,8 +162,14 @@ class Order {
       scheduledFor: json['scheduledFor'] != null
           ? DateTime.parse(json['scheduledFor'] as String)
           : null,
+      allowedActions: OrderAction.listFromWire(json['allowedActions']),
+      acceptDeadlineAt: _dateOrNull(json['acceptDeadlineAt']),
+      estimatedReadyAt: _dateOrNull(json['estimatedReadyAt']),
     );
   }
+
+  static DateTime? _dateOrNull(Object? raw) =>
+      raw is String ? DateTime.tryParse(raw) : null;
 
   /// Traduit le libellé backend en valeur d'enum.
   ///
@@ -156,6 +185,8 @@ class Order {
         return OrderStatus.enattente;
       case 'PAYER': // Corrige: c'etait 'PAYEZ' mais le backend utilise 'PAYER'
         return OrderStatus.payer;
+      case 'ACCEPTEE':
+        return OrderStatus.acceptee;
       case 'EN_PREPARATION':
         return OrderStatus.enpreparation;
       case 'PRET':
@@ -166,6 +197,8 @@ class Order {
         return OrderStatus.livrer;
       case 'ANNULER':
         return OrderStatus.annuler;
+      case 'ECHEC_LIVRAISON':
+        return OrderStatus.echecLivraison;
       default:
         return OrderStatus.unknown;
     }

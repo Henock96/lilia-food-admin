@@ -4,6 +4,7 @@ import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/features/auth/user_sync_provider.dart';
 import 'package:lilia_admin/models/order.dart';
 import 'package:lilia_admin/models/role.dart';
+import 'package:lilia_admin/models/vendor_rejection_reason.dart';
 
 import 'order_service.dart';
 
@@ -110,5 +111,27 @@ class RestaurantOrders extends _$RestaurantOrders {
       if (previous != null) state = AsyncData(previous);
       rethrow;
     }
+  }
+
+  /// Accepte une commande payée (F3-01). Pas de bascule optimiste : le statut
+  /// d'arrivée, l'heure de fin annoncée et les gestes suivants viennent du
+  /// serveur, on relit donc la liste.
+  Future<void> acceptOrder(String orderId, {required int prepMinutes}) async {
+    await ref
+        .read(orderServiceRepositoryProvider)
+        .acceptOrder(orderId, prepMinutes: prepMinutes);
+    ref.invalidateSelf();
+  }
+
+  /// Refuse une commande payée ou acceptée (F3-01) : le client est remboursé.
+  Future<void> rejectOrder(
+    String orderId, {
+    required VendorRejectionReason reason,
+    String? note,
+  }) async {
+    await ref
+        .read(orderServiceRepositoryProvider)
+        .rejectOrder(orderId, reason: reason, note: note);
+    ref.invalidateSelf();
   }
 }

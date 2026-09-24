@@ -8,7 +8,8 @@ import 'package:intl/intl.dart';
 import 'package:lilia_admin/core/utils/currency.dart';
 import 'package:lilia_admin/core/utils/date_format.dart';
 import '../../../../models/order.dart';
-import '../../../../models/order_transitions.dart';
+import '../widgets/order_action_dispatch.dart';
+import '../widgets/order_actions_panel.dart';
 import '../../../../models/role.dart';
 import '../../../../services/admin_tracking_socket_service.dart';
 import '../../data/order_controller.dart';
@@ -48,6 +49,7 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
   static const Set<OrderStatus> _activeStatuses = {
     OrderStatus.enattente,
     OrderStatus.payer,
+    OrderStatus.acceptee,
     OrderStatus.enpreparation,
     OrderStatus.pret,
     OrderStatus.enRoute,
@@ -57,6 +59,7 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
     null, // Toutes
     OrderStatus.enattente,
     OrderStatus.payer,
+    OrderStatus.acceptee,
     OrderStatus.enpreparation,
     OrderStatus.pret,
     OrderStatus.enRoute,
@@ -146,6 +149,10 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
         return 'En attente';
       case OrderStatus.payer:
         return 'Payée';
+      case OrderStatus.acceptee:
+        return 'Acceptée';
+      case OrderStatus.echecLivraison:
+        return 'Livraison non aboutie';
       case OrderStatus.enpreparation:
         return 'En préparation';
       case OrderStatus.pret:
@@ -1006,7 +1013,8 @@ class OrderCard extends ConsumerWidget {
   Widget _buildStatusChangeSection(BuildContext context, WidgetRef ref) {
     // Statuts terminaux - pas de changement possible
     if (order.status == OrderStatus.livrer ||
-        order.status == OrderStatus.annuler) {
+        order.status == OrderStatus.annuler ||
+        order.status == OrderStatus.echecLivraison) {
       return Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -1049,103 +1057,16 @@ class OrderCard extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          // Source unique, partagée avec l'écran de détail et alignée sur
-          // `ORDER_TRANSITION_MATRIX` côté serveur. Cet écran-ci proposait
-          // « Livrée » sur une commande à livrer, que le détail conditionnait
-          // pourtant déjà — deux écrans, deux règles.
-          children: availableOrderTransitions(
-            current: order.status,
-            role: ref.watch(currentUserProfileProvider)?.role ?? Role.unknown,
-            isDelivery: order.isDelivery,
-          ).map((status) {
-            final info = _getStatusInfo(status);
-            return _StatusButton(
-              label: info.label,
-              icon: info.icon,
-              color: info.color,
-              onPressed: () => _updateStatus(context, ref, status),
-            );
-          }).toList(),
+        // Gestes publiés par le serveur (`allowedActions`, règle R1) — panneau
+        // partagé avec l'écran de détail.
+        OrderActionsPanel(
+          order: order,
+          role: ref.watch(currentUserProfileProvider)?.role ?? Role.unknown,
+          compact: true,
+          onAction: (request) => performOrderAction(context, ref, order, request),
         ),
       ],
     );
-  }
-
-  Future<void> _updateStatus(
-    BuildContext context,
-    WidgetRef ref,
-    OrderStatus status,
-  ) async {
-    // Confirmation pour annulation
-    if (status == OrderStatus.annuler) {
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Annuler la commande ?'),
-          content: const Text(
-            'Cette action est irréversible. Le client sera notifié.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Non'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Oui, annuler'),
-            ),
-          ],
-        ),
-      );
-      if (confirm != true) return;
-    }
-
-    try {
-      await ref
-          .read(restaurantOrdersProvider(null, '').notifier)
-          .updateOrderStatus(order.id, status);
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 8),
-                Text('Statut mis à jour: ${_getStatusInfo(status).label}'),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-
-        // Rafraîchir la liste
-        ref.invalidate(restaurantOrdersProvider);
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text('Erreur: $e')),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-    }
   }
 
   _StatusInfo _getStatusInfo(OrderStatus status) {
@@ -1161,6 +1082,18 @@ class OrderCard extends ConsumerWidget {
           label: 'Payée',
           color: Colors.blue,
           icon: Icons.payment,
+        );
+      case OrderStatus.acceptee:
+        return _StatusInfo(
+          label: 'Acceptée',
+          color: Colors.lightGreen,
+          icon: Icons.thumb_up_alt_outlined,
+        );
+      case OrderStatus.echecLivraison:
+        return _StatusInfo(
+          label: 'Livraison non aboutie',
+          color: Colors.deepOrange,
+          icon: Icons.report_problem_outlined,
         );
       case OrderStatus.enpreparation:
         return _StatusInfo(
@@ -1193,35 +1126,6 @@ class OrderCard extends ConsumerWidget {
           icon: Icons.help_outline,
         );
     }
-  }
-}
-
-class _StatusButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onPressed;
-
-  const _StatusButton({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      icon: Icon(icon, size: 18),
-      label: Text(label, style: const TextStyle(fontSize: 13)),
-    );
   }
 }
 
