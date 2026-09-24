@@ -435,7 +435,23 @@ class _OrdersTab extends ConsumerWidget {
       next.whenData((page) => onOrdersLoaded(page.items));
     });
 
+    // Riverpod 3 relance tout seul un fournisseur en échec, avec un délai
+    // croissant. Entre deux tentatives, il repasse en « chargement » en
+    // gardant son erreur — et `when` choisissait le spinner. Une erreur sur
+    // « Toutes » s'affichait donc comme un chargement sans fin (24/09/2026).
+    // L'erreur connue prime ; la relance continue derrière, et la liste
+    // réapparaît dès qu'une tentative aboutit.
+    if (state.hasError && !state.hasValue) {
+      return _ErrorState(
+        error: state.error.toString(),
+        onRetry: () => ref.invalidate(restaurantOrdersProvider(status, search)),
+      );
+    }
+
     return state.when(
+      // Un rechargement (dépendance qui change, nouvel événement) garde la
+      // liste affichée au lieu de la remplacer par un spinner.
+      skipLoadingOnReload: true,
       data: (page) {
         final orders = applyTodayFilter(page.items);
 

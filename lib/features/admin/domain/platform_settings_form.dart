@@ -15,6 +15,7 @@
 ///   configuration a bougé depuis le chargement.
 library;
 
+import 'package:lilia_admin/core/network/api_exception.dart';
 import 'package:lilia_admin/features/admin/domain/app_update_rules.dart';
 import 'package:lilia_admin/models/platform_settings.dart';
 
@@ -187,4 +188,16 @@ SettingsPatchResult buildSettingsPatch(
   });
 
   return SettingsPatchResult(errors: errors, patch: patch);
+}
+
+/// Ce refus est-il le verrou optimiste perdu (« rechargez ») ?
+///
+/// Le code `SETTINGS_STALE` fait foi ; le texte exact du conflit reste
+/// reconnu pour un serveur antérieur au code.
+bool isStaleSettingsConflict(ApiException e) {
+  if (e.statusCode != 409) return false;
+  if (e.code != null) return e.code == 'SETTINGS_STALE';
+  return e.message.startsWith(
+    'La configuration a été modifiée par un autre administrateur',
+  );
 }

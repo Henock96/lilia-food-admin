@@ -117,7 +117,11 @@ void main() {
 
   testWidgets('409 : dialogue de conflit, pas de faux succès', (tester) async {
     final repo = _RecordingRepository(
-      error: const ApiException('conflit', statusCode: 409),
+      error: const ApiException(
+        'conflit',
+        statusCode: 409,
+        code: 'SETTINGS_STALE',
+      ),
     );
     await _pump(tester, repo);
 
