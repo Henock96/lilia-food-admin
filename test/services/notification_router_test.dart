@@ -72,6 +72,33 @@ void main() {
       expect(action.refresh, NotificationTarget.orders);
     });
 
+    // Sonnerie vendeur (F3-01) : une commande payée qui attend d'être
+    // acceptée doit se faire entendre, pas seulement rafraîchir la liste.
+    test('nouvelle commande en premier plan : déclenche l’alerte sonore', () {
+      final action = inForeground({'type': 'new_order', 'orderId': 'ord-1'});
+
+      expect(action.alertOrderId, 'ord-1');
+      expect(action.route, isNull);
+    });
+
+    test('nouvelle commande touchée depuis la barre : ouvre son détail', () {
+      final action = onTap({'type': 'new_order', 'orderId': 'ord-1'});
+
+      expect(
+        action.route,
+        const NotificationRoute('order-detail', pathParameters: {'id': 'ord-1'}),
+      );
+      // Le vendeur l'a déjà vue en touchant la notification : pas d'alerte.
+      expect(action.alertOrderId, isNull);
+    });
+
+    test('un autre message de commande ne sonne pas', () {
+      final action = inForeground(
+          {'type': 'status_update_restaurant', 'orderId': 'ord-1'});
+
+      expect(action.alertOrderId, isNull);
+    });
+
     test('un changement de statut rafraîchit la liste', () {
       final action = inForeground(
           {'type': 'status_update_restaurant', 'orderId': 'ord-1'});

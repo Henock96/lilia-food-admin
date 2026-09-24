@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Le carillon « nouvelle commande » n'est référencé que par son nom, à
+     l'exécution (canal `new_orders_channel`) : sans cette règle, la réduction
+     des ressources en release pourrait le supprimer. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/new_order" />

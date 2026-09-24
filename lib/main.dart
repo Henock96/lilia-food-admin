@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:lilia_admin/common_widgets/app_cached_image.dart';
 import 'package:lilia_admin/routing/app_router.dart';
+import 'package:lilia_admin/features/home/application/new_order_alerts.dart';
+import 'package:lilia_admin/features/home/presentation/widgets/new_order_alert_host.dart';
 import 'package:lilia_admin/services/notification_service.dart';
 import 'package:lilia_admin/theme/app_theme.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -42,7 +44,19 @@ void main() async {
       // Le contexte user (id/email/role) est attaché explicitement après login.
       options.sendDefaultPii = false;
     },
-    appRunner: () => runApp(ProviderScope(child: const MyApp())),
+    appRunner: () => runApp(
+      ProviderScope(
+        overrides: [
+          // La file d'alertes « nouvelle commande » coupe la sonnerie par le
+          // service de notifications ; neutre ailleurs (tests).
+          alertSilencerProvider.overrideWith(
+            (ref) => (orderId) =>
+                ref.read(notificationServiceProvider).silenceNewOrderAlarm(orderId),
+          ),
+        ],
+        child: const MyApp(),
+      ),
+    ),
   );
 }
 
@@ -59,6 +73,10 @@ class MyApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       title: 'Lilia Food Admin',
       theme: AppTheme.light,
+      // Au-dessus du routeur : l'alerte « nouvelle commande » recouvre
+      // n'importe quel écran (sonnerie vendeur, F3-01).
+      builder: (context, child) =>
+          NewOrderAlertHost(child: child ?? const SizedBox.shrink()),
     );
   }
 }
