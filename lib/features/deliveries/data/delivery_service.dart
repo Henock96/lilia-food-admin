@@ -35,12 +35,17 @@ class OrderDeliveryState {
   /// un autre en premier réflexe.
   bool get hasActiveDeliverer => isAssigned || isAccepted || isOnTheWay;
 
+  /// Le repas est encore au comptoir : le vendeur peut déclarer que personne
+  /// n'est venu le chercher (F3-05).
+  bool get canDeclareNoShow =>
+      deliveryId != null && (isAssigned || isAccepted);
+
   String get label => switch (status) {
     'ASSIGNER' => 'Livreur assigné — en attente de sa réponse',
     'ACCEPTER' => 'Le livreur a accepté et vient récupérer la commande',
     'EN_TRANSIT' => 'Le livreur est parti avec la commande',
     'LIVRER' => 'Commande livrée',
-    'ECHEC' => 'Livraison en échec — action requise',
+    'ECHEC' => 'Livraison en échec — Lilia réassigne ou tranche',
     _ => 'Aucun livreur assigné',
   };
 
@@ -74,6 +79,21 @@ class DeliveryService {
     await _api.patchJson(
       '/deliveries/by-order/$orderId/assign',
       body: {'delivererId': delivererId},
+    );
+  }
+
+  /// POST /deliveries/:id/failure — « aucun livreur n'est venu » (F3-05).
+  ///
+  /// Permis au vendeur **avant la récupération seulement** : une fois le repas
+  /// parti, il ne sait pas ce qui arrive (le serveur refuse). La commande ne
+  /// change pas : l'administration réassigne ou conclut l'échec.
+  Future<void> declareDriverNoShow(String deliveryId, {String? note}) async {
+    await _api.postJson(
+      '/deliveries/$deliveryId/failure',
+      body: {
+        'reason': 'DRIVER_NO_SHOW',
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      },
     );
   }
 
