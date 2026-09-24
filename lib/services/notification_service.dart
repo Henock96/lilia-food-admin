@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -7,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:lilia_admin/features/admin/presentation/providers/admin_vendors_provider.dart';
 import 'package:lilia_admin/features/auth/user_sync_provider.dart';
+import 'package:lilia_admin/features/home/application/new_order_alerts.dart';
 import 'package:lilia_admin/features/home/data/order_controller.dart';
 import 'package:lilia_admin/features/incidents/presentation/providers/incidents_provider.dart';
 import 'package:lilia_admin/firebase_options.dart';
@@ -35,6 +37,10 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   debugPrint('[ADMIN NOTIF] Message reçu en arrière-plan: ${message.data}');
 }
+
+/// Canal Android des commandes payées à accepter — même identifiant que celui
+/// que le serveur pose sur les pushs `new_order`.
+const kNewOrdersChannelId = 'new_orders_channel';
 
 class NotificationService {
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
@@ -95,7 +101,11 @@ class NotificationService {
       debugPrint(
         '[ADMIN NOTIF] Message foreground: ${message.notification?.title}',
       );
-      if (message.notification != null) {
+      if (message.data['type'] == 'new_order' &&
+          message.data['orderId'] is String) {
+        // Sonnerie répétée jusqu'à ce que le vendeur s'en occupe (F3-01).
+        _showNewOrderAlarm(message);
+      } else if (message.notification != null) {
         _showLocalNotification(message);
       }
       // Trigger foreground : on rafraîchit les données, mais on ne déplace pas
@@ -144,7 +154,68 @@ class NotificationService {
           AndroidFlutterLocalNotificationsPlugin
         >()
         ?.createNotificationChannel(channel);
+
+    // Canal propre aux commandes payées à accepter (F3-01) : carillon dédié
+    // (`res/raw/new_order.wav`), distinct des autres messages. Le serveur y
+    // envoie les pushs `new_order` ; en arrière-plan c'est ce canal qui sonne.
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            kNewOrdersChannelId,
+            'Nouvelles commandes',
+            description: 'Commandes payées à accepter — sonnerie dédiée.',
+            importance: Importance.max,
+            playSound: true,
+            sound: RawResourceAndroidNotificationSound('new_order'),
+            enableVibration: true,
+          ),
+        );
   }
+
+  /// Identifiant stable de la notification d'une commande : c'est lui qui
+  /// permet de couper SA sonnerie quand le vendeur s'en occupe.
+  static int _alarmId(String orderId) => orderId.hashCode & 0x7fffffff;
+
+  /// Notification « nouvelle commande » en premier plan : le drapeau Android
+  /// `FLAG_INSISTENT` (4) répète le son jusqu'à ce que la notification soit
+  /// touchée ou annulée — un téléphone posé en cuisine doit se faire entendre.
+  void _showNewOrderAlarm(RemoteMessage message) {
+    final orderId = message.data['orderId'] as String;
+    final notification = message.notification;
+    _localNotifications.show(
+      id: _alarmId(orderId),
+      title: notification?.title ?? '🔔 Nouvelle commande',
+      body: notification?.body ?? 'Une commande payée attend votre réponse',
+      notificationDetails: NotificationDetails(
+        android: AndroidNotificationDetails(
+          kNewOrdersChannelId,
+          'Nouvelles commandes',
+          channelDescription: 'Commandes payées à accepter — sonnerie dédiée.',
+          importance: Importance.max,
+          priority: Priority.max,
+          icon: '@mipmap/ic_launcher',
+          sound: const RawResourceAndroidNotificationSound('new_order'),
+          playSound: true,
+          enableVibration: true,
+          additionalFlags: Int32List.fromList(const <int>[4]),
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+      payload: jsonEncode(message.data),
+    );
+  }
+
+  /// Coupe la sonnerie d'une commande (le vendeur l'a vue, acceptée ou
+  /// remise à plus tard).
+  Future<void> silenceNewOrderAlarm(String orderId) =>
+      _localNotifications.cancel(id: _alarmId(orderId));
 
   void _onNotificationTapped(NotificationResponse response) {
     if (response.payload != null) {
@@ -188,6 +259,11 @@ class NotificationService {
         _ref.invalidate(userDataSynchronizerProvider);
       case null:
         break;
+    }
+
+    final alertOrderId = action.alertOrderId;
+    if (alertOrderId != null) {
+      _ref.read(newOrderAlertsProvider.notifier).raise(alertOrderId);
     }
 
     final route = action.route;

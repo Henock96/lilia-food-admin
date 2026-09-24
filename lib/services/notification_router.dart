@@ -38,7 +38,7 @@ class NotificationRoute {
 
 /// Ce que l'app doit faire en réponse à un message FCM.
 class NotificationAction {
-  const NotificationAction({this.refresh, this.route});
+  const NotificationAction({this.refresh, this.route, this.alertOrderId});
 
   /// Provider à invalider, `null` si rien à recharger.
   final NotificationTarget? refresh;
@@ -46,19 +46,26 @@ class NotificationAction {
   /// Écran à ouvrir, `null` hors d'un tap explicite.
   final NotificationRoute? route;
 
+  /// Commande payée à signaler en plein écran, avec sonnerie répétée jusqu'à
+  /// ce que le vendeur s'en occupe (F3-01). Seulement en premier plan : en
+  /// arrière-plan le système joue le son du canal `new_orders_channel`.
+  final String? alertOrderId;
+
   static const none = NotificationAction();
 
   @override
   bool operator ==(Object other) =>
       other is NotificationAction &&
       other.refresh == refresh &&
-      other.route == route;
+      other.route == route &&
+      other.alertOrderId == alertOrderId;
 
   @override
-  int get hashCode => Object.hash(refresh, route);
+  int get hashCode => Object.hash(refresh, route, alertOrderId);
 
   @override
-  String toString() => 'NotificationAction(refresh: $refresh, route: $route)';
+  String toString() =>
+      'NotificationAction(refresh: $refresh, route: $route, alert: $alertOrderId)';
 }
 
 /// Traduit le payload `data` d'un push FCM en action applicative.
@@ -107,6 +114,24 @@ class NotificationRouter {
         // true, son profil en cache est périmé.
         return const NotificationAction(
           refresh: NotificationTarget.vendorProfile,
+        );
+
+      case 'new_order':
+        final newOrderId = data['orderId'] as String?;
+        if (newOrderId == null || newOrderId.isEmpty) {
+          return const NotificationAction(refresh: NotificationTarget.orders);
+        }
+        return NotificationAction(
+          refresh: NotificationTarget.orders,
+          // Touchée : le vendeur l'a vue, on ouvre la commande. Reçue en
+          // premier plan : elle doit se faire entendre.
+          route: isTap
+              ? NotificationRoute(
+                  'order-detail',
+                  pathParameters: {'id': newOrderId},
+                )
+              : null,
+          alertOrderId: isTap ? null : newOrderId,
         );
 
       case 'preorder_reminder':
