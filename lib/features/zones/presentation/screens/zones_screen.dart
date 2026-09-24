@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/features/delivery_pricing/data/delivery_pricing_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_admin/core/utils/currency.dart';
 import '../providers/zones_provider.dart';
@@ -66,6 +67,24 @@ class _ZonesContent extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // F3-02 — en mode plateforme, le prix vient de la grille Lilia : les
+          // tarifs des zones ne s'appliquent plus, elles délimitent seulement
+          // les quartiers desservis.
+          if (ref.watch(currentDeliveryTariffProvider).value?.isPlatform ??
+              false) ...[
+            Card(
+              color: Theme.of(context).colorScheme.secondaryContainer,
+              child: const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Le prix de la livraison est désormais fixé par Lilia selon la '
+                  'distance. Les tarifs des zones ne s’appliquent plus : elles '
+                  'indiquent seulement les quartiers où vous livrez.',
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           // Info sur le mode de livraison
           Card(
             child: Padding(

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/features/delivery_pricing/data/delivery_pricing_service.dart';
+import 'package:lilia_admin/features/delivery_pricing/presentation/delivery_pricing_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../auth/controller/auth_controller.dart';
@@ -1512,11 +1514,41 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
   @override
   Widget build(BuildContext context) {
     final isZoneBased = _deliveryMode == 'ZONE_BASED';
+    // F3-02 — en mode plateforme, le prix vient de la grille Lilia : le mode
+    // et le tarif du vendeur ne fixent plus rien, on ne les propose plus.
+    final platform =
+        ref.watch(currentDeliveryTariffProvider).value?.isPlatform ?? false;
 
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
+        _SectionCard(
+          title: 'Prix de la livraison',
+          icon: Icons.local_shipping_outlined,
+          child: DeliveryPricingCard(
+            restaurant: widget.restaurant,
+            onSaved: () =>
+                ref.read(restaurantSettingsProvider.notifier).refresh(),
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (platform) ...[
+          _SectionCard(
+            title: 'Où vous livrez',
+            icon: Icons.map_outlined,
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => context.goNamed('delivery-zones'),
+                icon: const Icon(Icons.map_outlined),
+                label: const Text('Gérer les zones et quartiers'),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
         // Section Mode de tarification
+        if (!platform) ...[
         _SectionCard(
           title: 'Mode de tarification',
           icon: Icons.tune_outlined,
@@ -1632,6 +1664,7 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
             ),
           ),
         const SizedBox(height: 16),
+        ],
 
         _SectionCard(
           title: 'Temps de livraison estime',
