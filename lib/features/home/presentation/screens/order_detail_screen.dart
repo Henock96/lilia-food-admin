@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:lilia_admin/core/network/api_exception.dart';
 import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/core/utils/currency.dart';
 import 'package:lilia_admin/core/utils/date_format.dart';
@@ -1271,6 +1272,52 @@ class _DeliveryStateCard extends ConsumerWidget {
 
   final String orderId;
 
+  Future<void> _declareNoShow(
+    BuildContext context,
+    WidgetRef ref,
+    String deliveryId,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Aucun livreur n’est venu ?'),
+        content: const Text(
+          'La course sera déclarée en échec et le livreur retiré. '
+          'Lilia réassignera un livreur ou tranchera. '
+          'La commande n’est pas annulée.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Déclarer', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await DeliveryService(
+        ref.read(apiClientProvider),
+      ).declareDriverNoShow(deliveryId);
+      ref.invalidate(orderDeliveryStateProvider(orderId));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Échec déclaré : Lilia a été prévenue.')),
+        );
+      }
+    } on ApiException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stateAsync = ref.watch(orderDeliveryStateProvider(orderId));
@@ -1323,6 +1370,22 @@ class _DeliveryStateCard extends ConsumerWidget {
                         style: const TextStyle(fontSize: 13),
                       ),
                     ],
+                    // F3-05 — le repas attend au comptoir et personne ne
+                    // vient : le vendeur le déclare, Lilia réassigne.
+                    if (state.canDeclareNoShow)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            padding: EdgeInsets.zero,
+                          ),
+                          onPressed: () =>
+                              _declareNoShow(context, ref, state.deliveryId!),
+                          icon: const Icon(Icons.person_off_outlined, size: 18),
+                          label: const Text('Aucun livreur n’est venu'),
+                        ),
+                      ),
                   ],
                 ),
               ),
