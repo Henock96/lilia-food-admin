@@ -3,12 +3,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_admin/constants/app_size.dart';
 
 import '../controller/auth_controller.dart';
+import '../controller/pending_mfa_sign_in.dart';
 
 class SignInPage extends ConsumerWidget {
   const SignInPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // F3-08 — second facteur : demander le code de l'application.
+    ref.listen(pendingMfaSignInProvider, (prev, resolver) async {
+      if (resolver == null || prev != null) return;
+      final code = await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const TotpCodeDialog(),
+      );
+      if (code == null) {
+        ref.read(pendingMfaSignInProvider.notifier).clear();
+        return;
+      }
+      await ref.read(authControllerProvider.notifier).completeMfaSignIn(code);
+    });
     ref.listen(authControllerProvider, (prev, state) {
       if (state.hasError && !state.isLoading) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -219,6 +234,65 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// F3-08 — code à 6 chiffres de l'application d'authentification.
+class TotpCodeDialog extends StatefulWidget {
+  const TotpCodeDialog({super.key});
+
+  @override
+  State<TotpCodeDialog> createState() => _TotpCodeDialogState();
+}
+
+class _TotpCodeDialogState extends State<TotpCodeDialog> {
+  final _code = TextEditingController();
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Double authentification'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Saisissez le code à 6 chiffres affiché par votre application '
+            'd’authentification.',
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('totp-code'),
+            controller: _code,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 24, letterSpacing: 8),
+            decoration: const InputDecoration(counterText: '', hintText: '000000'),
+            onChanged: (_) => setState(() {}),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
+        FilledButton(
+          key: const Key('totp-submit'),
+          onPressed: isTotpCode(_code.text)
+              ? () => Navigator.pop(context, _code.text)
+              : null,
+          child: const Text('Valider'),
+        ),
+      ],
     );
   }
 }

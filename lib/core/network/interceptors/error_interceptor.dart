@@ -42,12 +42,18 @@ class ErrorInterceptor extends Interceptor {
         break;
     }
     final status = err.response?.statusCode;
-    final message = _extractMessage(err.response?.data) ?? _fallback;
+    final code = _extractCode(err.response?.data);
+    // F3-08 — un geste financier exige une authentification récente avec
+    // second facteur, que cette application ne sait pas redemander : il se
+    // fait depuis l'admin web. Le dire, plutôt que « confirmez votre code ».
+    final message = mfaWebOnlyCodes.contains(code)
+        ? mfaWebOnlyMessage
+        : _extractMessage(err.response?.data) ?? _fallback;
     return ApiException(
       message,
       statusCode: status,
       kind: _kindFor(status),
-      code: _extractCode(err.response?.data),
+      code: code,
     );
   }
 
@@ -76,3 +82,10 @@ class ErrorInterceptor extends Interceptor {
     return null;
   }
 }
+
+/// Codes serveur des gestes réservés à l'admin web (double authentification).
+const mfaWebOnlyCodes = {'MFA_REQUIRED', 'MFA_STEP_UP_REQUIRED'};
+
+const mfaWebOnlyMessage =
+    'Ce geste fait partir de l’argent : il se fait depuis l’admin web, qui '
+    'vous redemande votre code de double authentification.';

@@ -43,6 +43,30 @@ void main() {
     expect(e.kind, ApiErrorKind.unauthorized);
   });
 
+  group('F3-08 — gestes réservés à l’admin web (double authentification)', () {
+    for (final entry in {
+      'MFA_REQUIRED': 403,
+      'MFA_STEP_UP_REQUIRED': 401,
+    }.entries) {
+      test('${entry.key} : on renvoie vers l’admin web, code conservé', () {
+        final e = _mapResponse(entry.value, {
+          'message': 'Confirmez votre identité avec votre code pour ce geste.',
+          'error': {'code': entry.key},
+        });
+        expect(e.message, mfaWebOnlyMessage);
+        expect(e.code, entry.key);
+      });
+    }
+
+    test('un autre refus garde le message du serveur', () {
+      final e = _mapResponse(403, {
+        'message': 'Capacité manquante',
+        'error': {'code': 'CAPABILITY_REQUIRED'},
+      });
+      expect(e.message, 'Capacité manquante');
+    });
+  });
+
   test('timeout => kind timeout + message fallback', () {
     final interceptor = ErrorInterceptor();
     ApiException? captured;
