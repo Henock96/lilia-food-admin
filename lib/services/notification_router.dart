@@ -103,6 +103,21 @@ class NotificationRouter {
               : null,
         );
 
+      // F3-06 — réclamation ouverte, message du support, issue.
+      case 'claim_opened':
+      case 'claim_message':
+      case 'claim_resolved':
+        final claimId = data['claimId'] as String?;
+        if (claimId == null || claimId.isEmpty) return NotificationAction.none;
+        return NotificationAction(
+          route: isTap
+              ? NotificationRoute(
+                  'claim-detail',
+                  pathParameters: {'id': claimId},
+                )
+              : null,
+        );
+
       case 'vendor_pending_approval':
         return NotificationAction(
           refresh: NotificationTarget.pendingVendors,

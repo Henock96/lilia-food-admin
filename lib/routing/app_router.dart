@@ -25,6 +25,7 @@ import 'package:lilia_admin/features/admin/presentation/screens/platform_setting
 import 'package:lilia_admin/features/admin/presentation/screens/admin_vendors_screen.dart';
 import 'package:lilia_admin/features/deliveries/presentation/screens/delivery_tracking_screen.dart';
 import 'package:lilia_admin/features/incidents/presentation/screens/incidents_screen.dart';
+import 'package:lilia_admin/features/claims/presentation/claims_screens.dart';
 import 'package:lilia_admin/features/incidents/presentation/screens/incident_detail_screen.dart';
 import 'package:lilia_admin/features/photos/presentation/screens/photos_screen.dart';
 import 'package:lilia_admin/features/restaurant/presentation/providers/restaurant_provider.dart';
@@ -112,6 +113,23 @@ GoRouter router(Ref ref) {
                 ),
               );
             },
+          ),
+        ],
+      ),
+      // F3-06 — réclamations : vendeur (sa boutique) et support. Pas de garde
+      // admin : la portée est appliquée par le serveur.
+      GoRoute(
+        path: '/reclamations',
+        name: 'claims',
+        pageBuilder: (context, state) =>
+            const MaterialPage(child: ClaimsScreen()),
+        routes: [
+          GoRoute(
+            path: ':id',
+            name: 'claim-detail',
+            pageBuilder: (context, state) => MaterialPage(
+              child: ClaimDetailScreen(claimId: state.pathParameters['id']!),
+            ),
           ),
         ],
       ),

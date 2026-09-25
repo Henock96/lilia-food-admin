@@ -208,6 +208,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               onTap: () => context.goNamed('admin-audit-log'),
             ),
             _AdminMenuTile(
+              icon: Icons.support_agent_outlined,
+              iconColor: _AppColors.warning,
+              title: 'Réclamations',
+              subtitle: 'Demandes des clients sur une commande livrée',
+              onTap: () => context.pushNamed('claims'),
+            ),
+            _AdminMenuTile(
               icon: Icons.report_problem_outlined,
               iconColor: _AppColors.danger,
               title: 'Incidents',
@@ -257,6 +264,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
         ),
         actions: [
+          // F3-06 — ce que les clients signalent sur la boutique.
+          IconButton(
+            onPressed: () => context.pushNamed('claims'),
+            icon: const Icon(Icons.support_agent_outlined),
+            tooltip: 'Réclamations',
+          ),
           IconButton(
             onPressed: _showLogoutDialog,
             icon: const Icon(Icons.logout, color: _AppColors.danger),
