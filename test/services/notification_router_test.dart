@@ -124,4 +124,23 @@ void main() {
       expect(inForeground({'type': 'quelque_chose'}), NotificationAction.none);
     });
   });
+
+  group('réclamations (F3-06)', () {
+    test('au tap, ouvre la réclamation', () {
+      final action = router.resolve(
+        {'type': 'claim_opened', 'claimId': 'c1', 'orderId': 'o1'},
+        trigger: NotificationTrigger.tap,
+      );
+      expect(action.route?.name, 'claim-detail');
+      expect(action.route?.pathParameters, {'id': 'c1'});
+    });
+
+    test('au premier plan, ne déplace personne', () {
+      final action = router.resolve(
+        {'type': 'claim_message', 'claimId': 'c1'},
+        trigger: NotificationTrigger.foreground,
+      );
+      expect(action.route, isNull);
+    });
+  });
 }
