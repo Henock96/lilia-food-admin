@@ -28,6 +28,8 @@ Future<void> performOrderAction(
           reason: request.reason!,
           note: request.note,
         );
+      case OrderAction.handOver when request.pickupCode != null:
+        await controller.handOverPickupWithCode(order.id, request.pickupCode!);
       case OrderAction.startPreparation:
       case OrderAction.markReady:
       case OrderAction.handOver:
@@ -73,6 +75,8 @@ String _successMessage(OrderActionRequest request) => switch (request.action) {
       OrderAction.reject => 'Commande refusée — le client est remboursé',
       OrderAction.startPreparation => 'Commande en préparation',
       OrderAction.markReady => 'Commande prête',
+      OrderAction.handOver when request.pickupCode != null =>
+        'Commande remise — le code du client prouve la remise',
       OrderAction.handOver => 'Commande remise au client',
       OrderAction.cancel => 'Commande annulée',
     };

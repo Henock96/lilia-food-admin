@@ -322,6 +322,41 @@ void main() {
       await t.service.acceptOrder('o1', prepMinutes: 20);
     });
 
+    test('retrait (F3-07) : POST /orders/:id/pickup/handover avec le code', () async {
+      final t = build();
+      t.adapter.onPost(
+        '/orders/o1/pickup/handover',
+        (s) => s.reply(200, {'data': {'handedOver': true}}),
+        data: {'code': '4821'},
+      );
+
+      await t.service.handOverPickupWithCode('o1', '4821');
+    });
+
+    test('retrait (F3-07) : un code faux remonte en erreur, message serveur', () async {
+      final t = build();
+      t.adapter.onPost(
+        '/orders/o1/pickup/handover',
+        // Enveloppe réelle de `HttpExceptionFilter` : le message au premier
+        // niveau, le code métier dans `error`.
+        (s) => s.reply(400, {
+          'success': false,
+          'message': 'Code incorrect. 4 essais restants.',
+          'data': null,
+          'error': {'code': 'HANDOVER_CODE_INVALID'},
+          'statusCode': 400,
+        }),
+        data: {'code': '0000'},
+      );
+
+      await expectLater(
+        t.service.handOverPickupWithCode('o1', '0000'),
+        throwsA(
+          predicate((e) => e.toString().contains('Code incorrect')),
+        ),
+      );
+    });
+
     test('refuser : POST /orders/:id/reject avec motif et précision', () async {
       final t = build();
       t.adapter.onPost(

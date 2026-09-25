@@ -123,6 +123,15 @@ class RestaurantOrders extends _$RestaurantOrders {
     ref.invalidateSelf();
   }
 
+  /// Remet un retrait avec le code du client (F3-07). Pas de bascule
+  /// optimiste : un code faux laisse la commande prête.
+  Future<void> handOverPickupWithCode(String orderId, String code) async {
+    await ref
+        .read(orderServiceRepositoryProvider)
+        .handOverPickupWithCode(orderId, code);
+    ref.invalidateSelf();
+  }
+
   /// Refuse une commande payée ou acceptée (F3-01) : le client est remboursé.
   Future<void> rejectOrder(
     String orderId, {

@@ -10,6 +10,7 @@ import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/core/utils/currency.dart';
 import 'package:lilia_admin/core/utils/date_format.dart';
 import 'package:lilia_admin/features/admin/presentation/widgets/order_payout_card.dart';
+import 'package:lilia_admin/features/home/presentation/widgets/delivery_proof_card.dart';
 import 'package:lilia_admin/features/auth/user_sync_provider.dart';
 import 'package:lilia_admin/models/role.dart';
 import '../../../../models/order.dart';
@@ -120,6 +121,13 @@ class OrderDetailScreen extends ConsumerWidget {
             // Infos paiement
             _buildPaymentInfo(context, currentOrder),
             const SizedBox(height: 16),
+
+            // F3-07 — comment la remise est prouvée, et si le paiement du
+            // restaurant peut partir.
+            if (DeliveryProofCard.isRelevant(currentOrder)) ...[
+              DeliveryProofCard(order: currentOrder),
+              const SizedBox(height: 16),
+            ],
 
             // Paiement du restaurant — encaisser le client et payer le vendeur
             // sont deux décisions distinctes. La carte n'apparaît qu'à partir

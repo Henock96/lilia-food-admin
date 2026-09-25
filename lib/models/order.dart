@@ -76,6 +76,17 @@ class Order {
   final DateTime? acceptDeadlineAt;
   /// Heure de fin de préparation annoncée au client à l'acceptation.
   final DateTime? estimatedReadyAt;
+  // F3-07 — preuve de remise et échéance de versement.
+  /// Comment la remise est prouvée (`PICKUP_CODE`, `DELIVERY_CODE`…). `null`
+  /// avant la remise, ou sur une commande antérieure au dispositif.
+  final String? deliveryProof;
+  /// Instant de la remise, tous chemins confondus.
+  final DateTime? deliveredAt;
+  /// Retrait : le client a confirmé « J'ai récupéré ma commande ».
+  final DateTime? customerConfirmedAt;
+  /// Versement automatique au vendeur prévu à cette heure ; `null` = aucun
+  /// versement automatique (preuve insuffisante).
+  final DateTime? payoutDueAt;
 
   Order({
     required this.id,
@@ -101,6 +112,10 @@ class Order {
     this.allowedActions,
     this.acceptDeadlineAt,
     this.estimatedReadyAt,
+    this.deliveryProof,
+    this.deliveredAt,
+    this.customerConfirmedAt,
+    this.payoutDueAt,
   });
 
   Order copyWith({OrderStatus? status}) {
@@ -128,6 +143,10 @@ class Order {
       allowedActions: allowedActions,
       acceptDeadlineAt: acceptDeadlineAt,
       estimatedReadyAt: estimatedReadyAt,
+      deliveryProof: deliveryProof,
+      deliveredAt: deliveredAt,
+      customerConfirmedAt: customerConfirmedAt,
+      payoutDueAt: payoutDueAt,
     );
   }
 
@@ -165,6 +184,10 @@ class Order {
       allowedActions: OrderAction.listFromWire(json['allowedActions']),
       acceptDeadlineAt: _dateOrNull(json['acceptDeadlineAt']),
       estimatedReadyAt: _dateOrNull(json['estimatedReadyAt']),
+      deliveryProof: json['deliveryProof'] as String?,
+      deliveredAt: _dateOrNull(json['deliveredAt']),
+      customerConfirmedAt: _dateOrNull(json['customerConfirmedAt']),
+      payoutDueAt: _dateOrNull(json['payoutDueAt']),
     );
   }
 

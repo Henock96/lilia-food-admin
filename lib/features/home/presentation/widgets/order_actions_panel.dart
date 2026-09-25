@@ -14,6 +14,7 @@ class OrderActionRequest {
     this.prepMinutes,
     this.reason,
     this.note,
+    this.pickupCode,
   });
 
   final OrderAction action;
@@ -24,6 +25,10 @@ class OrderActionRequest {
   /// Refuser : motif en liste fermée, précision facultative.
   final VendorRejectionReason? reason;
   final String? note;
+
+  /// Remise d'un retrait : code montré par le client (F3-07). `null` = remise
+  /// sans code — le versement attend alors la confirmation du client.
+  final String? pickupCode;
 }
 
 /// Gestes possibles sur une commande (Phase 3, F3-01 — règle R1).
@@ -135,6 +140,15 @@ class OrderActionsPanel extends StatelessWidget {
           ),
         );
         if (confirmed == true) await onAction(OrderActionRequest(action));
+      case OrderAction.handOver when !order.isDelivery && role == Role.restaurateur:
+        // F3-07 — au comptoir, le code du client prouve la remise ; sans
+        // lui, le vendeur peut remettre quand même, mais son paiement attend
+        // la confirmation du client.
+        final request = await showDialog<OrderActionRequest>(
+          context: context,
+          builder: (_) => const HandOverPickupDialog(),
+        );
+        if (request != null) await onAction(request);
       case OrderAction.startPreparation:
       case OrderAction.markReady:
       case OrderAction.handOver:
@@ -345,6 +359,94 @@ class _AcceptDeadlineBadgeState extends State<AcceptDeadlineBadge> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Remise d'un retrait au comptoir (F3-07) : code du client, ou remise sans
+/// code. Rend l'[OrderActionRequest] ; `null` si le vendeur renonce.
+class HandOverPickupDialog extends StatefulWidget {
+  const HandOverPickupDialog({super.key});
+
+  @override
+  State<HandOverPickupDialog> createState() => _HandOverPickupDialogState();
+}
+
+class _HandOverPickupDialogState extends State<HandOverPickupDialog> {
+  final _code = TextEditingController();
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
+  bool get _complete => RegExp(r'^\d{4}$').hasMatch(_code.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Remettre la commande'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Demandez au client le code à 4 chiffres affiché dans son '
+            'application. Avec ce code, la remise est prouvée : votre '
+            'paiement peut partir sans attendre le client.',
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('pickup-handover-code'),
+            controller: _code,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            maxLength: 4,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 24, letterSpacing: 8),
+            decoration: const InputDecoration(
+              hintText: '0000',
+              counterText: '',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Sans code, votre paiement attendra que le client confirme le '
+            'retrait dans son application.',
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Retour'),
+        ),
+        TextButton(
+          key: const Key('pickup-handover-without-code'),
+          onPressed: () => Navigator.pop(
+            context,
+            const OrderActionRequest(OrderAction.handOver),
+          ),
+          child: const Text('Remettre sans code'),
+        ),
+        FilledButton(
+          key: const Key('pickup-handover-with-code'),
+          onPressed: _complete
+              ? () => Navigator.pop(
+                    context,
+                    OrderActionRequest(
+                      OrderAction.handOver,
+                      pickupCode: _code.text,
+                    ),
+                  )
+              : null,
+          child: const Text('Valider le code'),
+        ),
+      ],
     );
   }
 }
