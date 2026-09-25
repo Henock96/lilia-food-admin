@@ -98,6 +98,12 @@ class UserPage extends ConsumerWidget {
                           title: const Text('Mes Categories'),
                           onTap: () => context.goNamed('categories'),
                         ),
+                        // F3-09 — accompagnements au choix, suppléments.
+                        ListTile(
+                          leading: const Icon(Icons.checklist_outlined),
+                          title: const Text('Options & suppléments'),
+                          onTap: () => context.goNamed('options'),
+                        ),
                       ],
                       // Admin-only items
                       if (user.role == Role.admin) ...[

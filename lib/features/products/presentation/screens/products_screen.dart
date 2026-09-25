@@ -31,6 +31,11 @@ class ProductsScreen extends ConsumerWidget {
             tooltip: 'Gérer les sections de menu',
           ),
           IconButton(
+            icon: const Icon(Icons.checklist_outlined),
+            onPressed: () => context.goNamed('options'),
+            tooltip: 'Options & suppléments',
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => ref.read(productsProvider.notifier).refresh(),
             tooltip: 'Actualiser',

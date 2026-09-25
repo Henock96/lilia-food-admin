@@ -992,11 +992,25 @@ class OrderCard extends ConsumerWidget {
                               ),
                               const SizedBox(width: 10),
                               Expanded(
-                                child: Text(
-                                  item.productName,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.productName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    // F3-09 — options du client, en gras.
+                                    if (item.options.isNotEmpty)
+                                      Text(
+                                        item.optionsLabel,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
                               Text(

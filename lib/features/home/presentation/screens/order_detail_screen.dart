@@ -574,6 +574,16 @@ class OrderDetailScreen extends ConsumerWidget {
                                 fontSize: 12,
                               ),
                             ),
+                          // F3-09 — en gras : c'est ce que la cuisine prépare.
+                          if (item.options.isNotEmpty)
+                            Text(
+                              item.optionsLabel,
+                              key: const ValueKey('order-item-options'),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
                         ],
                       ),
                     ),

@@ -11,6 +11,7 @@ import 'package:lilia_admin/models/order.dart' as order_model;
 import 'package:lilia_admin/features/home/presentation/bottom_navigation_bar.dart';
 import 'package:lilia_admin/features/products/presentation/screens/products_screen.dart';
 import 'package:lilia_admin/features/categories/presentation/screens/categories_screen.dart';
+import 'package:lilia_admin/features/modifiers/presentation/screens/modifiers_screen.dart';
 import 'package:lilia_admin/features/menus/presentation/screens/menus_screen.dart';
 import 'package:lilia_admin/features/banners/presentation/screens/banners_screen.dart';
 import 'package:lilia_admin/features/admin/presentation/screens/create_restaurant_screen.dart';
@@ -384,6 +385,13 @@ GoRouter router(Ref ref) {
                 name: 'categories',
                 pageBuilder: (context, state) =>
                     const MaterialPage(child: CategoriesScreen()),
+              ),
+              // F3-09 — options & suppléments du vendeur.
+              GoRoute(
+                path: '/options',
+                name: 'options',
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: ModifiersScreen()),
               ),
               GoRoute(
                 path: '/menus',
