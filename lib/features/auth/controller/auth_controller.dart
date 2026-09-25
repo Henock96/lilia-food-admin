@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_admin/features/auth/app_user_model.dart';
 import 'package:lilia_admin/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_admin/services/notification_service.dart';
+import 'package:lilia_admin/features/auth/controller/pending_mfa_sign_in.dart';
 
 part 'auth_controller.g.dart';
 
@@ -27,6 +28,11 @@ class AuthController extends _$AuthController {
           .read(authRepositoryProvider)
           .signInWithEmailAndPassword(email: email, password: password);
       // L'état sera mis à jour par le stream authStateChanges
+    } on FirebaseAuthMultiFactorException catch (e) {
+      // F3-08 — compte protégé par la double authentification : Firebase
+      // attend le code de l'application ; l'écran le demande.
+      ref.read(pendingMfaSignInProvider.notifier).wait(e.resolver);
+      state = const AsyncValue.data(null);
     } on FirebaseAuthException catch (e, st) {
       final error = FirebaseAuthErrorHandler.handleException(e);
       final errorMessage = FirebaseAuthErrorHandler.getErrorMessage(error);
@@ -37,6 +43,38 @@ class AuthController extends _$AuthController {
       }
       state = AsyncValue.error(
         "Une erreur inconnue est survenue. Veuillez réessayer.",
+        st,
+      );
+    }
+  }
+
+  /// Termine une connexion interrompue par le second facteur (TOTP).
+  Future<void> completeMfaSignIn(String code) async {
+    final resolver = ref.read(pendingMfaSignInProvider);
+    if (resolver == null) return;
+    final hint = totpHint(resolver.hints);
+    if (hint == null) {
+      state = AsyncValue.error(
+        'Ce compte n’a pas d’application d’authentification associée.',
+        StackTrace.current,
+      );
+      return;
+    }
+    state = const AsyncValue.loading();
+    try {
+      final assertion = await TotpMultiFactorGenerator.getAssertionForSignIn(
+        hint.uid,
+        code,
+      );
+      await resolver.resolveSignIn(assertion);
+      ref.read(pendingMfaSignInProvider.notifier).clear();
+    } on FirebaseAuthException catch (e, st) {
+      state = AsyncValue.error(
+        e.code == 'invalid-verification-code'
+            ? 'Code incorrect ou expiré. Saisissez le code actuellement affiché.'
+            : FirebaseAuthErrorHandler.getErrorMessage(
+                FirebaseAuthErrorHandler.handleException(e),
+              ),
         st,
       );
     }
