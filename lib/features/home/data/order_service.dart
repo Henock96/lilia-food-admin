@@ -149,6 +149,16 @@ class OrderService {
     );
   }
 
+  /// Retrait au comptoir : remise avec le code que le client montre (F3-07).
+  /// Code bon ⇒ commande remise et versement programmé ; code faux ⇒ 400 avec
+  /// les essais restants.
+  Future<void> handOverPickupWithCode(String orderId, String code) async {
+    await _api.postJson(
+      '/orders/$orderId/pickup/handover',
+      body: {'code': code},
+    );
+  }
+
   /// Refuse une commande payée ou acceptée : le client est remboursé.
   Future<void> rejectOrder(
     String orderId, {

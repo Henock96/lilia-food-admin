@@ -122,4 +122,82 @@ void main() {
 
     expect(requests.single.action, OrderAction.markReady);
   });
+
+  group('retrait au comptoir (F3-07)', () {
+    Order pickup() => Order.fromJson({
+          'id': 'o-2',
+          'total': 4000,
+          'createdAt': '2026-09-25T12:00:00.000Z',
+          'status': 'PRET',
+          'isDelivery': false,
+          'items': [],
+          'allowedActions': ['HAND_OVER'],
+        });
+
+    Future<void> pumpAs(WidgetTester tester, Order order, Role role) async {
+      requests = [];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: OrderActionsPanel(
+              order: order,
+              role: role,
+              onAction: (request) async => requests.add(request),
+            ),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('le vendeur saisit le code du client', (tester) async {
+      await pumpAs(tester, pickup(), Role.restaurateur);
+      await tester.tap(find.text('Remise au client'));
+      await tester.pumpAndSettle();
+
+      final validate = find.byKey(const Key('pickup-handover-with-code'));
+      // Tant que le code n'a pas 4 chiffres, on ne valide pas.
+      expect(tester.widget<FilledButton>(validate).onPressed, isNull);
+      await tester.enterText(find.byKey(const Key('pickup-handover-code')), '482');
+      await tester.pump();
+      expect(tester.widget<FilledButton>(validate).onPressed, isNull);
+
+      await tester.enterText(find.byKey(const Key('pickup-handover-code')), '4821');
+      await tester.pump();
+      await tester.tap(validate);
+      await tester.pumpAndSettle();
+
+      expect(requests.single.action, OrderAction.handOver);
+      expect(requests.single.pickupCode, '4821');
+    });
+
+    testWidgets('remettre sans code reste possible (D-P1)', (tester) async {
+      await pumpAs(tester, pickup(), Role.restaurateur);
+      await tester.tap(find.text('Remise au client'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('pickup-handover-without-code')));
+      await tester.pumpAndSettle();
+
+      expect(requests.single.action, OrderAction.handOver);
+      expect(requests.single.pickupCode, isNull);
+    });
+
+    testWidgets('renoncer : rien ne part', (tester) async {
+      await pumpAs(tester, pickup(), Role.restaurateur);
+      await tester.tap(find.text('Remise au client'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Retour'));
+      await tester.pumpAndSettle();
+
+      expect(requests, isEmpty);
+    });
+
+    testWidgets('l’admin clôture sans saisir de code (arbitrage)', (tester) async {
+      await pumpAs(tester, pickup(), Role.admin);
+      await tester.tap(find.text('Remise au client'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('pickup-handover-code')), findsNothing);
+      expect(requests.single.pickupCode, isNull);
+    });
+  });
 }
