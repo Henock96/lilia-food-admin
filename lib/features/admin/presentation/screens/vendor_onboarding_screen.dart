@@ -1,3 +1,4 @@
+import 'package:lilia_admin/features/admin/domain/approval_response.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -85,15 +86,18 @@ class _VendorOnboardingScreenState
   /// couverture, commission) ne retiennent personne.
   Future<void> _save(
     Future<void> Function() action,
-    String successMessage,
-  ) async {
+    String successMessage, {
+    // F3-08 — certains gestes ne s'appliquent pas tout de suite : le message
+    // dépend de la réponse du serveur.
+    String Function()? resolveMessage,
+  }) async {
     if (_saving) return;
     setState(() => _saving = true);
     try {
       await action();
       await _refresh();
       if (!mounted) return;
-      _toast(successMessage);
+      _toast(resolveMessage?.call() ?? successMessage);
       if (_step < _steps.length - 1 && canLeaveStep(_steps[_step], _report)) {
         setState(() => _step++);
       }
@@ -301,14 +305,22 @@ class _VendorOnboardingScreenState
     'Paramètres commerciaux enregistrés',
   );
 
-  Future<void> _savePayoutAccount(String phone, String provider) => _save(
-    () => _service.updatePayoutAccount(
-      _vendor.id,
-      payoutPhoneNumber: phone,
-      payoutProvider: provider,
-    ),
-    'Compte de reversement enregistré',
-  );
+  Future<void> _savePayoutAccount(String phone, String provider) {
+    var pending = false;
+    return _save(
+      () async {
+        pending = await _service.updatePayoutAccount(
+          _vendor.id,
+          payoutPhoneNumber: phone,
+          payoutProvider: provider,
+        );
+      },
+      'Compte de reversement enregistré',
+      resolveMessage: () => pending
+          ? payoutChangePendingMessage
+          : 'Compte de reversement enregistré',
+    );
+  }
 
   Future<void> _activate({bool skipRecommendations = false}) async {
     if (_saving) return;

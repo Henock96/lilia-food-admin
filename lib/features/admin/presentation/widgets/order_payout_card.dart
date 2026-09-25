@@ -1,3 +1,4 @@
+import 'package:lilia_admin/features/admin/domain/approval_response.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -562,14 +563,18 @@ class _OrderPayoutCardState extends ConsumerState<OrderPayoutCard> {
     if (saved != true || !mounted) return;
 
     try {
-      await ref.read(adminOperationsRepositoryProvider).updateVendorPayoutAccount(
+      final pending = await ref
+          .read(adminOperationsRepositoryProvider)
+          .updateVendorPayoutAccount(
             restaurantId: f.restaurantId,
             phoneNumber: phoneController.text.trim(),
             provider: provider,
             accountName: nameController.text.trim(),
           );
       if (!mounted) return;
-      _snack('Compte de reversement enregistré.');
+      _snack(
+        pending ? payoutChangePendingMessage : 'Compte de reversement enregistré.',
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       _snack(e.message, isError: true);

@@ -1,3 +1,4 @@
+import 'package:lilia_admin/features/admin/domain/approval_response.dart';
 import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/utils/api_response.dart';
 import 'package:lilia_admin/models/admin_payment.dart';
@@ -326,13 +327,15 @@ class AdminOperationsRepository {
 
   /// Enregistre le compte Mobile Money de reversement d'un vendeur
   /// (PATCH /admin/vendors/:id/payout-account).
-  Future<void> updateVendorPayoutAccount({
+  ///
+  /// Rend `true` si un second administrateur doit approuver (F3-08).
+  Future<bool> updateVendorPayoutAccount({
     required String restaurantId,
     required String phoneNumber,
     required String provider,
     String? accountName,
   }) async {
-    await _api.patchJson(
+    final res = await _api.patchJson(
       '/admin/vendors/$restaurantId/payout-account',
       body: {
         'payoutPhoneNumber': phoneNumber,
@@ -341,5 +344,6 @@ class AdminOperationsRepository {
           'payoutAccountName': accountName,
       },
     );
+    return isApprovalRequested(res.data);
   }
 }
