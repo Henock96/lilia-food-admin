@@ -1,3 +1,4 @@
+import 'package:lilia_admin/features/admin/domain/approval_response.dart';
 import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/utils/api_response.dart';
 
@@ -154,18 +155,23 @@ class VendorOnboardingService {
   /// compte vendeur compromis détournerait sinon tous les reversements.
   ///
   /// [payoutProvider] : `MTN_MOMO` ou `AIRTEL_MONEY`.
-  Future<void> updatePayoutAccount(
+  ///
+  /// Rend `true` si le serveur a ouvert une **demande d'approbation** (F3-08) :
+  /// remplacer un numéro existant exige un second administrateur, et rien n'a
+  /// changé. La première saisie s'applique directement (`false`).
+  Future<bool> updatePayoutAccount(
     String restaurantId, {
     required String payoutPhoneNumber,
     required String payoutProvider,
     String? payoutAccountName,
   }) async {
-    await _api.patchJson('/admin/vendors/$restaurantId/payout-account', body: {
+    final res = await _api.patchJson('/admin/vendors/$restaurantId/payout-account', body: {
       'payoutPhoneNumber': payoutPhoneNumber,
       'payoutProvider': payoutProvider,
       if (payoutAccountName != null && payoutAccountName.isNotEmpty)
         'payoutAccountName': payoutAccountName,
     });
+    return isApprovalRequested(res.data);
   }
 
   /// Étape 10 — active la boutique. Le backend refuse (409) si la checklist
