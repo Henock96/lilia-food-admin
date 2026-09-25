@@ -264,6 +264,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
         ),
         actions: [
+          // F3-07 — ce que la boutique a reçu et va recevoir.
+          IconButton(
+            onPressed: () => context.pushNamed('earnings'),
+            icon: const Icon(Icons.account_balance_wallet_outlined),
+            tooltip: 'Mes gains',
+          ),
           // F3-06 — ce que les clients signalent sur la boutique.
           IconButton(
             onPressed: () => context.pushNamed('claims'),

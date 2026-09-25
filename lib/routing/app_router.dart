@@ -26,6 +26,7 @@ import 'package:lilia_admin/features/admin/presentation/screens/admin_vendors_sc
 import 'package:lilia_admin/features/deliveries/presentation/screens/delivery_tracking_screen.dart';
 import 'package:lilia_admin/features/incidents/presentation/screens/incidents_screen.dart';
 import 'package:lilia_admin/features/claims/presentation/claims_screens.dart';
+import 'package:lilia_admin/features/earnings/presentation/earnings_screen.dart';
 import 'package:lilia_admin/features/incidents/presentation/screens/incident_detail_screen.dart';
 import 'package:lilia_admin/features/photos/presentation/screens/photos_screen.dart';
 import 'package:lilia_admin/features/restaurant/presentation/providers/restaurant_provider.dart';
@@ -115,6 +116,14 @@ GoRouter router(Ref ref) {
             },
           ),
         ],
+      ),
+      // F3-07 — « Mes gains » : versements du vendeur. Pas de garde : la
+      // route serveur est réservée au RESTAURATEUR et bornée à ses boutiques.
+      GoRoute(
+        path: '/gains',
+        name: 'earnings',
+        pageBuilder: (context, state) =>
+            const MaterialPage(child: EarningsScreen()),
       ),
       // F3-06 — réclamations : vendeur (sa boutique) et support. Pas de garde
       // admin : la portée est appliquée par le serveur.
