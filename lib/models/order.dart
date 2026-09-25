@@ -228,12 +228,46 @@ class Order {
   }
 }
 
+/// F3-09 — option figée sur une ligne de commande (« Alloco », « Œuf ×2 »).
+///
+/// Recopiée à la commande : renommer ou supprimer l'option ensuite ne change
+/// rien à ce que la cuisine doit préparer pour cette commande.
+class OrderItemOption {
+  final String groupName;
+  final String optionName;
+  final int priceDeltaXaf;
+  final int quantity;
+
+  const OrderItemOption({
+    required this.groupName,
+    required this.optionName,
+    this.priceDeltaXaf = 0,
+    this.quantity = 1,
+  });
+
+  factory OrderItemOption.fromJson(Map<String, dynamic> json) =>
+      OrderItemOption(
+        groupName: json['groupName'] as String? ?? '',
+        optionName: json['optionName'] as String? ?? 'Option',
+        priceDeltaXaf: (json['priceDeltaXaf'] as num?)?.toInt() ?? 0,
+        quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+      );
+
+  /// « Œuf ×2 » — le supplément est déjà compris dans le prix de la ligne.
+  String get label => quantity > 1 ? '$optionName ×$quantity' : optionName;
+}
+
 class OrderItem {
   final String productName;
   final String? productImageUrl;
   final int quantite;
+
+  /// Prix unitaire figé — **options comprises** (F3-09, décision Q1).
   final double prix;
   final String? variant;
+
+  /// F3-09 — ce que le client a choisi ; à préparer tel quel.
+  final List<OrderItemOption> options;
 
   OrderItem({
     required this.productName,
@@ -241,7 +275,11 @@ class OrderItem {
     required this.quantite,
     required this.prix,
     this.variant,
+    this.options = const [],
   });
+
+  /// « Alloco · Œuf ×2 », vide sans option.
+  String get optionsLabel => options.map((o) => o.label).join(' · ');
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
     final productMap = json['product'] as Map<String, dynamic>?;
@@ -252,6 +290,11 @@ class OrderItem {
       quantite: (json['quantite'] as num?)?.toInt() ?? 0,
       prix: (json['prix'] as num?)?.toDouble() ?? 0.0,
       variant: json['variant'] as String?,
+      // Absent des commandes antérieures à F3-09 : aucune option.
+      options: ((json['options'] as List?) ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(OrderItemOption.fromJson)
+          .toList(),
     );
   }
 }
