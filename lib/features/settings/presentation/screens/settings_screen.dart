@@ -264,6 +264,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
         ),
         actions: [
+          // F3-11 — les offres que la boutique finance.
+          IconButton(
+            onPressed: () => context.pushNamed('offers'),
+            icon: const Icon(Icons.local_offer_outlined),
+            tooltip: 'Mes offres',
+          ),
           // F3-07 — ce que la boutique a reçu et va recevoir.
           IconButton(
             onPressed: () => context.pushNamed('earnings'),
