@@ -116,6 +116,40 @@ class ProductService {
     return Product.fromJson(productJson);
   }
 
+  /// F3-10 — gestes de stock : « Réapprovisionner +N » (`RESTOCK`, ajoute N
+  /// au restant, sans perdre une vente faite pendant la saisie) et « Faire
+  /// l'inventaire = N » (`COUNT`, stock réel seulement : le serveur retire
+  /// les unités déjà réservées par des commandes pas encore parties).
+  Future<({Product product, int? reservedAtVendor})> adjustStock(
+    String productId, {
+    required String action,
+    required int units,
+  }) async {
+    final res = await _api.patchJson(
+      '/products/$productId/stock',
+      body: {'action': action, 'units': units},
+    );
+    final body = res.data as Map<String, dynamic>;
+    final productJson = body['data'] as Map<String, dynamic>?;
+    if (productJson == null) {
+      throw Exception('Product data is null in response');
+    }
+    return (
+      product: Product.fromJson(productJson),
+      reservedAtVendor: (body['reservedAtVendor'] as num?)?.toInt(),
+    );
+  }
+
+  /// F3-10 — la plateforme accepte-t-elle les formats de plusieurs unités ?
+  /// Lu sur la route publique `GET /platform-settings` ; absent (serveur
+  /// antérieur) = non.
+  Future<bool> multiUnitVariantsEnabled() async {
+    final res = await _api.getJson('/platform-settings');
+    final data = (res.data as Map<String, dynamic>?)?['data'];
+    return data is Map<String, dynamic> &&
+        data['multiUnitVariantsEnabled'] == true;
+  }
+
   /// Retire ou remet un produit à la vente — `PATCH /products/:id/availability`.
   ///
   /// La route existe côté serveur depuis le fix M2 d'août 2026 et **aucun

@@ -50,6 +50,51 @@ final class ProductServiceProvider
 
 String _$productServiceHash() => r'585339dce0c6b80a447b8653aa1234e2a81e2317';
 
+/// F3-10 — interrupteur plateforme des formats de plusieurs unités (carton,
+/// pack). Le serveur refuse de toute façon (`MULTI_UNIT_DISABLED`) : ceci
+/// évite seulement de proposer un champ que l'enregistrement refuserait.
+
+@ProviderFor(multiUnitVariantsEnabled)
+final multiUnitVariantsEnabledProvider = MultiUnitVariantsEnabledProvider._();
+
+/// F3-10 — interrupteur plateforme des formats de plusieurs unités (carton,
+/// pack). Le serveur refuse de toute façon (`MULTI_UNIT_DISABLED`) : ceci
+/// évite seulement de proposer un champ que l'enregistrement refuserait.
+
+final class MultiUnitVariantsEnabledProvider
+    extends $FunctionalProvider<AsyncValue<bool>, bool, FutureOr<bool>>
+    with $FutureModifier<bool>, $FutureProvider<bool> {
+  /// F3-10 — interrupteur plateforme des formats de plusieurs unités (carton,
+  /// pack). Le serveur refuse de toute façon (`MULTI_UNIT_DISABLED`) : ceci
+  /// évite seulement de proposer un champ que l'enregistrement refuserait.
+  MultiUnitVariantsEnabledProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'multiUnitVariantsEnabledProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$multiUnitVariantsEnabledHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<bool> create(Ref ref) {
+    return multiUnitVariantsEnabled(ref);
+  }
+}
+
+String _$multiUnitVariantsEnabledHash() =>
+    r'505d168c024fc7005a0dfd3c0557a2e036583e7d';
+
 /// Catalogue du vendeur courant (`catalogScopeProvider`).
 ///
 /// La **lecture** est filtrée par `restaurantId` en query — c'est un filtre, il
@@ -96,7 +141,7 @@ final class ProductsProvider
   Products create() => Products();
 }
 
-String _$productsHash() => r'f89e683aa98a7fe84376bc3d9010515a03a37e02';
+String _$productsHash() => r'749d77c21e267de7c689555e59b461233e32dfb7';
 
 /// Catalogue du vendeur courant (`catalogScopeProvider`).
 ///

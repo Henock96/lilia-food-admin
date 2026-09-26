@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_admin/core/utils/currency.dart';
 import '../../../../models/product.dart';
+import '../../../../models/stock_policy.dart';
 import '../../../catalog/catalog_scope.dart';
 import '../providers/products_provider.dart';
 import 'product_form_screen.dart';
@@ -318,9 +319,14 @@ class _ProductCard extends ConsumerWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    product.isInStock
-                        ? 'Stock: ${product.stockRestant}/${product.stockQuotidien}'
-                        : 'Épuisé',
+                    !product.isInStock
+                        ? 'Épuisé'
+                        // F3-10 — en unités (« 52 bouteilles »), pour qu'un
+                        // vendeur ne confonde jamais bouteilles et cartons.
+                        : product.stockPolicy == StockPolicy.DAILY_QUOTA
+                            ? 'Aujourd’hui : ${product.stockUnit.format(product.stockRestant ?? 0)}'
+                                ' sur ${product.stockQuotidien}'
+                            : 'En stock : ${product.stockUnit.format(product.stockRestant ?? 0)}',
                     style: TextStyle(
                       color: product.isInStock ? Colors.blue : Colors.red,
                       fontSize: 12,
@@ -364,6 +370,8 @@ class _ProductCard extends ConsumerWidget {
               }
             } else if (value == 'restock') {
               await _promptRestock(context, ref, product);
+            } else if (value == 'add' || value == 'count') {
+              await _promptGesture(context, ref, product, value);
             } else if (value == 'delete') {
               final confirm = await showDialog<bool>(
                 context: context,
@@ -436,13 +444,35 @@ class _ProductCard extends ConsumerWidget {
                 ],
               ),
             ),
+            if (product.stockPolicy != StockPolicy.UNLIMITED)
+              const PopupMenuItem(
+                value: 'add',
+                child: Row(
+                  children: [
+                    Icon(Icons.add_box_outlined, size: 20),
+                    SizedBox(width: 8),
+                    Text('Réapprovisionner (+)'),
+                  ],
+                ),
+              ),
+            if (product.stockPolicy == StockPolicy.INVENTORY)
+              const PopupMenuItem(
+                value: 'count',
+                child: Row(
+                  children: [
+                    Icon(Icons.fact_check_outlined, size: 20),
+                    SizedBox(width: 8),
+                    Text('Faire l’inventaire'),
+                  ],
+                ),
+              ),
             const PopupMenuItem(
               value: 'restock',
               child: Row(
                 children: [
                   Icon(Icons.refresh, size: 20),
                   SizedBox(width: 8),
-                  Text('Réapprovisionner'),
+                  Text('Fixer la quantité'),
                 ],
               ),
             ),
@@ -564,6 +594,103 @@ class _ProductCard extends ConsumerWidget {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      }
+    }
+  }
+
+  /// F3-10 — « Réapprovisionner (+N) » et « Faire l’inventaire (= N) ».
+  ///
+  /// Le premier ajoute au stock sans l'écraser : une vente faite pendant que
+  /// le vendeur saisissait n'est plus perdue. Le second part de ce que le
+  /// vendeur compte sur place ; le serveur en retire les unités déjà
+  /// réservées par des commandes pas encore parties (elles sont encore en
+  /// rayon, mais déjà vendues).
+  Future<void> _promptGesture(
+    BuildContext context,
+    WidgetRef ref,
+    Product product,
+    String gesture,
+  ) async {
+    final isCount = gesture == 'count';
+    final unit = product.stockUnit;
+    final controller = TextEditingController();
+    final value = await showDialog<String?>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isCount
+            ? 'Inventaire « ${product.name} »'
+            : 'Réapprovisionner « ${product.name} »'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'En stock : ${unit.format(product.stockRestant ?? 0)}',
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: isCount
+                    ? '${unit.title} comptées sur place'
+                    : '${unit.title} reçues',
+                helperText: isCount
+                    ? 'Comptez tout, même ce qui attend d’être récupéré.'
+                    : 'Toujours en ${unit.plural}, pas en cartons.',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, controller.text.trim()),
+            child: Text(isCount ? 'Enregistrer' : 'Ajouter'),
+          ),
+        ],
+      ),
+    );
+    if (value == null) return;
+    final units = int.tryParse(value);
+    if (units == null || units < 0) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Indiquez un nombre entier d’unités')),
+        );
+      }
+      return;
+    }
+    try {
+      final reserved = await ref.read(productsProvider.notifier).adjustStock(
+            product.id,
+            action: isCount ? 'COUNT' : 'RESTOCK',
+            units: units,
+          );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isCount
+                  ? (reserved ?? 0) > 0
+                      ? 'Inventaire enregistré : ${unit.format(units)}, dont '
+                          '${unit.format(reserved!)} déjà réservées par des commandes.'
+                      : 'Inventaire enregistré : ${unit.format(units)}.'
+                  : '${unit.format(units)} ajoutées au stock.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     }
   }

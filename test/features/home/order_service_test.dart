@@ -372,6 +372,24 @@ void main() {
       );
     });
 
+    test('refuser pour rupture : les produits manquants sont désignés (F3-10)', () async {
+      final t = build();
+      t.adapter.onPost(
+        '/orders/o1/reject',
+        (s) => s.reply(200, {'data': orderJson('o1', status: 'ANNULER')}),
+        data: {
+          'reason': 'OUT_OF_STOCK',
+          'outOfStockProductIds': ['vin'],
+        },
+      );
+
+      await t.service.rejectOrder(
+        'o1',
+        reason: VendorRejectionReason.outOfStock,
+        outOfStockProductIds: const ['vin'],
+      );
+    });
+
     test('refuser sans précision : la note n’est pas envoyée', () async {
       final t = build();
       t.adapter.onPost(

@@ -258,6 +258,8 @@ class OrderItemOption {
 }
 
 class OrderItem {
+  /// F3-10 — pour désigner les produits en rupture lors d'un refus.
+  final String? productId;
   final String productName;
   final String? productImageUrl;
   final int quantite;
@@ -270,6 +272,7 @@ class OrderItem {
   final List<OrderItemOption> options;
 
   OrderItem({
+    this.productId,
     required this.productName,
     this.productImageUrl,
     required this.quantite,
@@ -285,6 +288,7 @@ class OrderItem {
     final productMap = json['product'] as Map<String, dynamic>?;
     final productName = productMap?['nom'] as String? ?? 'Produit inconnu';
     return OrderItem(
+      productId: json['productId'] as String?,
       productName: productName,
       productImageUrl: productMap?['imageUrl'] as String?,
       quantite: (json['quantite'] as num?)?.toInt() ?? 0,
