@@ -115,6 +115,7 @@ class PayoutLine {
     required this.grossAmount,
     required this.commissionAmount,
     required this.deliverySubsidyAmount,
+    this.vendorOfferAmount = 0,
     required this.refundDeductionAmount,
     required this.debtDeductionAmount,
     required this.amount,
@@ -130,6 +131,7 @@ class PayoutLine {
         grossAmount: _i(j['grossAmount']),
         commissionAmount: _i(j['commissionAmount']),
         deliverySubsidyAmount: _i(j['deliverySubsidyAmount']),
+        vendorOfferAmount: _i(j['vendorOfferAmount']),
         refundDeductionAmount: _i(j['refundDeductionAmount']),
         debtDeductionAmount: _i(j['debtDeductionAmount']),
         amount: _i(j['amount']),
@@ -144,6 +146,9 @@ class PayoutLine {
   final int grossAmount;
   final int commissionAmount;
   final int deliverySubsidyAmount;
+
+  /// F3-11 — offre boutique consentie sur cette commande, retenue ici.
+  final int vendorOfferAmount;
   final int refundDeductionAmount;
   final int debtDeductionAmount;
   final int amount;

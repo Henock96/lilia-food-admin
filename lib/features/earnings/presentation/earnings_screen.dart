@@ -238,6 +238,8 @@ class _PayoutTile extends StatelessWidget {
       if (p.commissionAmount > 0) 'commission ${formatXaf(p.commissionAmount)}',
       if (p.deliverySubsidyAmount > 0)
         'livraison offerte ${formatXaf(p.deliverySubsidyAmount)}',
+      if (p.vendorOfferAmount > 0)
+        'offre boutique ${formatXaf(p.vendorOfferAmount)}',
       if (p.refundDeductionAmount > 0)
         'remboursement ${formatXaf(p.refundDeductionAmount)}',
       if (p.debtDeductionAmount > 0) 'dette ${formatXaf(p.debtDeductionAmount)}',

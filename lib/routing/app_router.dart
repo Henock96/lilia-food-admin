@@ -28,6 +28,7 @@ import 'package:lilia_admin/features/deliveries/presentation/screens/delivery_tr
 import 'package:lilia_admin/features/incidents/presentation/screens/incidents_screen.dart';
 import 'package:lilia_admin/features/claims/presentation/claims_screens.dart';
 import 'package:lilia_admin/features/earnings/presentation/earnings_screen.dart';
+import 'package:lilia_admin/features/offers/presentation/offers_screen.dart';
 import 'package:lilia_admin/features/incidents/presentation/screens/incident_detail_screen.dart';
 import 'package:lilia_admin/features/photos/presentation/screens/photos_screen.dart';
 import 'package:lilia_admin/features/restaurant/presentation/providers/restaurant_provider.dart';
@@ -125,6 +126,14 @@ GoRouter router(Ref ref) {
         name: 'earnings',
         pageBuilder: (context, state) =>
             const MaterialPage(child: EarningsScreen()),
+      ),
+      // F3-11 — « Mes offres » : promotions financées par le vendeur. Pas de
+      // garde : la route serveur est réservée au RESTAURATEUR.
+      GoRoute(
+        path: '/offres',
+        name: 'offers',
+        pageBuilder: (context, state) =>
+            const MaterialPage(child: OffersScreen()),
       ),
       // F3-06 — réclamations : vendeur (sa boutique) et support. Pas de garde
       // admin : la portée est appliquée par le serveur.
