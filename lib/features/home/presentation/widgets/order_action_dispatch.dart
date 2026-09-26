@@ -27,6 +27,7 @@ Future<void> performOrderAction(
           order.id,
           reason: request.reason!,
           note: request.note,
+          outOfStockProductIds: request.outOfStockProductIds,
         );
       case OrderAction.handOver when request.pickupCode != null:
         await controller.handOverPickupWithCode(order.id, request.pickupCode!);

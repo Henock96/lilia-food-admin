@@ -164,6 +164,7 @@ class OrderService {
     String orderId, {
     required VendorRejectionReason reason,
     String? note,
+    List<String> outOfStockProductIds = const [],
   }) async {
     final trimmed = note?.trim();
     await _api.postJson(
@@ -171,6 +172,9 @@ class OrderService {
       body: {
         'reason': reason.wire,
         if (trimmed != null && trimmed.isNotEmpty) 'note': trimmed,
+        // F3-10 — absent = tout est remis en stock (comportement d'avant).
+        if (outOfStockProductIds.isNotEmpty)
+          'outOfStockProductIds': outOfStockProductIds,
       },
     );
   }

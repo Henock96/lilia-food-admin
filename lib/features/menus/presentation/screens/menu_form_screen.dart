@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lilia_admin/core/utils/currency.dart';
 import '../../../../models/menu.dart';
+import '../../../../models/product.dart';
 import '../../../products/presentation/providers/products_provider.dart';
 import '../providers/menus_provider.dart';
 
@@ -29,6 +30,9 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
   bool _isActive = true;
   late String _menuType; // 'COMBO' ou 'PLAT_SPECIAL'
   List<String> _selectedProductIds = [];
+  /// F3-10 — format servi pour chaque produit du menu. Sans choix, le serveur
+  /// garde celui déjà en place, ou prend le premier format à une unité.
+  final Map<String, String> _variantByProduct = {};
   bool _isLoading = false;
 
   bool get isEditing => widget.menu != null;
@@ -53,6 +57,9 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
     _menuType = widget.menu?.type ?? 'COMBO';
     _selectedProductIds =
         widget.menu?.products.map((p) => p.productId).toList() ?? [];
+    for (final p in widget.menu?.products ?? const <MenuProduct>[]) {
+      if (p.variantId != null) _variantByProduct[p.productId] = p.variantId!;
+    }
   }
 
   @override
@@ -149,7 +156,11 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
         menuData['products'] = _selectedProductIds
             .asMap()
             .entries
-            .map((e) => {'productId': e.value, 'ordre': e.key})
+            .map((e) => {
+                  'productId': e.value,
+                  'variantId': ?_variantByProduct[e.value],
+                  'ordre': e.key,
+                })
             .toList();
       }
 
@@ -180,6 +191,39 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  /// F3-10 — quel format ce menu sert-il ? Un « Carton découverte » sert un
+  /// carton de 6 ; un « Pack apéro », une bouteille. Le stock du produit
+  /// baisse d'autant à chaque menu vendu.
+  Widget _buildVariantPicker(Product product) {
+    final unit = product.stockUnit;
+    return Padding(
+      padding: const EdgeInsets.only(left: 56, right: 8, bottom: 8),
+      child: DropdownButtonFormField<String>(
+        initialValue: _variantByProduct[product.id],
+        decoration: const InputDecoration(
+          labelText: 'Format servi dans le menu',
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        items: [
+          for (final v in product.variants)
+            if (v.id != null)
+              DropdownMenuItem(
+                value: v.id,
+                child: Text(
+                  v.stockConsumption > 1
+                      ? '${v.label ?? 'Standard'} (${unit.format(v.stockConsumption)})'
+                      : v.label ?? 'Standard',
+                ),
+              ),
+        ],
+        onChanged: (value) => setState(() {
+          if (value != null) _variantByProduct[product.id] = value;
+        }),
+      ),
+    );
   }
 
   @override
@@ -428,7 +472,8 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
 
                   return Column(
                     children: [
-                      ...products.map((product) => CheckboxListTile(
+                      ...products.expand((product) => [
+                            CheckboxListTile(
                             title: Text(product.name),
                             subtitle: Text(formatXaf(product.prixOriginal)),
                             value: _selectedProductIds.contains(product.id),
@@ -461,7 +506,11 @@ class _MenuFormScreenState extends ConsumerState<MenuFormScreen> {
                                     ),
                                     child: const Icon(Icons.fastfood),
                                   ),
-                          )),
+                          ),
+                            if (_selectedProductIds.contains(product.id) &&
+                                product.variants.length > 1)
+                              _buildVariantPicker(product),
+                          ]),
                       if (_selectedProductIds.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),

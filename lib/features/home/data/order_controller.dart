@@ -137,10 +137,14 @@ class RestaurantOrders extends _$RestaurantOrders {
     String orderId, {
     required VendorRejectionReason reason,
     String? note,
+    List<String> outOfStockProductIds = const [],
   }) async {
-    await ref
-        .read(orderServiceRepositoryProvider)
-        .rejectOrder(orderId, reason: reason, note: note);
+    await ref.read(orderServiceRepositoryProvider).rejectOrder(
+          orderId,
+          reason: reason,
+          note: note,
+          outOfStockProductIds: outOfStockProductIds,
+        );
     ref.invalidateSelf();
   }
 }

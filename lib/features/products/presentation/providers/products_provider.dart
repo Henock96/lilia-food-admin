@@ -12,6 +12,14 @@ ProductService productService(Ref ref) {
   return ProductService(ref.watch(apiClientProvider));
 }
 
+/// F3-10 — interrupteur plateforme des formats de plusieurs unités (carton,
+/// pack). Le serveur refuse de toute façon (`MULTI_UNIT_DISABLED`) : ceci
+/// évite seulement de proposer un champ que l'enregistrement refuserait.
+@riverpod
+Future<bool> multiUnitVariantsEnabled(Ref ref) {
+  return ref.watch(productServiceProvider).multiUnitVariantsEnabled();
+}
+
 /// Catalogue du vendeur courant (`catalogScopeProvider`).
 ///
 /// La **lecture** est filtrée par `restaurantId` en query — c'est un filtre, il
@@ -65,6 +73,20 @@ class Products extends _$Products {
   Future<void> restock(String productId, int? stockQuotidien) async {
     await ref.read(productServiceProvider).restock(productId, stockQuotidien);
     await refresh();
+  }
+
+  /// F3-10 — « Réapprovisionner +N » / « Faire l'inventaire = N ». Rend le
+  /// nombre d'unités réservées déduites (inventaire), pour le dire au vendeur.
+  Future<int?> adjustStock(
+    String productId, {
+    required String action,
+    required int units,
+  }) async {
+    final result = await ref
+        .read(productServiceProvider)
+        .adjustStock(productId, action: action, units: units);
+    await refresh();
+    return result.reservedAtVendor;
   }
 
   /// Retire ou remet un produit à la vente. Distinct du stock : « retiré » est

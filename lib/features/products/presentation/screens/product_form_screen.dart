@@ -4,7 +4,8 @@ import 'package:lilia_admin/core/utils/currency.dart';
 import '../../../../common_widgets/photo_gallery_editor.dart';
 import '../../../../models/product.dart';
 import '../../../../models/product_type.dart';
-import '../../../../models/stock_mode.dart';
+import '../../../../models/stock_policy.dart';
+import '../../../../models/stock_unit.dart';
 import '../../../../models/vendor_type.dart';
 import '../../../categories/presentation/providers/categories_provider.dart';
 import '../../../categories/presentation/widgets/create_category_dialog.dart';
@@ -39,7 +40,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
   // LIL-126 : champs marketplace + pré-commande
   ProductType? _productType;
-  StockMode _stockMode = StockMode.DAILY;
+  // F3-10 — politique explicite (remplace « journalier / permanent » et le
+  // « champ vide = illimité »), et unité de ce que l'on compte.
+  StockPolicy _stockPolicy = StockPolicy.UNLIMITED;
+  StockUnit _stockUnit = StockUnit.PIECE;
   bool _madeToOrder = false;
 
   bool get isEditing => widget.product != null;
@@ -54,6 +58,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         text: widget.product?.prixOriginal.toStringAsFixed(0) ?? '');
     _stockController = TextEditingController(
         text: widget.product?.stockQuotidien?.toString() ?? '');
+    _stockPolicy = widget.product?.stockPolicy ?? StockPolicy.UNLIMITED;
+    _stockUnit = widget.product?.stockUnit ?? StockUnit.PIECE;
     _ingredientsController =
         TextEditingController(text: widget.product?.ingredients ?? '');
     _shelfLifeController = TextEditingController(
@@ -61,7 +67,6 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     _selectedCategoryId = widget.product?.categoryId;
     _variants = widget.product?.variants.toList() ?? [];
     _productType = widget.product?.productType;
-    _stockMode = widget.product?.stockMode ?? StockMode.DAILY;
     _madeToOrder = widget.product?.madeToOrder ?? false;
   }
 
@@ -193,9 +198,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         // C'est `ProductsNotifier.createProduct` qui l'ajoute, et seulement
         // pour un administrateur agissant au nom d'un tiers.
         'variants': _variants.map((v) => v.toJson()).toList(),
-        if (stockText.isNotEmpty) 'stockQuotidien': int.parse(stockText),
+        ..._stockPayload(stockText),
         'productType': _productType!.name,
-        'stockMode': _stockMode.name,
         'madeToOrder': _madeToOrder,
         if (ingredientsText.isNotEmpty) 'ingredients': ingredientsText,
         if (shelfLifeText.isNotEmpty)
@@ -247,6 +251,39 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     }
   }
 
+  /// F3-10 — champs de stock envoyés.
+  ///
+  /// - « Toujours disponible » : `stockQuotidien: null`, explicitement ;
+  /// - « Quantité du jour » : le quota (renvoyer le même ne réaligne rien côté
+  ///   serveur : corriger une description ne ressuscite pas les ventes) ;
+  /// - « Stock réel » : la quantité n'est envoyée qu'à la création ou au
+  ///   changement de politique. Ensuite, le stock bouge par les gestes
+  ///   « Réapprovisionner » et « Inventaire » de la liste — jamais par une
+  ///   réécriture de fiche, qui perdrait les ventes faites entre-temps.
+  ///
+  /// `stockMode` part en double pour un serveur antérieur à F3-10.
+  Map<String, dynamic> _stockPayload(String stockText) {
+    final policyChanged =
+        !isEditing || widget.product!.stockPolicy != _stockPolicy;
+    return {
+      'stockPolicy': _stockPolicy.name,
+      'stockMode': _stockPolicy.legacyMode.name,
+      'stockUnit': _stockUnit.name,
+      if (_stockPolicy == StockPolicy.UNLIMITED)
+        'stockQuotidien': null
+      else if (policyChanged || _stockPolicy == StockPolicy.DAILY_QUOTA)
+        'stockQuotidien': int.parse(stockText),
+    };
+  }
+
+  /// Le champ quantité est-il saisissable ? Pas pour un stock réel déjà en
+  /// place : il se gère par gestes, depuis la liste.
+  bool get _quantityEditable =>
+      _stockPolicy != StockPolicy.UNLIMITED &&
+      !(isEditing &&
+          _stockPolicy == StockPolicy.INVENTORY &&
+          widget.product!.stockPolicy == StockPolicy.INVENTORY);
+
   /// POST chaque image du buffer vers /product-images dans l'ordre. Renvoie le
   /// nombre d'échecs (les images sont secondaires : pas de rollback produit).
   Future<int> _attachBufferedImages(String productId) async {
@@ -273,6 +310,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     showDialog(
       context: context,
       builder: (context) => _VariantDialog(
+        stockUnit: _stockUnit,
+        multiUnitEnabled:
+            ref.read(multiUnitVariantsEnabledProvider).value ?? false,
         onSave: (variant) {
           setState(() => _variants.add(variant));
         },
@@ -285,6 +325,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       context: context,
       builder: (context) => _VariantDialog(
         variant: _variants[index],
+        stockUnit: _stockUnit,
+        multiUnitEnabled:
+            ref.read(multiUnitVariantsEnabledProvider).value ?? false,
         onSave: (variant) {
           setState(() => _variants[index] = variant);
         },
@@ -296,9 +339,88 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     setState(() => _variants.removeAt(index));
   }
 
+  /// F3-10 — « Comment ce produit est-il disponible ? »
+  Widget _buildStockSection() {
+    final product = widget.product;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Disponibilité',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        SegmentedButton<StockPolicy>(
+          segments: [
+            for (final policy in StockPolicy.values)
+              ButtonSegment(value: policy, label: Text(policy.label)),
+          ],
+          selected: {_stockPolicy},
+          showSelectedIcon: false,
+          onSelectionChanged: (selection) =>
+              setState(() => _stockPolicy = selection.first),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _stockPolicy.help,
+          style: TextStyle(color: Colors.grey[700], fontSize: 13),
+        ),
+        if (_stockPolicy != StockPolicy.UNLIMITED) ...[
+          const SizedBox(height: 12),
+          DropdownButtonFormField<StockUnit>(
+            initialValue: _stockUnit,
+            decoration: const InputDecoration(
+              labelText: 'On compte en',
+              border: OutlineInputBorder(),
+              helperText:
+                  'La plus petite unité vendue : une bouteille, pas un carton.',
+            ),
+            items: StockUnit.values
+                .map((u) => DropdownMenuItem(value: u, child: Text(u.title)))
+                .toList(),
+            onChanged: (value) =>
+                setState(() => _stockUnit = value ?? StockUnit.PIECE),
+          ),
+          const SizedBox(height: 12),
+          if (_quantityEditable)
+            TextFormField(
+              controller: _stockController,
+              decoration: InputDecoration(
+                labelText: '${_stockPolicy.quantityLabel} *',
+                suffixText: _stockUnit.plural,
+                border: const OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                final n = int.tryParse(value?.trim() ?? '');
+                if (n == null || n < 0) return 'Entrez un nombre entier';
+                return null;
+              },
+            )
+          else
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'En stock : ${_stockUnit.format(product?.stockRestant ?? 0)}.\n'
+                'Utilisez « Réapprovisionner » ou « Faire l’inventaire » depuis '
+                'la liste des produits.',
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(categoriesProvider);
+    // Préchargé pour le dialogue des formats.
+    ref.watch(multiUnitVariantsEnabledProvider);
     final restaurantAsync = ref.watch(restaurantSettingsProvider);
     final vendorType = restaurantAsync.value?.vendorType ?? VendorType.RESTAURANT;
     // Matrice alignée sur ProductValidatorService backend. ALCOHOL est exclu
@@ -362,23 +484,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               },
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: _stockController,
-              decoration: const InputDecoration(
-                labelText: 'Stock quotidien (optionnel)',
-                border: OutlineInputBorder(),
-                helperText: 'Laisser vide pour un stock illimite',
-              ),
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value != null && value.trim().isNotEmpty) {
-                  if (int.tryParse(value.trim()) == null) {
-                    return 'Entrez un nombre valide';
-                  }
-                }
-                return null;
-              },
-            ),
+            _buildStockSection(),
             const SizedBox(height: 16),
             // Galerie photos : buffer en création, galerie live en édition.
             if (isEditing)
@@ -417,25 +523,6 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   : (value) => setState(() => _productType = value),
               validator: (value) =>
                   value == null ? 'Sélectionnez un type' : null,
-            ),
-            const SizedBox(height: 16),
-            // LIL-126 : StockMode (DAILY reset chaque nuit, PERMANENT non reset).
-            DropdownButtonFormField<StockMode>(
-              initialValue: _stockMode,
-              decoration: const InputDecoration(
-                labelText: 'Gestion du stock',
-                border: OutlineInputBorder(),
-                helperText:
-                    'Journalier : reset chaque nuit. Permanent : décrémentation pure.',
-              ),
-              items: StockMode.values
-                  .map((s) => DropdownMenuItem(
-                        value: s,
-                        child: Text(s.label),
-                      ))
-                  .toList(),
-              onChanged: (value) =>
-                  setState(() => _stockMode = value ?? StockMode.DAILY),
             ),
             const SizedBox(height: 16),
             // LIL-126 : Switch madeToOrder. Si activé, le produit déclenche
@@ -491,7 +578,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Variantes',
+                  'Formats',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 TextButton.icon(
@@ -510,7 +597,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Text(
-                  'Aucune variante. Ajoutez des variantes pour proposer différentes tailles ou options.',
+                  'Aucun format. Ajoutez-en pour proposer plusieurs tailles ou conditionnements (bouteille, carton de 6…).',
                   style: TextStyle(color: Colors.grey),
                 ),
               )
@@ -523,8 +610,13 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   final variant = _variants[index];
                   return Card(
                     child: ListTile(
-                      title: Text(variant.label!),
-                      subtitle: Text(formatXaf(variant.prix)),
+                      title: Text(variant.label ?? 'Standard'),
+                      subtitle: Text(
+                        variant.stockConsumption > 1
+                            ? '${formatXaf(variant.prix)} · '
+                                '${_stockUnit.format(variant.stockConsumption)}'
+                            : formatXaf(variant.prix),
+                      ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -566,9 +658,16 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
 class _VariantDialog extends StatefulWidget {
   final ProductVariant? variant;
+  final StockUnit stockUnit;
+  final bool multiUnitEnabled;
   final Function(ProductVariant) onSave;
 
-  const _VariantDialog({this.variant, required this.onSave});
+  const _VariantDialog({
+    this.variant,
+    required this.stockUnit,
+    required this.multiUnitEnabled,
+    required this.onSave,
+  });
 
   @override
   State<_VariantDialog> createState() => _VariantDialogState();
@@ -577,6 +676,13 @@ class _VariantDialog extends StatefulWidget {
 class _VariantDialogState extends State<_VariantDialog> {
   late TextEditingController _labelController;
   late TextEditingController _priceController;
+  late TextEditingController _consumptionController;
+
+  /// F3-10 — la consommation d'un format enregistré ne se modifie pas (le
+  /// serveur refuse : `STOCK_CONSUMPTION_IMMUTABLE`). « Carton de 12 » n'est
+  /// pas une édition de « Carton de 6 » : c'est un autre format.
+  bool get _consumptionEditable =>
+      !(widget.variant?.isPersisted ?? false) && widget.multiUnitEnabled;
 
   @override
   void initState() {
@@ -584,27 +690,31 @@ class _VariantDialogState extends State<_VariantDialog> {
     _labelController = TextEditingController(text: widget.variant?.label ?? '');
     _priceController = TextEditingController(
         text: widget.variant?.prix.toStringAsFixed(0) ?? '');
+    _consumptionController = TextEditingController(
+        text: (widget.variant?.stockConsumption ?? 1).toString());
   }
 
   @override
   void dispose() {
     _labelController.dispose();
     _priceController.dispose();
+    _consumptionController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final persisted = widget.variant?.isPersisted ?? false;
     return AlertDialog(
-      title:
-          Text(widget.variant != null ? 'Modifier la variante' : 'Nouvelle variante'),
+      title: Text(widget.variant != null ? 'Modifier le format' : 'Nouveau format'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextField(
             controller: _labelController,
             decoration: const InputDecoration(
-              labelText: 'Nom (ex: 30cl, 1.5L, Grand)',
+              labelText: 'Nom (ex: Bouteille, Carton de 6, 30cl, Grand)',
               border: OutlineInputBorder(),
             ),
           ),
@@ -614,6 +724,23 @@ class _VariantDialogState extends State<_VariantDialog> {
             decoration: const InputDecoration(
               labelText: 'Prix (XAF)',
               border: OutlineInputBorder(),
+              helperText: 'Libre : un carton peut coûter moins que 6 bouteilles.',
+            ),
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _consumptionController,
+            enabled: _consumptionEditable,
+            decoration: InputDecoration(
+              labelText: 'Nombre de ${widget.stockUnit.plural} par format',
+              border: const OutlineInputBorder(),
+              helperText: persisted
+                  ? 'Non modifiable : créez un autre format et retirez celui-ci.'
+                  : widget.multiUnitEnabled
+                      ? 'Ex. 6 pour un carton de 6. Chaque vente retire ce nombre du stock.'
+                      : 'Les formats de plusieurs unités ne sont pas encore ouverts.',
+              helperMaxLines: 2,
             ),
             keyboardType: TextInputType.number,
           ),
@@ -628,8 +755,12 @@ class _VariantDialogState extends State<_VariantDialog> {
           onPressed: () {
             final label = _labelController.text.trim();
             final price = double.tryParse(_priceController.text.trim());
+            final consumption = int.tryParse(_consumptionController.text.trim());
 
-            if (label.isEmpty || price == null) {
+            if (label.isEmpty ||
+                price == null ||
+                consumption == null ||
+                consumption < 1) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Remplissez tous les champs')),
               );
@@ -640,6 +771,7 @@ class _VariantDialogState extends State<_VariantDialog> {
               id: widget.variant?.id,
               label: label,
               prix: price,
+              stockConsumption: consumption,
             ));
             Navigator.pop(context);
           },

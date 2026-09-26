@@ -1,5 +1,7 @@
 import 'product_type.dart';
 import 'stock_mode.dart';
+import 'stock_policy.dart';
+import 'stock_unit.dart';
 
 class Product {
   final String id;
@@ -18,7 +20,13 @@ class Product {
 
   // LIL-124 : marketplace + preorder fields
   final ProductType productType;
+  /// ⚠️ Déprécié par F3-10 — lu et renvoyé pour un serveur antérieur ; la
+  /// décision est `stockPolicy`.
   final StockMode stockMode;
+  /// F3-10 — « Toujours disponible » / « Quantité du jour » / « Stock réel ».
+  final StockPolicy stockPolicy;
+  /// F3-10 — ce que compte le stock (bouteilles, portions…).
+  final StockUnit stockUnit;
   final bool madeToOrder;
   final String? availableFrom;
   final String? availableUntil;
@@ -64,6 +72,8 @@ class Product {
     this.updatedAt,
     this.productType = ProductType.FOOD,
     this.stockMode = StockMode.DAILY,
+    this.stockPolicy = StockPolicy.UNLIMITED,
+    this.stockUnit = StockUnit.PIECE,
     this.madeToOrder = false,
     this.availableFrom,
     this.availableUntil,
@@ -104,6 +114,12 @@ class Product {
           json['updatedAt'] != null ? DateTime.parse(json['updatedAt'] as String) : null,
       productType: ProductType.fromString(json['productType'] as String?),
       stockMode: StockMode.fromString(json['stockMode'] as String?),
+      stockPolicy: StockPolicy.fromJson(
+        json['stockPolicy'] as String?,
+        stockMode: json['stockMode'] as String?,
+        stockRestant: json['stockRestant'] as int?,
+      ),
+      stockUnit: StockUnit.fromJson(json['stockUnit'] as String?),
       madeToOrder: json['madeToOrder'] as bool? ?? false,
       availableFrom: json['availableFrom'] as String?,
       availableUntil: json['availableUntil'] as String?,
@@ -122,7 +138,9 @@ class Product {
       'categoryId': categoryId,
       'variants': variants.map((v) => v.toJson()).toList(),
       'productType': productType.name,
-      'stockMode': stockMode.name,
+      'stockMode': stockPolicy.legacyMode.name,
+      'stockPolicy': stockPolicy.name,
+      'stockUnit': stockUnit.name,
       'madeToOrder': madeToOrder,
       'availableFrom': ?availableFrom,
       'availableUntil': ?availableUntil,
@@ -143,6 +161,8 @@ class Product {
     List<ProductVariant>? variants,
     ProductType? productType,
     StockMode? stockMode,
+    StockPolicy? stockPolicy,
+    StockUnit? stockUnit,
     bool? madeToOrder,
     String? availableFrom,
     String? availableUntil,
@@ -160,10 +180,14 @@ class Product {
       categoryId: categoryId ?? this.categoryId,
       category: category ?? this.category,
       variants: variants ?? this.variants,
+      stockQuotidien: stockQuotidien,
+      stockRestant: stockRestant,
       createdAt: createdAt,
       updatedAt: updatedAt,
       productType: productType ?? this.productType,
       stockMode: stockMode ?? this.stockMode,
+      stockPolicy: stockPolicy ?? this.stockPolicy,
+      stockUnit: stockUnit ?? this.stockUnit,
       madeToOrder: madeToOrder ?? this.madeToOrder,
       availableFrom: availableFrom ?? this.availableFrom,
       availableUntil: availableUntil ?? this.availableUntil,
@@ -174,29 +198,56 @@ class Product {
   }
 }
 
+/// Format d'un produit : une offre commerciale (libellé, prix) sur la
+/// marchandise du produit, qui en consomme `stockConsumption` unités.
 class ProductVariant {
   final String? id;
   final String? label; // Nullable dans le backend
   final double prix;
 
+  /// F3-10 — unités de stock consommées par UNE unité vendue (bouteille = 1,
+  /// carton de 6 = 6). Indépendant du prix. **Immuable** une fois le format
+  /// créé : pour changer, on crée un autre format.
+  final int stockConsumption;
+
+  /// F3-10 — verdict du serveur, en unités de vente de ce format (`null` =
+  /// illimité, ou serveur antérieur).
+  final int? availableQuantity;
+  final String? stockStatus;
+
   ProductVariant({
     this.id,
     this.label,
     required this.prix,
+    this.stockConsumption = 1,
+    this.availableQuantity,
+    this.stockStatus,
   });
+
+  /// Un format déjà enregistré côté serveur (sa consommation est figée).
+  bool get isPersisted => id != null;
 
   factory ProductVariant.fromJson(Map<String, dynamic> json) {
     return ProductVariant(
       id: json['id'] as String?,
       label: json['label'] as String?,
       prix: (json['prix'] as num?)?.toDouble() ?? 0.0,
+      stockConsumption: (json['stockConsumption'] as num?)?.toInt() ?? 1,
+      availableQuantity: (json['availableQuantity'] as num?)?.toInt(),
+      stockStatus: json['stockStatus'] as String?,
     );
   }
 
+  /// ⚠️ L'`id` est **indispensable** (F3-10, lot 0). Il manquait : chaque
+  /// enregistrement depuis cette application supprimait et recréait tous les
+  /// formats du produit — et vidait les paniers des clients qui les
+  /// contenaient. Le serveur réconcilie les formats par identifiant.
   Map<String, dynamic> toJson() {
     return {
+      'id': ?id,
       'label': label,
       'prix': prix,
+      'stockConsumption': stockConsumption,
     };
   }
 
@@ -204,11 +255,15 @@ class ProductVariant {
     String? id,
     String? label,
     double? prix,
+    int? stockConsumption,
   }) {
     return ProductVariant(
       id: id ?? this.id,
       label: label ?? this.label,
       prix: prix ?? this.prix,
+      stockConsumption: stockConsumption ?? this.stockConsumption,
+      availableQuantity: availableQuantity,
+      stockStatus: stockStatus,
     );
   }
 }

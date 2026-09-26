@@ -15,6 +15,7 @@ class OrderActionRequest {
     this.reason,
     this.note,
     this.pickupCode,
+    this.outOfStockProductIds = const [],
   });
 
   final OrderAction action;
@@ -29,6 +30,10 @@ class OrderActionRequest {
   /// Remise d'un retrait : code montré par le client (F3-07). `null` = remise
   /// sans code — le versement attend alors la confirmation du client.
   final String? pickupCode;
+
+  /// F3-10 — refus « rupture » : les produits réellement manquants. Ils
+  /// passent à 0 au lieu d'être remis en stock ; les autres y retournent.
+  final List<String> outOfStockProductIds;
 }
 
 /// Gestes possibles sur une commande (Phase 3, F3-01 — règle R1).
@@ -115,7 +120,7 @@ class OrderActionsPanel extends StatelessWidget {
       case OrderAction.reject:
         final rejection = await showDialog<OrderActionRequest>(
           context: context,
-          builder: (_) => const RejectOrderDialog(),
+          builder: (_) => RejectOrderDialog(items: order.items),
         );
         if (rejection != null) await onAction(rejection);
       case OrderAction.cancel:
@@ -222,7 +227,11 @@ class _PrepTimeDialogState extends State<PrepTimeDialog> {
 
 /// Refus motivé : motif obligatoire (liste fermée), précision facultative.
 class RejectOrderDialog extends StatefulWidget {
-  const RejectOrderDialog({super.key});
+  const RejectOrderDialog({super.key, this.items = const []});
+
+  /// Lignes de la commande : sur « Rupture de stock », le vendeur coche ce
+  /// qui manque vraiment (F3-10).
+  final List<OrderItem> items;
 
   @override
   State<RejectOrderDialog> createState() => _RejectOrderDialogState();
@@ -231,6 +240,17 @@ class RejectOrderDialog extends StatefulWidget {
 class _RejectOrderDialogState extends State<RejectOrderDialog> {
   VendorRejectionReason? _reason;
   final _note = TextEditingController();
+  final Set<String> _missing = {};
+
+  /// Un produit par ligne, sans doublon (bouteille et carton = un produit).
+  List<({String id, String name})> get _products {
+    final seen = <String>{};
+    return [
+      for (final item in widget.items)
+        if (item.productId != null && seen.add(item.productId!))
+          (id: item.productId!, name: item.productName),
+    ];
+  }
 
   @override
   void dispose() {
@@ -265,6 +285,24 @@ class _RejectOrderDialogState extends State<RejectOrderDialog> {
                     .toList(),
               ),
             ),
+            if (_reason == VendorRejectionReason.outOfStock &&
+                _products.isNotEmpty) ...[
+              const Text(
+                'Qu’est-ce qui manque ? Ces produits passeront en rupture ; '
+                'les autres retourneront en stock.',
+                style: TextStyle(fontSize: 13),
+              ),
+              for (final product in _products)
+                CheckboxListTile(
+                  value: _missing.contains(product.id),
+                  title: Text(product.name),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (checked) => setState(() => checked == true
+                      ? _missing.add(product.id)
+                      : _missing.remove(product.id)),
+                ),
+            ],
             TextField(
               controller: _note,
               maxLength: 200,
@@ -285,6 +323,10 @@ class _RejectOrderDialogState extends State<RejectOrderDialog> {
                       OrderAction.reject,
                       reason: _reason,
                       note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+                      outOfStockProductIds:
+                          _reason == VendorRejectionReason.outOfStock
+                              ? _missing.toList()
+                              : const [],
                     ),
                   ),
           child: const Text('Refuser la commande'),

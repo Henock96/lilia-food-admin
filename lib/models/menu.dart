@@ -79,7 +79,11 @@ class MenuDuJour {
       map['ingredients'] = ingredients;
     } else {
       map['products'] = products
-          .map((p) => {'productId': p.productId, 'ordre': p.ordre})
+          .map((p) => {
+                'productId': p.productId,
+                'variantId': ?p.variantId,
+                'ordre': p.ordre,
+              })
           .toList();
     }
     return map;
@@ -131,6 +135,9 @@ class MenuProduct {
   final String id;
   final String menuId;
   final String productId;
+  /// F3-10 — format servi dans le menu (bouteille, carton de 6…), choisi par
+  /// le vendeur. `null` = serveur antérieur.
+  final String? variantId;
   final int ordre;
   final Product? product;
   final DateTime? createdAt;
@@ -139,6 +146,7 @@ class MenuProduct {
     required this.id,
     required this.menuId,
     required this.productId,
+    this.variantId,
     required this.ordre,
     this.product,
     this.createdAt,
@@ -149,6 +157,7 @@ class MenuProduct {
       id: json['id'] as String? ?? '',
       menuId: json['menuId'] as String? ?? '',
       productId: json['productId'] as String? ?? '',
+      variantId: json['variantId'] as String?,
       ordre: (json['ordre'] as num?)?.toInt() ?? 0,
       product:
           json['product'] != null ? Product.fromJson(json['product'] as Map<String, dynamic>) : null,
