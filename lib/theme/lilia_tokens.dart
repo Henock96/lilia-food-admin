@@ -28,6 +28,7 @@ class LiliaColors {
   static const charcoal200 = Color(0xFFCEC7BF);
   static const charcoal300 = Color(0xFFABA39A);
   static const charcoal400 = Color(0xFF7A726A);
+  static const charcoal450 = Color(0xFF6E665F); // texte muet AA (client)
   static const charcoal500 = Color(0xFF4D4540);
   static const charcoal600 = Color(0xFF352E2A);
   static const charcoal700 = Color(0xFF1C1815); // text primary light
@@ -70,12 +71,17 @@ class LiliaSemantics {
     bgMuted:         LiliaColors.cream200,
     textPrimary:     LiliaColors.charcoal700,
     textSecondary:   LiliaColors.charcoal500,
-    textMuted:       LiliaColors.charcoal400,
+    // charcoal400 = 4,36:1 sur cream100, sous AA (même correctif que l'app
+    // client, août 2026).
+    textMuted:       LiliaColors.charcoal450,
     textInverse:     Colors.white,
-    actionPrimary:   LiliaColors.orange500,
-    actionHover:     LiliaColors.orange600,
+    // orange500 + blanc = 3,67:1 : fond de TOUS les boutons d'action.
+    // orange600 = 4,94:1, même identité orange (aligné sur l'app client).
+    actionPrimary:   LiliaColors.orange600,
+    actionHover:     LiliaColors.orange700,
+    textOnAction:    Colors.white,
     border:          LiliaColors.charcoal100,
-    borderFocus:     LiliaColors.orange500,
+    borderFocus:     LiliaColors.orange600,
     success:         LiliaColors.green400,
     warning:         LiliaColors.amber400,
     danger:          LiliaColors.red400,
@@ -90,10 +96,13 @@ class LiliaSemantics {
     bgMuted:         LiliaColors.darkMuted,
     textPrimary:     LiliaColors.charcoal50,
     textSecondary:   LiliaColors.charcoal200,
-    textMuted:       LiliaColors.charcoal400,
+    // Sur darkCard, charcoal400 tombait à 3,42:1.
+    textMuted:       LiliaColors.charcoal300,
     textInverse:     LiliaColors.charcoal700,
     actionPrimary:   LiliaColors.orange400,
     actionHover:     LiliaColors.orange300,
+    // Blanc sur orange400 = 2,84:1 ; texte foncé = 6,20:1.
+    textOnAction:    LiliaColors.charcoal700,
     border:          LiliaColors.darkBorder,
     borderFocus:     LiliaColors.orange400,
     success:         Color(0xFF4DC280),
@@ -115,6 +124,7 @@ class LiliaThemeTokens {
     required this.textInverse,
     required this.actionPrimary,
     required this.actionHover,
+    required this.textOnAction,
     required this.border,
     required this.borderFocus,
     required this.success,
@@ -133,6 +143,10 @@ class LiliaThemeTokens {
   final Color textInverse;
   final Color actionPrimary;
   final Color actionHover;
+
+  /// Texte posé sur [actionPrimary]. Jamais `Colors.white` en dur : en
+  /// sombre l'action est un orange clair.
+  final Color textOnAction;
   final Color border;
   final Color borderFocus;
   final Color success;
