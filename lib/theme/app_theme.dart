@@ -140,9 +140,9 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: t.actionPrimary,
-          foregroundColor: Colors.white,
+          foregroundColor: t.textOnAction,
           disabledBackgroundColor: t.actionPrimary.withValues(alpha: 0.4),
-          disabledForegroundColor: Colors.white70,
+          disabledForegroundColor: t.textOnAction.withValues(alpha: 0.7),
           elevation: 0,
           shadowColor: Colors.transparent,
           shape: const StadiumBorder(),
@@ -290,7 +290,7 @@ class AppTheme {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
-              ? Colors.white
+              ? t.textOnAction
               : t.textMuted,
         ),
         trackColor: WidgetStateProperty.resolveWith(
@@ -308,7 +308,7 @@ class AppTheme {
               ? t.actionPrimary
               : Colors.transparent,
         ),
-        checkColor: WidgetStateProperty.all(Colors.white),
+        checkColor: WidgetStateProperty.all(t.textOnAction),
         side: BorderSide(color: t.border, width: 1.5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
@@ -372,7 +372,7 @@ class AppTheme {
       // ── FAB ─────────────────────────────────────────────────────────────
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: t.actionPrimary,
-        foregroundColor: Colors.white,
+        foregroundColor: t.textOnAction,
         elevation: 4,
         shape: const CircleBorder(),
       ),
@@ -389,7 +389,7 @@ class AppTheme {
 
   static const _lightColorScheme = ColorScheme(
     brightness: Brightness.light,
-    primary: LiliaColors.orange500,
+    primary: LiliaColors.orange600,
     onPrimary: Colors.white,
     primaryContainer: LiliaColors.orange100,
     onPrimaryContainer: LiliaColors.orange700,
@@ -416,7 +416,8 @@ class AppTheme {
   static const _darkColorScheme = ColorScheme(
     brightness: Brightness.dark,
     primary: LiliaColors.orange400,
-    onPrimary: Colors.white,
+    // Blanc sur orange400 = 2,84:1.
+    onPrimary: LiliaColors.charcoal700,
     primaryContainer: LiliaColors.orange700,
     onPrimaryContainer: LiliaColors.orange100,
     secondary: LiliaColors.blue300,
