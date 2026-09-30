@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/theme/lilia_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../models/order.dart';
@@ -47,7 +48,7 @@ Future<void> performOrderAction(
             Expanded(child: Text(_successMessage(request))),
           ],
         ),
-        backgroundColor: Colors.green,
+        backgroundColor: LiliaColors.green700,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
       ),
@@ -62,7 +63,7 @@ Future<void> performOrderAction(
             Expanded(child: Text('Erreur : $e')),
           ],
         ),
-        backgroundColor: Colors.red,
+        backgroundColor: LiliaColors.red500,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 4),
       ),

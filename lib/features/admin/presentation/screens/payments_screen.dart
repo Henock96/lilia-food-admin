@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/theme/lilia_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -175,7 +176,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(controller.text),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: LiliaColors.red500,
               foregroundColor: Colors.white,
             ),
             child: const Text('Rejeter'),
@@ -676,12 +677,12 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                               height: 16,
                               width: 16,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white),
+                                  strokeWidth: 2, color: LiliaColors.charcoal700),
                             )
                           : const Icon(Icons.check, size: 18),
                       label: const Text('Confirmer'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
+                        backgroundColor: LiliaColors.green700,
                         foregroundColor: Colors.white,
                       ),
                     ),

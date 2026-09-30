@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/theme/lilia_tokens.dart';
 import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/common_widgets/app_cached_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -266,7 +267,9 @@ class _BannerFormScreenState extends ConsumerState<BannerFormScreen> {
                           height: 24,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            // Bouton désactivé pendant l'envoi : fond gris ou orange
+                            // pâle, où le blanc tombait à 1,3–1,9:1 (invisible).
+                            color: LiliaColors.charcoal700,
                           ),
                         )
                       : Text(isEditing ? 'Mettre à jour' : 'Créer'),

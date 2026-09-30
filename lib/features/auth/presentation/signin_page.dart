@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/theme/lilia_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_admin/constants/app_size.dart';
 
@@ -228,7 +229,7 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
                 ? const SizedBox(
                     height: 24,
                     width: 24,
-                    child: CircularProgressIndicator(color: Colors.white),
+                    child: CircularProgressIndicator(color: LiliaColors.charcoal700),
                   )
                 : const Text('Se connecter'),
           ),

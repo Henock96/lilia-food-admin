@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/theme/lilia_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_admin/core/network/api_client.dart';
@@ -260,7 +261,9 @@ class _CreateRestaurantScreenState
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        // Bouton désactivé pendant l'envoi : fond gris ou orange
+                        // pâle, où le blanc tombait à 1,3–1,9:1 (invisible).
+                        color: LiliaColors.charcoal700,
                       ),
                     )
                   : const Text('Créer et configurer'),

@@ -19,6 +19,13 @@ import '../../../admin/data/refunds_service.dart';
 class _AppColors {
   // Raccordé aux tokens de marque Lilia (cf. lib/theme/lilia_tokens.dart).
   static const primary = LiliaColors.orange500;
+  /// Fond des boutons d'action, sous un libellé blanc (4,94:1). `primary`
+  /// (orange500) portait le texte gris du thème à 2,55:1 (Phase 3.7).
+  static const action = LiliaColors.orange600;
+  static const onAction = Colors.white;
+  /// Fond des messages de succès sous un texte clair : `success` (green400)
+  /// n'y offrait que 3,13:1.
+  static const successStrong = LiliaColors.green700;
   static const primaryLight = LiliaColors.orange50;
   static const success = LiliaColors.green400;
   static const successLight = LiliaColors.green50;
@@ -383,7 +390,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   icon: const Icon(Icons.refresh),
                   label: const Text('Reessayer'),
                   style: FilledButton.styleFrom(
-                    backgroundColor: _AppColors.primary,
+                    backgroundColor: _AppColors.action,
+                    foregroundColor: _AppColors.onAction,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
                       vertical: 12,
@@ -616,7 +624,7 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                 Text('Informations mises a jour'),
               ],
             ),
-            backgroundColor: _AppColors.success,
+            backgroundColor: _AppColors.successStrong,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -881,7 +889,8 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                       child: FilledButton(
                         onPressed: _isSaving ? null : _saveChanges,
                         style: FilledButton.styleFrom(
-                          backgroundColor: _AppColors.primary,
+                          backgroundColor: _AppColors.action,
+                          foregroundColor: _AppColors.onAction,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -893,7 +902,9 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                                 height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.white,
+                                  // Bouton désactivé pendant l'envoi : fond gris ou orange
+                                  // pâle, où le blanc tombait à 1,3–1,9:1 (invisible).
+                                  color: LiliaColors.charcoal700,
                                 ),
                               )
                             : const Text('Enregistrer'),
@@ -1074,7 +1085,7 @@ class _OperatingHoursTabState extends ConsumerState<_OperatingHoursTab> {
                 Text('Horaires enregistres'),
               ],
             ),
-            backgroundColor: _AppColors.success,
+            backgroundColor: _AppColors.successStrong,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -1217,7 +1228,9 @@ class _OperatingHoursTabState extends ConsumerState<_OperatingHoursTab> {
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    // Bouton désactivé pendant l'envoi : fond gris ou orange
+                    // pâle, où le blanc tombait à 1,3–1,9:1 (invisible).
+                    color: LiliaColors.charcoal700,
                   ),
                 )
               : const Icon(Icons.save_outlined),
@@ -1529,7 +1542,7 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
                 Text('Parametres de livraison mis a jour'),
               ],
             ),
-            backgroundColor: _AppColors.success,
+            backgroundColor: _AppColors.successStrong,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -1764,7 +1777,9 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    // Bouton désactivé pendant l'envoi : fond gris ou orange
+                    // pâle, où le blanc tombait à 1,3–1,9:1 (invisible).
+                    color: LiliaColors.charcoal700,
                   ),
                 )
               : const Icon(Icons.save_outlined),
@@ -1772,7 +1787,8 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
             _isSaving ? 'Enregistrement...' : 'Enregistrer les modifications',
           ),
           style: FilledButton.styleFrom(
-            backgroundColor: _AppColors.primary,
+            backgroundColor: _AppColors.action,
+            foregroundColor: _AppColors.onAction,
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
@@ -1902,7 +1918,7 @@ class _SpecialtiesTabState extends ConsumerState<_SpecialtiesTab> {
                 Text('Specialite ajoutee'),
               ],
             ),
-            backgroundColor: _AppColors.success,
+            backgroundColor: _AppColors.successStrong,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -1962,7 +1978,7 @@ class _SpecialtiesTabState extends ConsumerState<_SpecialtiesTab> {
                   Text('Specialite supprimee'),
                 ],
               ),
-              backgroundColor: _AppColors.success,
+              backgroundColor: _AppColors.successStrong,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -2011,7 +2027,8 @@ class _SpecialtiesTabState extends ConsumerState<_SpecialtiesTab> {
                 child: FilledButton(
                   onPressed: _isAdding ? null : _addSpecialty,
                   style: FilledButton.styleFrom(
-                    backgroundColor: _AppColors.primary,
+                    backgroundColor: _AppColors.action,
+                    foregroundColor: _AppColors.onAction,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -2023,7 +2040,9 @@ class _SpecialtiesTabState extends ConsumerState<_SpecialtiesTab> {
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            // Bouton désactivé pendant l'envoi : fond gris ou orange
+                            // pâle, où le blanc tombait à 1,3–1,9:1 (invisible).
+                            color: LiliaColors.charcoal700,
                           ),
                         )
                       : const Icon(Icons.add),
@@ -2319,13 +2338,16 @@ class _PreorderTabState extends ConsumerState<_PreorderTab> {
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    // Bouton désactivé pendant l'envoi : fond gris ou orange
+                    // pâle, où le blanc tombait à 1,3–1,9:1 (invisible).
+                    color: LiliaColors.charcoal700,
                   ),
                 )
               : const Icon(Icons.save_outlined),
           label: Text(_isSaving ? 'Enregistrement...' : 'Enregistrer'),
           style: FilledButton.styleFrom(
-            backgroundColor: _AppColors.primary,
+            backgroundColor: _AppColors.action,
+            foregroundColor: _AppColors.onAction,
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
