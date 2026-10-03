@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/theme/lilia_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_admin/core/network/api_exception.dart';
 import 'package:lilia_admin/features/admin/domain/platform_settings_form.dart';
@@ -431,7 +432,7 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
                     height: 16,
                     width: 16,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2, color: LiliaColors.charcoal700),
                   )
                 : const Icon(Icons.save),
             label: Text(_saving ? 'Enregistrement…' : 'Enregistrer'),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/theme/lilia_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -967,7 +968,7 @@ class OrderDetailScreen extends ConsumerWidget {
             child: ElevatedButton.icon(
               onPressed: () => _showAssignDelivererSheet(context, ref, order),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange[700],
+                backgroundColor: LiliaColors.orange600, // blanc 4,94:1 (orange[700] : 2,70)
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -1073,7 +1074,7 @@ class _AssignDelivererSheetState extends State<_AssignDelivererSheet> {
                 Expanded(child: Text('${deliverer.nom} assigné avec succès')),
               ],
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: LiliaColors.green700,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1253,7 +1254,7 @@ class _AssignDelivererSheetState extends State<_AssignDelivererSheet> {
                                 ? null
                                 : () => _assign(d),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange[700],
+                              backgroundColor: LiliaColors.orange600,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,

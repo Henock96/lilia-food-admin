@@ -43,12 +43,16 @@ class LiliaColors {
   static const green50   = Color(0xFFDCFCE7); // tint clair succès (bg)
   static const green400  = Color(0xFF27A660);
   static const green500  = Color(0xFF1A8A4A);
+  /// Fond sous un texte blanc (6,57:1) — même valeur que l'app client.
+  static const green700  = Color(0xFF146B3A);
   static const amber50   = Color(0xFFFEF3C7); // tint clair avertissement (bg)
   static const amber300  = Color(0xFFF5C44A);
   static const amber400  = Color(0xFFD4970A);
   static const red50     = Color(0xFFFEE2E2); // tint clair danger (bg)
   static const red300    = Color(0xFFF4826E);
   static const red400    = Color(0xFFD63F28);
+  /// Fond sous un texte blanc (5,97:1) — même valeur que l'app client.
+  static const red500    = Color(0xFFB83220);
 
   // Dark mode surfaces
   static const darkBg      = Color(0xFF0F0D0B);

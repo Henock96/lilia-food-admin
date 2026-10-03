@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/theme/lilia_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/admin_vendors_service.dart';
@@ -321,7 +322,7 @@ class _AdminVendorsScreenState extends ConsumerState<AdminVendorsScreen>
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.orange,
+                        color: LiliaColors.orange600,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(

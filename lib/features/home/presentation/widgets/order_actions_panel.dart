@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/theme/lilia_tokens.dart';
 
 import '../../../../models/order.dart';
 import '../../../../models/order_actions.dart';
@@ -163,17 +164,21 @@ class OrderActionsPanel extends StatelessWidget {
 }
 
 /// Libellé, icône et couleur d'un geste — partagés par les deux écrans.
+///
+/// Les couleurs portent un libellé **blanc** : `Colors.green` (2,78:1),
+/// `Colors.red` (3,68:1) et `Colors.teal` (3,67:1) étaient sous le seuil AA
+/// sur les boutons que le vendeur touche le plus (Phase 3.7).
 ({String label, IconData icon, Color color}) orderActionLook(OrderAction action) =>
     switch (action) {
-      OrderAction.accept => (label: 'Accepter', icon: Icons.check, color: Colors.green),
-      OrderAction.reject => (label: 'Refuser', icon: Icons.close, color: Colors.red),
+      OrderAction.accept => (label: 'Accepter', icon: Icons.check, color: LiliaColors.green700),
+      OrderAction.reject => (label: 'Refuser', icon: Icons.close, color: LiliaColors.red500),
       OrderAction.startPreparation =>
         (label: 'En préparation', icon: Icons.restaurant, color: Colors.indigo),
       OrderAction.markReady =>
-        (label: 'Prête', icon: Icons.check_circle, color: Colors.green),
+        (label: 'Prête', icon: Icons.check_circle, color: LiliaColors.green700),
       OrderAction.handOver =>
-        (label: 'Remise au client', icon: Icons.shopping_bag, color: Colors.teal),
-      OrderAction.cancel => (label: 'Annuler', icon: Icons.cancel, color: Colors.red),
+        (label: 'Remise au client', icon: Icons.shopping_bag, color: Colors.teal.shade700),
+      OrderAction.cancel => (label: 'Annuler', icon: Icons.cancel, color: LiliaColors.red500),
     };
 
 /// Choix du temps de préparation annoncé au client.

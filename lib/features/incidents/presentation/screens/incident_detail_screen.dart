@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/theme/lilia_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -312,7 +313,7 @@ class _IncidentDetailBodyState extends ConsumerState<_IncidentDetailBody> {
                 ? null
                 : () => _updateStatus(IncidentStatus.resolved),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green.shade700,
+              backgroundColor: LiliaColors.green700,
               foregroundColor: Colors.white,
             ),
             icon: const Icon(Icons.check),

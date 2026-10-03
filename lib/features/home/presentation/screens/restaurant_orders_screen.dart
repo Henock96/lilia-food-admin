@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lilia_admin/theme/lilia_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -227,8 +228,10 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: TextButton.icon(
                 style: TextButton.styleFrom(
-                  foregroundColor: _todayOnly ? Colors.white : Colors.orange[700],
-                  backgroundColor: _todayOnly ? Colors.orange : Colors.orange.shade50,
+                  // Blanc sur orange600 (4,94:1), orange700 sur orange50 : le
+                  // `Colors.orange` d'avant tombait à 2,16:1 sous le blanc.
+                  foregroundColor: _todayOnly ? Colors.white : LiliaColors.orange700,
+                  backgroundColor: _todayOnly ? LiliaColors.orange600 : Colors.orange.shade50,
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   minimumSize: const Size(0, 32),
                   shape: RoundedRectangleBorder(
@@ -280,7 +283,7 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
                       ),
                       decoration: BoxDecoration(
                         color: status == OrderStatus.enattente && count > 0
-                            ? Colors.orange
+                            ? LiliaColors.orange600
                             : Theme.of(context).colorScheme.primaryContainer,
                         borderRadius: BorderRadius.circular(10),
                       ),
