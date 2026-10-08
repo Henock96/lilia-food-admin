@@ -104,4 +104,53 @@ void main() {
       expect(pageWith(RefundsService.pageSize - 1).hasMore, isFalse);
     });
   });
+
+  /// R-01 — au-delà du seuil, clore (« remboursé » ou « refusé ») ne change
+  /// rien : le serveur ouvre une demande pour un second administrateur et
+  /// répond 2xx `{ data: { approvalRequired: true, approval } }`. Le service
+  /// ignorait la réponse ; l'écran rafraîchissait la liste comme si le geste
+  /// avait eu lieu.
+  group('updateStatus', () {
+    test('signale une demande d’approbation : rien n’a changé', () async {
+      final t = build();
+      t.adapter.onPatch(
+        '/refunds/r1/status',
+        (s) => s.reply(200, {
+          'data': {
+            'approvalRequired': true,
+            'approval': {'id': 'ap-1'},
+          },
+          'message': 'Demande envoyée',
+        }),
+        data: {'status': 'COMPLETED', 'notes': 'MoMo réf. 9'},
+      );
+
+      final requested = await t.service.updateStatus(
+        'r1',
+        RefundStatus.completed,
+        notes: 'MoMo réf. 9',
+      );
+
+      expect(requested, isTrue);
+    });
+
+    test('sous le seuil : le geste a eu lieu', () async {
+      final t = build();
+      t.adapter.onPatch(
+        '/refunds/r1/status',
+        (s) => s.reply(200, {
+          'data': {...refundJson('r1'), 'status': 'REJECTED'},
+        }),
+        data: {'status': 'REJECTED', 'notes': 'Doublon'},
+      );
+
+      final requested = await t.service.updateStatus(
+        'r1',
+        RefundStatus.rejected,
+        notes: 'Doublon',
+      );
+
+      expect(requested, isFalse);
+    });
+  });
 }

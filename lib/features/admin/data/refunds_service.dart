@@ -1,6 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:lilia_admin/core/network/api_client.dart';
+import 'package:lilia_admin/features/admin/domain/approval_response.dart';
 import 'package:lilia_admin/models/refund.dart';
 import 'package:lilia_admin/utils/api_response.dart';
 
@@ -60,18 +61,23 @@ class RefundsService {
   }
 
   /// `PATCH /refunds/:id/status`
-  Future<void> updateStatus(
+  ///
+  /// Rend `true` quand le serveur a ouvert une demande d'approbation au lieu
+  /// de faire le geste (R-01 : au-delà du seuil, clore « remboursé » ou
+  /// « refusé » exige un second administrateur). Rien n'a alors changé.
+  Future<bool> updateStatus(
     String refundId,
     RefundStatus status, {
     String? notes,
   }) async {
-    await _api.patchJson(
+    final res = await _api.patchJson(
       '/refunds/$refundId/status',
       body: {
         'status': status.toApiString(),
         if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
       },
     );
+    return isApprovalRequested(res.data);
   }
 }
 

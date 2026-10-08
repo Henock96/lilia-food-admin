@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:lilia_admin/features/admin/data/refunds_service.dart';
+import 'package:lilia_admin/features/admin/domain/approval_response.dart';
 import 'package:lilia_admin/models/refund.dart';
 
 /// File des remboursements dus aux clients.
@@ -229,9 +230,16 @@ class _RefundCardState extends ConsumerState<_RefundCard> {
 
     setState(() => _busy = true);
     try {
-      await ref
+      final approvalRequested = await ref
           .read(refundsServiceProvider)
           .updateStatus(widget.refund.id, next, notes: notes);
+      // R-01 — une demande d'approbation n'a rien changé : le dire. La liste
+      // est relue dans tous les cas ; elle montrera le statut inchangé.
+      if (approvalRequested && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(refundClosurePendingMessage)),
+        );
+      }
       widget.onChanged();
     } catch (e) {
       if (mounted) {

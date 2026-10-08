@@ -10,3 +10,8 @@ bool isApprovalRequested(Object? body) {
 const payoutChangePendingMessage =
     'Demande envoyée : un second administrateur doit approuver ce changement '
     'de numéro (admin web, écran Approbations). Rien ne change d’ici là.';
+
+/// R-01 — clôture d'un remboursement au-delà du seuil : demande envoyée.
+const refundClosurePendingMessage =
+    'Ce remboursement nécessite l’approbation d’un autre administrateur '
+    '(admin web, écran Approbations). Rien ne change d’ici là.';
