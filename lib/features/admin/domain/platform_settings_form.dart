@@ -75,6 +75,7 @@ class SettingsFormValues {
     required this.updateUrlIos,
     required this.updateMessage,
     required this.blockConfirmation,
+    this.groceryServiceFeePercent = '',
   });
 
   /// Clé du DTO → texte saisi.
@@ -87,6 +88,45 @@ class SettingsFormValues {
   final String updateUrlIos;
   final String updateMessage;
   final String blockConfirmation;
+
+  /// D-4 — frais de service des épiceries, saisis en %. Vide = taux général.
+  final String groceryServiceFeePercent;
+}
+
+/// D-4 — texte du champ pour un taux chargé : 500 bps → « 5 », 750 → « 7.5 »,
+/// non posé → vide.
+String groceryServiceFeeText(PlatformSettings s) {
+  final bps = s.groceryServiceFeeBps;
+  if (bps == null) return '';
+  final percent = bps / 100;
+  return percent == percent.roundToDouble()
+      ? percent.toStringAsFixed(0)
+      : percent.toString();
+}
+
+final _percentDeuxDecimales = RegExp(r'^\d+(\.\d{1,2})?$');
+
+/// D-4 — taux épicerie saisi en % (0 à 100, deux décimales au plus), converti
+/// en points de base entiers. Vide → `null` (taux général).
+({int? bps, String? error}) parseGroceryServiceFee(String raw) {
+  const label = 'Frais de service épiceries';
+  final t = raw.trim();
+  if (t.isEmpty) return (bps: null, error: null);
+  if (_virguleDecimale.hasMatch(t)) {
+    return (
+      bps: null,
+      error: '$label : utilisez un point pour les décimales (ex : 7.5).',
+    );
+  }
+  if (!_percentDeuxDecimales.hasMatch(t)) {
+    return (
+      bps: null,
+      error: '$label : pourcentage attendu, deux décimales au plus (« $t »).',
+    );
+  }
+  final percent = double.parse(t);
+  if (percent > 100) return (bps: null, error: '$label : 100 % au plus.');
+  return (bps: (percent * 100).round(), error: null);
 }
 
 class SettingsPatchResult {
@@ -136,6 +176,16 @@ SettingsPatchResult buildSettingsPatch(
       errors.add(parsed.error!);
     } else if (parsed.value != _loadedNumber(loaded, entry.key)) {
       patch[entry.key] = parsed.value;
+    }
+  }
+
+  // D-4 — seulement si le serveur connaît le réglage.
+  if (loaded.knowsGroceryServiceFee) {
+    final grocery = parseGroceryServiceFee(form.groceryServiceFeePercent);
+    if (grocery.error != null) {
+      errors.add(grocery.error!);
+    } else if (grocery.bps != loaded.groceryServiceFeeBps) {
+      patch['groceryServiceFeeBps'] = grocery.bps;
     }
   }
 

@@ -171,4 +171,69 @@ void main() {
     final r = buildSettingsPatch(_form(s), s);
     expect(r.patch.containsKey('expectedUpdatedAt'), isFalse);
   });
+
+  // D-4 (10/10/2026) — frais de service propres aux épiceries : saisis en %,
+  // envoyés en points de base, vide = taux général.
+  group('frais de service des épiceries (D-4)', () {
+    PlatformSettings d4({int? bps}) => PlatformSettings.fromJson({
+          'id': 'singleton',
+          'serviceFeePercent': 15,
+          'groceryServiceFeeBps': bps,
+          'updatedAt': '2026-10-10T10:00:00.000Z',
+        });
+
+    SettingsFormValues formWith(PlatformSettings s, String grocery) =>
+        SettingsFormValues(
+          numbers: _form(s).numbers,
+          maintenanceMode: s.maintenanceMode,
+          maintenanceMessage: s.maintenanceMessage ?? '',
+          minAppVersion: s.minAppVersion ?? '',
+          latestAppVersion: s.latestAppVersion ?? '',
+          updateUrlAndroid: s.updateUrlAndroid ?? '',
+          updateUrlIos: s.updateUrlIos ?? '',
+          updateMessage: s.updateMessage ?? '',
+          blockConfirmation: '',
+          groceryServiceFeePercent: grocery,
+        );
+
+    test('serveur antérieur (champ absent) : jamais envoyé', () {
+      final r = buildSettingsPatch(formWith(_prod(), '5'), _prod());
+      expect(r.patch.containsKey('groceryServiceFeeBps'), isFalse);
+    });
+
+    test('5 % saisi : 500 points de base', () {
+      final r = buildSettingsPatch(formWith(d4(), '5'), d4());
+      expect(r.ok, isTrue);
+      expect(r.patch['groceryServiceFeeBps'], 500);
+    });
+
+    test('7.5 % : 750', () {
+      final r = buildSettingsPatch(formWith(d4(), '7.5'), d4());
+      expect(r.patch['groceryServiceFeeBps'], 750);
+    });
+
+    test('chargé à 500, champ « 5 » : rien ne change', () {
+      final r = buildSettingsPatch(formWith(d4(bps: 500), '5'), d4(bps: 500));
+      expect(r.patch.containsKey('groceryServiceFeeBps'), isFalse);
+    });
+
+    test('vider le champ : null envoyé, retour au taux général', () {
+      final r = buildSettingsPatch(formWith(d4(bps: 500), ''), d4(bps: 500));
+      expect(r.patch.containsKey('groceryServiceFeeBps'), isTrue);
+      expect(r.patch['groceryServiceFeeBps'], isNull);
+    });
+
+    for (final raw in ['abc', '5,5', '101', '1.234']) {
+      test('« $raw » est refusé', () {
+        final r = buildSettingsPatch(formWith(d4(), raw), d4());
+        expect(r.ok, isFalse);
+      });
+    }
+
+    test('affichage : 500 bps → « 5 », null → vide', () {
+      expect(groceryServiceFeeText(d4(bps: 500)), '5');
+      expect(groceryServiceFeeText(d4(bps: 750)), '7.5');
+      expect(groceryServiceFeeText(d4()), '');
+    });
+  });
 }
