@@ -3,6 +3,14 @@ class PlatformSettings {
   final String id;
   final double serviceFeePercent;
 
+  /// D-4 — frais de service des épiceries, en points de base (500 = 5 %).
+  /// `null` = les épiceries paient le taux général.
+  final int? groceryServiceFeeBps;
+
+  /// Le serveur connaît-il ce réglage ? `false` contre un backend antérieur :
+  /// l'écran ne le propose pas et le PATCH ne l'envoie jamais.
+  final bool knowsGroceryServiceFee;
+
   /// Commission vendeur par défaut, en pourcentage.
   ///
   /// Retenue **sur le vendeur** au moment du reversement — le client ne la paie
@@ -71,6 +79,8 @@ class PlatformSettings {
   PlatformSettings({
     required this.id,
     required this.serviceFeePercent,
+    this.groceryServiceFeeBps,
+    this.knowsGroceryServiceFee = false,
     required this.restaurantCommissionPercent,
     required this.loyaltyPointsPerOrder,
     required this.loyaltyPointValueXaf,
@@ -98,6 +108,8 @@ class PlatformSettings {
     return PlatformSettings(
       id: json['id'] as String? ?? 'singleton',
       serviceFeePercent: (json['serviceFeePercent'] as num?)?.toDouble() ?? 8,
+      groceryServiceFeeBps: (json['groceryServiceFeeBps'] as num?)?.toInt(),
+      knowsGroceryServiceFee: json.containsKey('groceryServiceFeeBps'),
       restaurantCommissionPercent:
           (json['restaurantCommissionPercent'] as num?)?.toDouble() ?? 10,
       loyaltyPointsPerOrder: json['loyaltyPointsPerOrder'] as int? ?? 1,

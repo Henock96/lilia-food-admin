@@ -70,6 +70,8 @@ class _PlatformSettingsForm extends ConsumerStatefulWidget {
 
 class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
   late final TextEditingController _serviceFee;
+  // D-4 — frais de service des épiceries (vide = taux général).
+  late final TextEditingController _groceryServiceFee;
   late final TextEditingController _restaurantCommission;
   late final TextEditingController _loyaltyPerOrder;
   late final TextEditingController _loyaltyValue;
@@ -107,6 +109,8 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
     super.initState();
     final s = widget.settings;
     _serviceFee = TextEditingController(text: s.serviceFeePercent.toString());
+    _groceryServiceFee =
+        TextEditingController(text: groceryServiceFeeText(s));
     _restaurantCommission =
         TextEditingController(text: s.restaurantCommissionPercent.toString());
     _loyaltyPerOrder =
@@ -137,6 +141,7 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
   @override
   void dispose() {
     _serviceFee.dispose();
+    _groceryServiceFee.dispose();
     _restaurantCommission.dispose();
     _loyaltyPerOrder.dispose();
     _loyaltyValue.dispose();
@@ -178,6 +183,7 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
         updateUrlIos: _updateUrlIos.text,
         updateMessage: _updateMessage.text,
         blockConfirmation: _blockConfirmation.text,
+        groceryServiceFeePercent: _groceryServiceFee.text,
       ),
       s,
     );
@@ -285,6 +291,22 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
               style: TextStyle(fontSize: 11, color: Colors.grey),
             ),
           ),
+          // D-4 — seulement si le serveur connaît le réglage.
+          if (widget.settings.knowsGroceryServiceFee) ...[
+            _numberField(
+              _groceryServiceFee,
+              'Frais de service épiceries',
+              '%',
+            ),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 4),
+              child: Text(
+                'Appliqué aux seules épiceries, à la place du taux général. '
+                'Vide : taux général. N’affecte que les commandes futures.',
+                style: TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ),
+          ],
         ]),
         // Ce réglage n'était éditable par AUCUNE interface : absent du DTO
         // serveur, il était retiré en silence des requêtes, qui répondaient
