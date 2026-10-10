@@ -290,3 +290,71 @@ final class CatalogSelectableVendorsProvider
 
 String _$catalogSelectableVendorsHash() =>
     r'c7eda426d1930e56fd4cf184f4a3fc70ef600926';
+
+/// Type du vendeur sur lequel porte le catalogue — **le vendeur ciblé**, pas
+/// la boutique de l'appelant.
+///
+/// Le formulaire produit lisait `restaurantSettingsProvider`
+/// (`GET /restaurants/mine`) : pour un ADMIN, c'est sa propre boutique — ou
+/// rien —, si bien qu'il remplissait le catalogue d'une épicerie avec les
+/// types d'un restaurant, et le serveur refusait en 400. Il n'y a pas de
+/// repli : tant que le type n'est pas connu, la valeur est en chargement ou en
+/// erreur, et l'appelant ne devine rien.
+
+@ProviderFor(catalogTargetVendorType)
+final catalogTargetVendorTypeProvider = CatalogTargetVendorTypeProvider._();
+
+/// Type du vendeur sur lequel porte le catalogue — **le vendeur ciblé**, pas
+/// la boutique de l'appelant.
+///
+/// Le formulaire produit lisait `restaurantSettingsProvider`
+/// (`GET /restaurants/mine`) : pour un ADMIN, c'est sa propre boutique — ou
+/// rien —, si bien qu'il remplissait le catalogue d'une épicerie avec les
+/// types d'un restaurant, et le serveur refusait en 400. Il n'y a pas de
+/// repli : tant que le type n'est pas connu, la valeur est en chargement ou en
+/// erreur, et l'appelant ne devine rien.
+
+final class CatalogTargetVendorTypeProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<VendorType>,
+          VendorType,
+          FutureOr<VendorType>
+        >
+    with $FutureModifier<VendorType>, $FutureProvider<VendorType> {
+  /// Type du vendeur sur lequel porte le catalogue — **le vendeur ciblé**, pas
+  /// la boutique de l'appelant.
+  ///
+  /// Le formulaire produit lisait `restaurantSettingsProvider`
+  /// (`GET /restaurants/mine`) : pour un ADMIN, c'est sa propre boutique — ou
+  /// rien —, si bien qu'il remplissait le catalogue d'une épicerie avec les
+  /// types d'un restaurant, et le serveur refusait en 400. Il n'y a pas de
+  /// repli : tant que le type n'est pas connu, la valeur est en chargement ou en
+  /// erreur, et l'appelant ne devine rien.
+  CatalogTargetVendorTypeProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'catalogTargetVendorTypeProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$catalogTargetVendorTypeHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<VendorType> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<VendorType> create(Ref ref) {
+    return catalogTargetVendorType(ref);
+  }
+}
+
+String _$catalogTargetVendorTypeHash() =>
+    r'36b6e4b8a50755666536e4cda1d0ad3cf8724129';
