@@ -195,19 +195,18 @@ class _CreateRestaurantScreenState
               child: Column(
                 children: [
                   for (final type in VendorType.values)
-                    if (type != VendorType.GROCERY)
-                      RadioListTile<VendorType>(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        value: type,
-                        title: Text('${type.emoji} ${type.label}'),
-                        subtitle: Text(
-                          type == VendorType.RESTAURANT
-                              ? 'Validé d’office'
-                              : 'Validation marketplace requise',
-                          style: const TextStyle(fontSize: 11),
-                        ),
+                    RadioListTile<VendorType>(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      value: type,
+                      title: Text('${type.emoji} ${type.label}'),
+                      subtitle: Text(
+                        type == VendorType.RESTAURANT
+                            ? 'Validé d’office'
+                            : 'Validation marketplace requise',
+                        style: const TextStyle(fontSize: 11),
                       ),
+                    ),
                 ],
               ),
             ),

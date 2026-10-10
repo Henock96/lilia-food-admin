@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../models/role.dart';
+import '../../models/vendor_type.dart';
 import '../admin/data/admin_vendors_service.dart';
 import '../admin/presentation/providers/admin_vendors_provider.dart';
 import '../auth/user_sync_provider.dart';
 import '../restaurant/presentation/providers/restaurant_provider.dart';
+import '../settings/presentation/providers/settings_provider.dart';
 
 part 'catalog_scope.g.dart';
 
@@ -69,6 +71,29 @@ String? catalogTargetRestaurantId(Ref ref) {
 Future<List<AdminVendorItem>> catalogSelectableVendors(Ref ref) async {
   if (!ref.watch(isCatalogAdminProvider)) return const [];
   return ref.watch(adminVendorsServiceProvider).listVendors(limit: 100);
+}
+
+/// Type du vendeur sur lequel porte le catalogue — **le vendeur ciblé**, pas
+/// la boutique de l'appelant.
+///
+/// Le formulaire produit lisait `restaurantSettingsProvider`
+/// (`GET /restaurants/mine`) : pour un ADMIN, c'est sa propre boutique — ou
+/// rien —, si bien qu'il remplissait le catalogue d'une épicerie avec les
+/// types d'un restaurant, et le serveur refusait en 400. Il n'y a pas de
+/// repli : tant que le type n'est pas connu, la valeur est en chargement ou en
+/// erreur, et l'appelant ne devine rien.
+@riverpod
+Future<VendorType> catalogTargetVendorType(Ref ref) async {
+  if (ref.watch(isCatalogAdminProvider)) {
+    final target = ref.watch(catalogScopeProvider);
+    final vendors = await ref.watch(catalogSelectableVendorsProvider.future);
+    for (final vendor in vendors) {
+      if (vendor.restaurant.id == target) return vendor.restaurant.vendorType;
+    }
+    throw StateError('Aucun vendeur sélectionné.');
+  }
+  final own = await ref.watch(restaurantSettingsProvider.future);
+  return own.vendorType;
 }
 
 /// Bandeau de sélection du vendeur, affiché **uniquement** à l'ADMIN.

@@ -11,7 +11,7 @@ import '../../../categories/presentation/providers/categories_provider.dart';
 import '../../../categories/presentation/widgets/create_category_dialog.dart';
 import '../../../photos/application/photos_controller.dart';
 import '../../../photos/data/photo_models.dart';
-import '../../../settings/presentation/providers/settings_provider.dart';
+import '../../../catalog/catalog_scope.dart';
 import '../providers/products_provider.dart';
 import '../widgets/product_image_buffer.dart';
 import '../widgets/product_image_buffer_field.dart';
@@ -45,6 +45,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   StockPolicy _stockPolicy = StockPolicy.UNLIMITED;
   StockUnit _stockUnit = StockUnit.PIECE;
   bool _madeToOrder = false;
+  // Type de vendeur pour lequel les valeurs par défaut ont été posées.
+  VendorType? _defaultsVendorType;
 
   bool get isEditing => widget.product != null;
 
@@ -421,18 +423,48 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     final categoriesAsync = ref.watch(categoriesProvider);
     // Préchargé pour le dialogue des formats.
     ref.watch(multiUnitVariantsEnabledProvider);
-    final restaurantAsync = ref.watch(restaurantSettingsProvider);
-    final vendorType = restaurantAsync.value?.vendorType ?? VendorType.RESTAURANT;
+    // Type du vendeur CIBLÉ (celui choisi par un ADMIN, sinon celui de
+    // l'appelant). Aucun repli : tant qu'il n'est pas connu, rien n'est
+    // pré-sélectionné et l'enregistrement reste fermé — deviner RESTAURANT
+    // envoyait FOOD à une épicerie, que le serveur refuse.
+    final vendorTypeAsync = ref.watch(catalogTargetVendorTypeProvider);
+    final vendorType = vendorTypeAsync.value;
     // Matrice alignée sur ProductValidatorService backend. ALCOHOL est exclu
     // par le filtre `!= ALCOHOL` pour respecter le pivot lancement.
-    final allowedTypes = (kAllowedProductTypes[vendorType] ?? const [])
-        .where((t) => t != ProductType.ALCOHOL)
-        .toList();
-    // Initialise _productType au 1er type autorisé si pas encore défini
-    // (création d'un produit ; édition garde la valeur existante).
-    if (_productType == null && allowedTypes.isNotEmpty) {
-      _productType = allowedTypes.first;
+    final allowedTypes = vendorType == null
+        ? const <ProductType>[]
+        : (kAllowedProductTypes[vendorType] ?? const <ProductType>[])
+            .where((t) => t != ProductType.ALCOHOL)
+            .toList();
+    // Valeurs par défaut posées à chaque fois que le vendeur ciblé devient
+    // connu ou change — jamais avant. L'édition garde les valeurs du produit.
+    if (vendorType != null && vendorType != _defaultsVendorType) {
+      _defaultsVendorType = vendorType;
+      // ALCOHOL n'est ni proposé ni conservé : un produit qui le porte devra
+      // recevoir un type valide avant d'être enregistré.
+      if (_productType == ProductType.ALCOHOL) _productType = null;
+      if (!isEditing) {
+        if (!allowedTypes.contains(_productType)) {
+          _productType = allowedTypes.isEmpty ? null : allowedTypes.first;
+        }
+        // Une référence d'étagère se compte : « Toujours disponible » la
+        // rendrait vendable à l'infini. Simple défaut, que le vendeur change.
+        if (vendorType == VendorType.GROCERY) {
+          _stockPolicy = StockPolicy.INVENTORY;
+        }
+      }
     }
+    // Un produit EXISTANT peut porter un type hors matrice (donnée ancienne) :
+    // il reste affiché plutôt que de faire échouer le champ. Jamais pour un
+    // produit neuf, dont le type suit toujours le vendeur.
+    final typeChoices = [
+      ...allowedTypes,
+      if (isEditing &&
+          _productType != null &&
+          vendorType != null &&
+          !allowedTypes.contains(_productType))
+        _productType!,
+    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -507,18 +539,27 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             // LIL-126 : ProductType (filtré par vendorType via la matrice
             // partagée avec le backend).
             DropdownButtonFormField<ProductType>(
-              initialValue: _productType,
-              decoration: const InputDecoration(
+              // `initialValue` n'est lu qu'à la création de l'état du champ :
+              // la clé le recrée quand le type de vendeur devient connu.
+              key: ValueKey(vendorType),
+              initialValue: vendorType == null ? null : _productType,
+              decoration: InputDecoration(
                 labelText: 'Type de produit *',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                helperText: vendorTypeAsync.isLoading
+                    ? 'Chargement du type de vendeur…'
+                    : null,
+                errorText: vendorTypeAsync.hasError
+                    ? 'Type de vendeur indisponible'
+                    : null,
               ),
-              items: allowedTypes
+              items: typeChoices
                   .map((t) => DropdownMenuItem(
                         value: t,
                         child: Text(t.label),
                       ))
                   .toList(),
-              onChanged: allowedTypes.isEmpty
+              onChanged: typeChoices.isEmpty
                   ? null
                   : (value) => setState(() => _productType = value),
               validator: (value) =>
@@ -639,7 +680,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             SizedBox(
               height: 50,
               child: ElevatedButton(
-                onPressed: _isLoading ? null : _saveProduct,
+                onPressed:
+                    _isLoading || vendorType == null ? null : _saveProduct,
                 child: _isLoading
                     ? const SizedBox(
                         width: 24,
