@@ -26,7 +26,6 @@ PlatformSettings _prod({String? minAppVersion = '1.3.0', String? latest = '1.3.0
 
 SettingsFormValues _form(
   PlatformSettings s, {
-  Map<String, String> numbers = const {},
   String? min,
   String? latest,
   String? urlIos,
@@ -35,15 +34,6 @@ SettingsFormValues _form(
   String block = '',
 }) =>
     SettingsFormValues(
-      numbers: {
-        'serviceFeePercent': '${s.serviceFeePercent}',
-        'restaurantCommissionPercent': '${s.restaurantCommissionPercent}',
-        'loyaltyPointsPerOrder': '${s.loyaltyPointsPerOrder}',
-        'loyaltyPointValueXaf': '${s.loyaltyPointValueXaf}',
-        'loyaltyMinRedemption': '${s.loyaltyMinRedemption}',
-        'referrerBonusPoints': '${s.referrerBonusPoints}',
-        ...numbers,
-      },
       maintenanceMode: s.maintenanceMode,
       maintenanceMessage: maintenanceMessage ?? s.maintenanceMessage ?? '',
       minAppVersion: min ?? s.minAppVersion ?? '',
@@ -55,36 +45,25 @@ SettingsFormValues _form(
     );
 
 void main() {
-  group('saisie numérique stricte (SET-003)', () {
-    const decimal = NumberFieldSpec('Frais de service', integer: false);
-    const integer = NumberFieldSpec("Valeur d'un point", integer: true);
-
-    for (final raw in ['12,5', 'abc', '12foo', '', '  ', '-5', '1e3']) {
-      test('refuse « $raw »', () {
-        expect(parseNumberField(raw, decimal).error, isNotNull);
-      });
-    }
-
-    test('la virgule décimale est expliquée', () {
-      expect(parseNumberField('12,5', decimal).error, contains('point'));
-    });
-
-    test('accepte décimal et entier', () {
-      expect(parseNumberField('12.5', decimal).value, 12.5);
-      expect(parseNumberField(' 50 ', integer).value, 50);
-    });
-
-    test('un entier attendu refuse un décimal', () {
-      expect(parseNumberField('12.5', integer).error, isNotNull);
-    });
-
-    test('toute saisie invalide bloque le PATCH — plus de repli silencieux', () {
-      final s = _prod();
-      for (final key in numberFieldSpecs.keys) {
-        final r = buildSettingsPatch(_form(s, numbers: {key: 'abc'}), s);
-        expect(r.ok, isFalse, reason: '$key = abc a été accepté');
-      }
-    });
+  /// R-09 — les réglages qui fixent de l'argent ne sont plus modifiables ici :
+  /// ils se demandent depuis l'admin web et s'approuvent à deux.
+  test('le PATCH ne porte jamais un réglage d’argent', () {
+    final s = _prod();
+    final r = buildSettingsPatch(_form(s, maintenanceMessage: 'Retour à 14 h'), s);
+    const financial = {
+      'serviceFeePercent',
+      'groceryServiceFeeBps',
+      'restaurantCommissionPercent',
+      'loyaltyPointValueXaf',
+      'loyaltyPointsPerOrder',
+      'loyaltyMinRedemption',
+      'referrerBonusPoints',
+      'vendorPayoutAutoEnabled',
+      'vendorPayoutDelayMinutes',
+      'deliveryPricingMode',
+    };
+    expect(r.patch.keys.toSet().intersection(financial), isEmpty);
+    expect(r.patch['maintenanceMessage'], 'Retour à 14 h');
   });
 
   group('PATCH minimal + verrou (SET-001)', () {
@@ -98,19 +77,11 @@ void main() {
 
     test('seul le champ modifié part — les réglages de mise à jour ne sont pas réécrits', () {
       final s = _prod();
-      final r = buildSettingsPatch(
-          _form(s, numbers: {'serviceFeePercent': '12.5'}), s);
+      final r = buildSettingsPatch(_form(s, maintenanceMessage: 'Retour à 14 h'), s);
       expect(r.patch, {
         'expectedUpdatedAt': '2026-09-22T10:00:00.000Z',
-        'serviceFeePercent': 12.5,
+        'maintenanceMessage': 'Retour à 14 h',
       });
-    });
-
-    test('« 15 » face à 15.0 en base : pas un changement', () {
-      final s = _prod();
-      final r =
-          buildSettingsPatch(_form(s, numbers: {'serviceFeePercent': '15'}), s);
-      expect(r.changed, isFalse);
     });
 
     test('maintenanceMessage "" en base, vide à l\'écran : pas un changement', () {
@@ -161,7 +132,7 @@ void main() {
     test('état hérité incohérent : bloque tout enregistrement jusqu\'à correction', () {
       final legacy = _prod(latest: null);
       final r = buildSettingsPatch(
-          _form(legacy, numbers: {'serviceFeePercent': '12'}), legacy);
+          _form(legacy, maintenanceMessage: 'Retour à 14 h'), legacy);
       expect(r.ok, isFalse);
     });
   });
@@ -174,66 +145,15 @@ void main() {
 
   // D-4 (10/10/2026) — frais de service propres aux épiceries : saisis en %,
   // envoyés en points de base, vide = taux général.
-  group('frais de service des épiceries (D-4)', () {
+  test('D-4 — affichage du taux épicerie : 500 bps → « 5 », null → vide', () {
     PlatformSettings d4({int? bps}) => PlatformSettings.fromJson({
           'id': 'singleton',
           'serviceFeePercent': 15,
           'groceryServiceFeeBps': bps,
           'updatedAt': '2026-10-10T10:00:00.000Z',
         });
-
-    SettingsFormValues formWith(PlatformSettings s, String grocery) =>
-        SettingsFormValues(
-          numbers: _form(s).numbers,
-          maintenanceMode: s.maintenanceMode,
-          maintenanceMessage: s.maintenanceMessage ?? '',
-          minAppVersion: s.minAppVersion ?? '',
-          latestAppVersion: s.latestAppVersion ?? '',
-          updateUrlAndroid: s.updateUrlAndroid ?? '',
-          updateUrlIos: s.updateUrlIos ?? '',
-          updateMessage: s.updateMessage ?? '',
-          blockConfirmation: '',
-          groceryServiceFeePercent: grocery,
-        );
-
-    test('serveur antérieur (champ absent) : jamais envoyé', () {
-      final r = buildSettingsPatch(formWith(_prod(), '5'), _prod());
-      expect(r.patch.containsKey('groceryServiceFeeBps'), isFalse);
-    });
-
-    test('5 % saisi : 500 points de base', () {
-      final r = buildSettingsPatch(formWith(d4(), '5'), d4());
-      expect(r.ok, isTrue);
-      expect(r.patch['groceryServiceFeeBps'], 500);
-    });
-
-    test('7.5 % : 750', () {
-      final r = buildSettingsPatch(formWith(d4(), '7.5'), d4());
-      expect(r.patch['groceryServiceFeeBps'], 750);
-    });
-
-    test('chargé à 500, champ « 5 » : rien ne change', () {
-      final r = buildSettingsPatch(formWith(d4(bps: 500), '5'), d4(bps: 500));
-      expect(r.patch.containsKey('groceryServiceFeeBps'), isFalse);
-    });
-
-    test('vider le champ : null envoyé, retour au taux général', () {
-      final r = buildSettingsPatch(formWith(d4(bps: 500), ''), d4(bps: 500));
-      expect(r.patch.containsKey('groceryServiceFeeBps'), isTrue);
-      expect(r.patch['groceryServiceFeeBps'], isNull);
-    });
-
-    for (final raw in ['abc', '5,5', '101', '1.234']) {
-      test('« $raw » est refusé', () {
-        final r = buildSettingsPatch(formWith(d4(), raw), d4());
-        expect(r.ok, isFalse);
-      });
-    }
-
-    test('affichage : 500 bps → « 5 », null → vide', () {
-      expect(groceryServiceFeeText(d4(bps: 500)), '5');
-      expect(groceryServiceFeeText(d4(bps: 750)), '7.5');
-      expect(groceryServiceFeeText(d4()), '');
-    });
+    expect(groceryServiceFeeText(d4(bps: 500)), '5');
+    expect(groceryServiceFeeText(d4(bps: 750)), '7.5');
+    expect(groceryServiceFeeText(d4()), '');
   });
 }

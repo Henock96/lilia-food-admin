@@ -128,19 +128,17 @@ class VendorOnboardingService {
         'estimatedDeliveryTimeMax': ?estimatedDeliveryTimeMax,
       });
 
-  /// Étape 7 — commission et minimum de commande. **ADMIN uniquement** : la
-  /// route vit sous `/admin/vendors`, un restaurateur ne peut pas l'appeler.
+  /// Étape 7 — minimum de commande. **ADMIN uniquement** : la route vit sous
+  /// `/admin/vendors`, un restaurateur ne peut pas l'appeler.
+  ///
+  /// R-09 — la commission n'en fait plus partie : elle fixe ce que touche le
+  /// vendeur, se demande depuis l'admin web et s'approuve à deux
+  /// administrateurs. Le serveur refuse (409) une commission différente ici.
   Future<void> updateCommerce(
     String restaurantId, {
-    double? commissionPercent,
-    bool clearCommission = false,
     int? minimumOrderAmount,
   }) async {
     await _api.patchJson('/admin/vendors/$restaurantId/commerce', body: {
-      // `null` explicite = revenir au taux plateforme. Sans ce drapeau, on ne
-      // pourrait pas distinguer « ne pas modifier » de « remettre à zéro ».
-      if (clearCommission) 'commissionPercent': null
-      else 'commissionPercent': ?commissionPercent,
       'minimumOrderAmount': ?minimumOrderAmount,
     });
   }

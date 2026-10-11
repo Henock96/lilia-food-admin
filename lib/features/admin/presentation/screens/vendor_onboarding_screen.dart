@@ -295,13 +295,8 @@ class _VendorOnboardingScreenState
     'Livraison enregistrée',
   );
 
-  Future<void> _saveCommerce(double? commission, int? minOrder) => _save(
-    () => _service.updateCommerce(
-      _vendor.id,
-      commissionPercent: commission,
-      clearCommission: commission == null,
-      minimumOrderAmount: minOrder,
-    ),
+  Future<void> _saveCommerce(int? minOrder) => _save(
+    () => _service.updateCommerce(_vendor.id, minimumOrderAmount: minOrder),
     'Paramètres commerciaux enregistrés',
   );
 
@@ -975,7 +970,7 @@ class _DeliveryStepState extends State<_DeliveryStep> {
 class _CommerceStep extends StatefulWidget {
   final Restaurant vendor;
   final bool saving;
-  final Future<void> Function(double?, int?) onSave;
+  final Future<void> Function(int?) onSave;
   final Future<void> Function(String phone, String provider) onSavePayout;
   final ReadinessCheck? payoutCheck;
 
@@ -992,9 +987,6 @@ class _CommerceStep extends StatefulWidget {
 }
 
 class _CommerceStepState extends State<_CommerceStep> {
-  late final _commission = TextEditingController(
-    text: widget.vendor.commissionPercent?.toString() ?? '',
-  );
   late final _minOrder = TextEditingController(
     text: widget.vendor.minimumOrderAmount.toInt().toString(),
   );
@@ -1003,7 +995,6 @@ class _CommerceStepState extends State<_CommerceStep> {
 
   @override
   void dispose() {
-    _commission.dispose();
     _minOrder.dispose();
     _payoutPhone.dispose();
     super.dispose();
@@ -1019,17 +1010,29 @@ class _CommerceStepState extends State<_CommerceStep> {
           hint:
               'Réservé aux administrateurs — le vendeur ne peut pas modifier sa commission.',
           saving: widget.saving,
-          onSave: () => widget.onSave(
-            double.tryParse(_commission.text.trim()),
-            int.tryParse(_minOrder.text.trim()),
-          ),
+          onSave: () => widget.onSave(int.tryParse(_minOrder.text.trim())),
           children: [
-            _field(
-              _commission,
-              'Commission plateforme (%)',
-              keyboard: TextInputType.number,
-              helper:
-                  'Vide = taux plateforme. Figée sur chaque commande passée.',
+            // R-09 — la commission fixe ce que touche le vendeur : elle se
+            // demande depuis l'admin web et s'approuve à deux administrateurs.
+            // Le serveur refuse (409) de la changer depuis cette étape.
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Commission plateforme : '
+                    '${_commissionLabel(widget.vendor.commissionPercent)}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Figée sur chaque commande passée. Pour la changer : '
+                    'admin web, puis approbation d’un second administrateur.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
             _field(
               _minOrder,
@@ -1254,4 +1257,13 @@ Widget _field(
       ),
     ),
   );
+}
+
+/// R-09 — « taux plateforme » quand le vendeur n'a pas de commission propre.
+String _commissionLabel(double? percent) {
+  if (percent == null) return 'taux plateforme';
+  final text = percent == percent.roundToDouble()
+      ? percent.toStringAsFixed(0)
+      : percent.toString();
+  return '$text %';
 }
