@@ -3,6 +3,7 @@ import 'package:lilia_admin/features/ops/data/ops_queue_service.dart';
 import 'package:lilia_admin/features/closures/presentation/closures_tab.dart';
 import 'package:lilia_admin/features/delivery_pricing/data/delivery_pricing_service.dart';
 import 'package:lilia_admin/features/delivery_pricing/presentation/delivery_pricing_card.dart';
+import 'package:lilia_admin/features/settings/presentation/widgets/service_mode_switches.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../auth/controller/auth_controller.dart';
@@ -1487,13 +1488,31 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
   late TextEditingController _maxTimeController;
   late TextEditingController _minOrderController;
   late String _deliveryMode;
+  // Modes de service : lus sur la configuration réelle du vendeur, envoyés
+  // seulement s'ils ont été touchés (voir [ServiceModeDraft]).
+  late ServiceModeDraft _serviceModes;
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
     _deliveryMode = widget.restaurant.deliveryPriceMode;
+    _serviceModes = ServiceModeDraft.fromServer(
+      delivery: widget.restaurant.supportsDelivery,
+      pickup: widget.restaurant.supportsPickup,
+    );
     _initControllers();
+  }
+
+  @override
+  void didUpdateWidget(covariant _DeliverySettingsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Nouvelle lecture du serveur (rafraîchissement, enregistrement) :
+    // adoptée tant que le vendeur n'a pas touché aux interrupteurs.
+    _serviceModes = _serviceModes.syncWith(
+      delivery: widget.restaurant.supportsDelivery,
+      pickup: widget.restaurant.supportsPickup,
+    );
   }
 
   void _initControllers() {
@@ -1531,8 +1550,18 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
             estimatedDeliveryTimeMax: int.tryParse(_maxTimeController.text),
             minimumOrderAmount: int.tryParse(_minOrderController.text.trim()),
             deliveryPriceMode: _deliveryMode,
+            supportsDelivery: _serviceModes.payload.delivery,
+            supportsPickup: _serviceModes.payload.pickup,
           );
       if (mounted) {
+        // Enregistré : la saisie devient la valeur du serveur, et les
+        // lectures suivantes sont de nouveau adoptées.
+        setState(() {
+          _serviceModes = ServiceModeDraft.fromServer(
+            delivery: _serviceModes.delivery,
+            pickup: _serviceModes.pickup,
+          );
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Row(
@@ -1579,6 +1608,22 @@ class _DeliverySettingsTabState extends ConsumerState<_DeliverySettingsTab> {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
+        _SectionCard(
+          title: 'Modes de service',
+          icon: Icons.storefront_outlined,
+          child: ServiceModeSwitches(
+            delivery: _serviceModes.delivery,
+            pickup: _serviceModes.pickup,
+            enabled: !_isSaving,
+            onChanged: (delivery, pickup) => setState(() {
+              _serviceModes = _serviceModes.edit(
+                delivery: delivery,
+                pickup: pickup,
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 16),
         _SectionCard(
           title: 'Prix de la livraison',
           icon: Icons.local_shipping_outlined,

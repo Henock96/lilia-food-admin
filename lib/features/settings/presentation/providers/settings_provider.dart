@@ -69,22 +69,33 @@ class RestaurantSettings extends _$RestaurantSettings {
     int? estimatedDeliveryTimeMax,
     int? minimumOrderAmount,
     String? deliveryPriceMode,
+    bool? supportsDelivery,
+    bool? supportsPickup,
   }) async {
     final currentRestaurant = state.value;
     if (currentRestaurant == null) return;
 
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
-      final service = ref.read(restaurantSettingsServiceProvider);
-      return await service.updateDeliverySettings(
+    // Ni état de chargement ni `AsyncValue.guard` ici. Le chargement
+    // remplaçait les onglets par un spinner — l'onglet qui enregistre était
+    // démonté et ne pouvait plus rien annoncer — et `guard` avalait l'échec :
+    // l'écran disait « mis à jour » puis basculait sur « Impossible de
+    // charger ». L'onglet porte son propre indicateur d'enregistrement ; sur
+    // un refus (réseau, 400 « au moins un mode », zones manquantes…), la
+    // configuration connue du serveur reste affichée, la saisie n'est pas
+    // perdue et l'erreur remonte à l'écran, qui l'affiche.
+    final service = ref.read(restaurantSettingsServiceProvider);
+    state = AsyncValue.data(
+      await service.updateDeliverySettings(
         currentRestaurant.id,
         fixedDeliveryFee: fixedDeliveryFee,
         estimatedDeliveryTimeMin: estimatedDeliveryTimeMin,
         estimatedDeliveryTimeMax: estimatedDeliveryTimeMax,
         minimumOrderAmount: minimumOrderAmount,
         deliveryPriceMode: deliveryPriceMode,
-      );
-    });
+        supportsDelivery: supportsDelivery,
+        supportsPickup: supportsPickup,
+      ),
+    );
   }
 
   Future<void> addSpecialty(String name) async {
