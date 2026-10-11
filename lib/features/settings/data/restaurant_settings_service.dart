@@ -37,6 +37,8 @@ class RestaurantSettingsService {
     int? estimatedDeliveryTimeMax,
     int? minimumOrderAmount,
     String? deliveryPriceMode,
+    bool? supportsDelivery,
+    bool? supportsPickup,
   }) async {
     final data = <String, dynamic>{};
     if (fixedDeliveryFee != null) data['fixedDeliveryFee'] = fixedDeliveryFee;
@@ -44,6 +46,10 @@ class RestaurantSettingsService {
     if (estimatedDeliveryTimeMax != null) data['estimatedDeliveryTimeMax'] = estimatedDeliveryTimeMax;
     if (minimumOrderAmount != null) data['minimumOrderAmount'] = minimumOrderAmount;
     if (deliveryPriceMode != null) data['deliveryPriceMode'] = deliveryPriceMode;
+    // Modes de service : envoyés seulement s'ils sont fournis — le serveur
+    // garde la valeur en base pour un champ absent.
+    if (supportsDelivery != null) data['supportsDelivery'] = supportsDelivery;
+    if (supportsPickup != null) data['supportsPickup'] = supportsPickup;
 
     // ⚠️ Route changée : `PATCH /vendors/:id/delivery` remplace
     // `PATCH /restaurants/:id/delivery-settings`, dépréciée.
