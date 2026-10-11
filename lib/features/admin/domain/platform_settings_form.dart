@@ -1,13 +1,12 @@
 /// Formulaire « Paramètres plateforme » — logique pure, testable.
 ///
 /// Symétrique de `lilia-food-web/apps/admin/lib/platform-settings-form.ts`.
-/// Deux garanties :
 ///
-/// * **Aucun faux succès sur une saisie numérique (SET-003).** L'écran faisait
-///   `double.tryParse(saisie) ?? ancienneValeur` : « 12,5 » (virgule décimale
-///   française), « abc » ou un champ vidé renvoyaient **en silence** l'ancienne
-///   valeur, et le snackbar vert « Configuration enregistrée » s'affichait. La
-///   saisie illisible bloque désormais l'envoi, avec le nom du champ.
+/// * **R-09 — aucun réglage d'argent.** Frais de service, commission, points,
+///   parrainage : ils fixent de l'argent, se demandent depuis l'admin web et
+///   s'approuvent à deux administrateurs. Le serveur les refuse dans le PATCH
+///   (409 `FINANCIAL_SETTING_REQUIRES_APPROVAL`) ; cette app les affiche sans
+///   les modifier, et ne les envoie jamais.
 /// * **Le PATCH ne porte que ce qui a changé (SET-001)**, plus l'`updatedAt`
 ///   chargé. L'écran renvoyait les treize champs à chaque enregistrement : un
 ///   formulaire ouvert depuis un moment pouvait effacer un blocage de sécurité
@@ -19,54 +18,9 @@ import 'package:lilia_admin/core/network/api_exception.dart';
 import 'package:lilia_admin/features/admin/domain/app_update_rules.dart';
 import 'package:lilia_admin/models/platform_settings.dart';
 
-class NumberFieldSpec {
-  const NumberFieldSpec(this.label, {required this.integer});
-  final String label;
-  final bool integer;
-}
-
-/// Clés numériques du DTO, dans l'ordre de l'écran.
-const numberFieldSpecs = <String, NumberFieldSpec>{
-  'serviceFeePercent': NumberFieldSpec('Frais de service', integer: false),
-  'restaurantCommissionPercent':
-      NumberFieldSpec('Commission vendeur', integer: false),
-  'loyaltyPointsPerOrder':
-      NumberFieldSpec('Points / commande livrée', integer: true),
-  'loyaltyPointValueXaf': NumberFieldSpec("Valeur d'un point", integer: true),
-  'loyaltyMinRedemption':
-      NumberFieldSpec("Seuil minimum d'utilisation", integer: true),
-  'referrerBonusPoints': NumberFieldSpec('Bonus parrain', integer: true),
-};
-
-final _decimal = RegExp(r'^\d+(\.\d+)?$');
-final _integer = RegExp(r'^\d+$');
-final _virguleDecimale = RegExp(r'^\d+,\d+$');
-
-/// La valeur, ou le refus prêt à afficher. Jamais de repli.
-({num? value, String? error}) parseNumberField(String raw, NumberFieldSpec spec) {
-  final t = raw.trim();
-  if (t.isEmpty) return (value: null, error: '${spec.label} : champ obligatoire.');
-  if (!spec.integer && _virguleDecimale.hasMatch(t)) {
-    return (
-      value: null,
-      error: '${spec.label} : utilisez un point pour les décimales (ex : 12.5).',
-    );
-  }
-  if (!(spec.integer ? _integer : _decimal).hasMatch(t)) {
-    return (
-      value: null,
-      error: spec.integer
-          ? '${spec.label} : nombre entier attendu (« $t » n\'en est pas un).'
-          : '${spec.label} : nombre attendu (« $t » n\'en est pas un).',
-    );
-  }
-  return (value: spec.integer ? int.parse(t) : double.parse(t), error: null);
-}
-
 /// Valeurs saisies à l'écran, telles quelles.
 class SettingsFormValues {
   const SettingsFormValues({
-    required this.numbers,
     required this.maintenanceMode,
     required this.maintenanceMessage,
     required this.minAppVersion,
@@ -75,11 +29,8 @@ class SettingsFormValues {
     required this.updateUrlIos,
     required this.updateMessage,
     required this.blockConfirmation,
-    this.groceryServiceFeePercent = '',
   });
 
-  /// Clé du DTO → texte saisi.
-  final Map<String, String> numbers;
   final bool maintenanceMode;
   final String maintenanceMessage;
   final String minAppVersion;
@@ -88,9 +39,6 @@ class SettingsFormValues {
   final String updateUrlIos;
   final String updateMessage;
   final String blockConfirmation;
-
-  /// D-4 — frais de service des épiceries, saisis en %. Vide = taux général.
-  final String groceryServiceFeePercent;
 }
 
 /// D-4 — texte du champ pour un taux chargé : 500 bps → « 5 », 750 → « 7.5 »,
@@ -102,31 +50,6 @@ String groceryServiceFeeText(PlatformSettings s) {
   return percent == percent.roundToDouble()
       ? percent.toStringAsFixed(0)
       : percent.toString();
-}
-
-final _percentDeuxDecimales = RegExp(r'^\d+(\.\d{1,2})?$');
-
-/// D-4 — taux épicerie saisi en % (0 à 100, deux décimales au plus), converti
-/// en points de base entiers. Vide → `null` (taux général).
-({int? bps, String? error}) parseGroceryServiceFee(String raw) {
-  const label = 'Frais de service épiceries';
-  final t = raw.trim();
-  if (t.isEmpty) return (bps: null, error: null);
-  if (_virguleDecimale.hasMatch(t)) {
-    return (
-      bps: null,
-      error: '$label : utilisez un point pour les décimales (ex : 7.5).',
-    );
-  }
-  if (!_percentDeuxDecimales.hasMatch(t)) {
-    return (
-      bps: null,
-      error: '$label : pourcentage attendu, deux décimales au plus (« $t »).',
-    );
-  }
-  final percent = double.parse(t);
-  if (percent > 100) return (bps: null, error: '$label : 100 % au plus.');
-  return (bps: (percent * 100).round(), error: null);
 }
 
 class SettingsPatchResult {
@@ -149,16 +72,6 @@ String? _textOrNull(String? raw) {
   return t.isEmpty ? null : t;
 }
 
-num _loadedNumber(PlatformSettings s, String key) => switch (key) {
-      'serviceFeePercent' => s.serviceFeePercent,
-      'restaurantCommissionPercent' => s.restaurantCommissionPercent,
-      'loyaltyPointsPerOrder' => s.loyaltyPointsPerOrder,
-      'loyaltyPointValueXaf' => s.loyaltyPointValueXaf,
-      'loyaltyMinRedemption' => s.loyaltyMinRedemption,
-      'referrerBonusPoints' => s.referrerBonusPoints,
-      _ => throw ArgumentError.value(key, 'key', 'champ numérique inconnu'),
-    };
-
 /// Construit le PATCH à partir de la saisie et de la configuration **telle
 /// qu'elle a été chargée**.
 SettingsPatchResult buildSettingsPatch(
@@ -169,25 +82,6 @@ SettingsPatchResult buildSettingsPatch(
   final patch = <String, dynamic>{
     if (loaded.updatedAtRaw != null) 'expectedUpdatedAt': loaded.updatedAtRaw,
   };
-
-  for (final entry in numberFieldSpecs.entries) {
-    final parsed = parseNumberField(form.numbers[entry.key] ?? '', entry.value);
-    if (parsed.error != null) {
-      errors.add(parsed.error!);
-    } else if (parsed.value != _loadedNumber(loaded, entry.key)) {
-      patch[entry.key] = parsed.value;
-    }
-  }
-
-  // D-4 — seulement si le serveur connaît le réglage.
-  if (loaded.knowsGroceryServiceFee) {
-    final grocery = parseGroceryServiceFee(form.groceryServiceFeePercent);
-    if (grocery.error != null) {
-      errors.add(grocery.error!);
-    } else if (grocery.bps != loaded.groceryServiceFeeBps) {
-      patch['groceryServiceFeeBps'] = grocery.bps;
-    }
-  }
 
   if (form.maintenanceMode != loaded.maintenanceMode) {
     patch['maintenanceMode'] = form.maintenanceMode;

@@ -8,7 +8,7 @@ import 'package:lilia_admin/features/admin/presentation/providers/admin_operatio
 import 'package:lilia_admin/features/admin/presentation/screens/platform_settings_screen.dart';
 import 'package:lilia_admin/models/platform_settings.dart';
 
-/// Enregistrement de l'écran « Paramètres plateforme » (SET-001, SET-003).
+/// Enregistrement de l'écran « Paramètres plateforme » (SET-001, R-09).
 ///
 /// Le dépôt est remplacé : la route réelle sert la production.
 class _RecordingRepository extends AdminOperationsRepository {
@@ -67,41 +67,58 @@ Future<void> _pump(WidgetTester tester, _RecordingRepository repo) async {
   await tester.pump(const Duration(milliseconds: 300));
 }
 
-Finder _numberField(String label) => find.descendant(
-      of: find.ancestor(of: find.text(label), matching: find.byType(Row)),
-      matching: find.byType(TextField),
+Finder get _maintenanceMessage => find.byWidgetPredicate(
+      (w) =>
+          w is TextField &&
+          w.decoration?.hintText == 'La plateforme est en maintenance…',
     );
 
 void main() {
-  for (final saisie in ['12,5', 'abc', '12foo', '']) {
-    testWidgets('« $saisie » en frais de service : aucun PATCH, aucun succès',
+  /// R-09 — les réglages qui fixent de l'argent se demandent depuis l'admin
+  /// web et s'approuvent à deux : cette app les affiche sans les modifier.
+  group('réglages d’argent (R-09)', () {
+    testWidgets('frais de service : affichés, pas de champ de saisie',
+        (tester) async {
+      await _pump(tester, _RecordingRepository());
+      final row = find.ancestor(
+        of: find.text('15 %'),
+        matching: find.byType(Row),
+      );
+      expect(row, findsWidgets);
+      expect(
+        find.descendant(of: row.first, matching: find.byType(TextField)),
+        findsNothing,
+      );
+      expect(find.text('15 %'), findsOneWidget);
+      expect(find.textContaining('admin web'), findsWidgets);
+    });
+
+    testWidgets('aucun réglage d’argent ne part jamais dans le PATCH',
         (tester) async {
       final repo = _RecordingRepository();
       await _pump(tester, repo);
-
-      await tester.enterText(_numberField('Frais de service'), saisie);
+      await tester.enterText(_maintenanceMessage, 'Retour à 14 h');
       await tester.tap(find.text('Enregistrer'));
       await tester.pump();
-
-      expect(repo.sent, isEmpty);
-      expect(find.text('Configuration enregistrée'), findsNothing);
-      expect(find.textContaining('Frais de service :'), findsOneWidget);
+      await tester.pump();
+      expect(repo.sent.single.keys.toSet(),
+          {'expectedUpdatedAt', 'maintenanceMessage'});
     });
-  }
+  });
 
   testWidgets('une modification : seul le champ modifié part, avec le verrou',
       (tester) async {
     final repo = _RecordingRepository();
     await _pump(tester, repo);
 
-    await tester.enterText(_numberField('Frais de service'), '12.5');
+    await tester.enterText(_maintenanceMessage, 'Retour à 14 h');
     await tester.tap(find.text('Enregistrer'));
     await tester.pump();
     await tester.pump();
 
     expect(repo.sent.single, {
       'expectedUpdatedAt': '2026-09-22T10:00:00.000Z',
-      'serviceFeePercent': 12.5,
+      'maintenanceMessage': 'Retour à 14 h',
     });
     expect(find.text('Configuration enregistrée'), findsOneWidget);
   });
@@ -125,7 +142,7 @@ void main() {
     );
     await _pump(tester, repo);
 
-    await tester.enterText(_numberField('Frais de service'), '12');
+    await tester.enterText(_maintenanceMessage, 'Retour à 14 h');
     await tester.tap(find.text('Enregistrer'));
     await tester.pump();
     await tester.pump();
@@ -140,7 +157,7 @@ void main() {
     );
     await _pump(tester, repo);
 
-    await tester.enterText(_numberField('Frais de service'), '12');
+    await tester.enterText(_maintenanceMessage, 'Retour à 14 h');
     await tester.tap(find.text('Enregistrer'));
     await tester.pump();
     await tester.pump();

@@ -69,14 +69,7 @@ class _PlatformSettingsForm extends ConsumerStatefulWidget {
 }
 
 class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
-  late final TextEditingController _serviceFee;
   // D-4 — frais de service des épiceries (vide = taux général).
-  late final TextEditingController _groceryServiceFee;
-  late final TextEditingController _restaurantCommission;
-  late final TextEditingController _loyaltyPerOrder;
-  late final TextEditingController _loyaltyValue;
-  late final TextEditingController _loyaltyMin;
-  late final TextEditingController _referrerBonus;
   late final TextEditingController _maintenanceMessage;
   late final TextEditingController _minAppVersion;
   late final TextEditingController _latestAppVersion;
@@ -108,19 +101,6 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
   void initState() {
     super.initState();
     final s = widget.settings;
-    _serviceFee = TextEditingController(text: s.serviceFeePercent.toString());
-    _groceryServiceFee =
-        TextEditingController(text: groceryServiceFeeText(s));
-    _restaurantCommission =
-        TextEditingController(text: s.restaurantCommissionPercent.toString());
-    _loyaltyPerOrder =
-        TextEditingController(text: s.loyaltyPointsPerOrder.toString());
-    _loyaltyValue =
-        TextEditingController(text: s.loyaltyPointValueXaf.toString());
-    _loyaltyMin =
-        TextEditingController(text: s.loyaltyMinRedemption.toString());
-    _referrerBonus =
-        TextEditingController(text: s.referrerBonusPoints.toString());
     _maintenanceMessage =
         TextEditingController(text: s.maintenanceMessage ?? '');
     _minAppVersion = TextEditingController(text: s.minAppVersion ?? '');
@@ -140,13 +120,6 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
 
   @override
   void dispose() {
-    _serviceFee.dispose();
-    _groceryServiceFee.dispose();
-    _restaurantCommission.dispose();
-    _loyaltyPerOrder.dispose();
-    _loyaltyValue.dispose();
-    _loyaltyMin.dispose();
-    _referrerBonus.dispose();
     _maintenanceMessage.dispose();
     _minAppVersion.dispose();
     _latestAppVersion.dispose();
@@ -167,14 +140,6 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
 
     final result = buildSettingsPatch(
       SettingsFormValues(
-        numbers: {
-          'serviceFeePercent': _serviceFee.text,
-          'restaurantCommissionPercent': _restaurantCommission.text,
-          'loyaltyPointsPerOrder': _loyaltyPerOrder.text,
-          'loyaltyPointValueXaf': _loyaltyValue.text,
-          'loyaltyMinRedemption': _loyaltyMin.text,
-          'referrerBonusPoints': _referrerBonus.text,
-        },
         maintenanceMode: _maintenanceMode,
         maintenanceMessage: _maintenanceMessage.text,
         minAppVersion: _minAppVersion.text,
@@ -183,7 +148,6 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
         updateUrlIos: _updateUrlIos.text,
         updateMessage: _updateMessage.text,
         blockConfirmation: _blockConfirmation.text,
-        groceryServiceFeePercent: _groceryServiceFee.text,
       ),
       s,
     );
@@ -279,11 +243,17 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
 
   @override
   Widget build(BuildContext context) {
+    final s = widget.settings;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        // R-09 — réglages qui fixent de l'argent : lecture seule. Ils se
+        // demandent depuis l'admin web et s'approuvent à deux administrateurs ;
+        // le serveur les refuse dans le PATCH de cet écran.
+        _financialNotice(),
         _section('Frais de service', [
-          _numberField(_serviceFee, 'Frais de service', '%'),
+          _readOnlyValue(
+              'Frais de service', '${_percent(s.serviceFeePercent)} %'),
           const Padding(
             padding: EdgeInsets.only(bottom: 4),
             child: Text(
@@ -292,64 +262,40 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
             ),
           ),
           // D-4 — seulement si le serveur connaît le réglage.
-          if (widget.settings.knowsGroceryServiceFee) ...[
-            _numberField(
-              _groceryServiceFee,
+          if (s.knowsGroceryServiceFee)
+            _readOnlyValue(
               'Frais de service épiceries',
-              '%',
+              s.groceryServiceFeeBps == null
+                  ? 'taux général'
+                  : '${groceryServiceFeeText(s)} %',
             ),
-            const Padding(
-              padding: EdgeInsets.only(bottom: 4),
-              child: Text(
-                'Appliqué aux seules épiceries, à la place du taux général. '
-                'Vide : taux général. N’affecte que les commandes futures.',
-                style: TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-            ),
-          ],
         ]),
-        // Ce réglage n'était éditable par AUCUNE interface : absent du DTO
-        // serveur, il était retiré en silence des requêtes, qui répondaient
-        // 200 sans rien changer. Le mettre à 0 imposait une écriture SQL.
         _section('Commission vendeur', [
-          _numberField(_restaurantCommission, 'Commission vendeur', '%'),
+          _readOnlyValue('Commission vendeur',
+              '${_percent(s.restaurantCommissionPercent)} %'),
           const Padding(
             padding: EdgeInsets.only(bottom: 12),
             child: Text(
               'Retenue SUR le vendeur au reversement — le client ne la paie '
-              'pas. N’affecte que les commandes futures : le taux est figé sur '
-              'chaque commande à sa création. Un taux propre à un vendeur, '
-              'défini sur sa fiche, prime sur celui-ci.',
+              'pas. Figée sur chaque commande à sa création. Un taux propre à '
+              'un vendeur, défini sur sa fiche, prime sur celui-ci.',
               style: TextStyle(fontSize: 11, color: Colors.grey),
             ),
           ),
         ]),
         _section('Fidélité', [
-          _numberField(_loyaltyPerOrder, 'Points / commande livrée', 'pts'),
-          _numberField(_loyaltyValue, "Valeur d'un point", 'XAF'),
-          // Le seul réglage de cet écran dont la modification a un effet
-          // RÉTROACTIF : la valeur est lue au moment de la dépense, jamais
-          // figée à l'acquisition.
-          const Padding(
-            padding: EdgeInsets.only(bottom: 12),
-            child: Text(
-              '⚠️ Effet rétroactif : ce montant revalorise tous les points déjà '
-              'distribués. Ne pas modifier sans exécuter la procédure de '
-              'redénomination (docs/LOYALTY.md).',
-              style: TextStyle(fontSize: 11, color: Color(0xFFB45309)),
-            ),
-          ),
-          _numberField(_loyaltyMin, "Seuil minimum d'utilisation", 'pts'),
+          _readOnlyValue(
+              'Points / commande livrée', '${s.loyaltyPointsPerOrder} pts'),
+          _readOnlyValue("Valeur d'un point", '${s.loyaltyPointValueXaf} XAF'),
+          _readOnlyValue(
+              "Seuil minimum d'utilisation", '${s.loyaltyMinRedemption} pts'),
         ]),
         _section('Parrainage', [
-          _numberField(_referrerBonus, 'Bonus parrain', 'pts'),
-          // Le bonus filleul a été supprimé du programme : seul le parrain est
-          // récompensé, et seulement quand la première commande est LIVRÉE.
+          _readOnlyValue('Bonus parrain', '${s.referrerBonusPoints} pts'),
           const Padding(
             padding: EdgeInsets.only(top: 4),
             child: Text(
-              'Versé au parrain à la première commande LIVRÉE de son filleul. '
-              'Le filleul, lui, ne reçoit plus de bonus d\'inscription.',
+              'Versé au parrain à la première commande LIVRÉE de son filleul.',
               style: TextStyle(fontSize: 11, color: Colors.grey),
             ),
           ),
@@ -488,39 +434,51 @@ class _PlatformSettingsFormState extends ConsumerState<_PlatformSettingsForm> {
     );
   }
 
-  Widget _numberField(
-      TextEditingController controller, String label, String suffix) {
+  /// « 15 » plutôt que « 15.0 » ; « 7.5 » reste « 7.5 ».
+  static String _percent(num v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
+
+  Widget _financialNotice() {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      color: const Color(0xFFE0F2FE),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: const Padding(
+        padding: EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.verified_user_outlined, color: Color(0xFF0369A1)),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Frais, commission, points et parrainage touchent l’argent : '
+                'ils se modifient depuis l’admin web et doivent être approuvés '
+                'par un second administrateur.',
+                style: TextStyle(fontSize: 13, color: Color(0xFF075985)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _readOnlyValue(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          Expanded(
-            child: Text(label, style: const TextStyle(fontSize: 14)),
-          ),
-          SizedBox(
-            width: 110,
-            child: TextField(
-              controller: controller,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              textAlign: TextAlign.right,
-              decoration: InputDecoration(
-                suffixText: suffix,
-                isDense: true,
-                border: const OutlineInputBorder(),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-              ),
-            ),
-          ),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
+          Text(value,
+              style:
+                  const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
         ],
       ),
     );
   }
 
-  /// Champ texte pleine largeur. `_numberField` place son libellé à gauche
-  /// d'une case étroite, ce qui convient à un pourcentage mais tronquerait une
-  /// URL.
+  /// Champ texte pleine largeur (une URL ne tient pas dans une case étroite).
   Widget _textField(
       TextEditingController controller, String label, String hint) {
     return Padding(
