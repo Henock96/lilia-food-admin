@@ -1,0 +1,7 @@
+{
+  "success": false,
+  "message": "ThrottlerException: Too Many Requests",
+  "data": null,
+  "error": null,
+  "statusCode": 429
+}

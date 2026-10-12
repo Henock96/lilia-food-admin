@@ -1,0 +1,243 @@
+{
+  "success": true,
+  "data": {
+    "eligible": true,
+    "entitled": true,
+    "platformEnabled": false,
+    "premiumPaidUntil": "2026-11-10T19:54:12.989Z",
+    "limits": {
+      "slotDurationMin": {
+        "min": 30,
+        "max": 240,
+        "default": 90
+      },
+      "slotStepMin": {
+        "allowed": [
+          15,
+          30,
+          60
+        ],
+        "default": 30
+      },
+      "bufferMin": {
+        "min": 0,
+        "max": 60,
+        "default": 15
+      },
+      "minLeadMin": {
+        "min": 30,
+        "max": 2880,
+        "default": 120
+      },
+      "maxAdvanceDays": {
+        "min": 1,
+        "max": 90,
+        "default": 30
+      },
+      "maxPartySize": {
+        "min": 1,
+        "max": 50,
+        "default": 8
+      },
+      "tableGuestsMax": 50,
+      "seatCountMax": 200,
+      "maxSeatsPerBookingMax": 50,
+      "maxTables": 50,
+      "maxSeatSpaces": 5,
+      "maxTotalSeats": 200,
+      "maxWindowsPerDay": 3,
+      "labelMaxLength": 40
+    },
+    "configured": true,
+    "enabled": true,
+    "effective": false,
+    "config": {
+      "version": 2,
+      "enabled": true,
+      "slotDurationMin": 90,
+      "slotStepMin": 30,
+      "bufferMin": 15,
+      "minLeadMin": 120,
+      "maxAdvanceDays": 30,
+      "maxPartySize": 4,
+      "updatedAt": "2026-10-12T19:54:19.753Z",
+      "spaces": [
+        {
+          "id": "cmv5o7ial0001sqidf6l892cp",
+          "kind": "SEATS",
+          "label": "Comptoir",
+          "minGuests": null,
+          "maxGuests": null,
+          "seatCount": 6,
+          "maxSeatsPerBooking": 2,
+          "position": 1,
+          "archivedAt": null
+        },
+        {
+          "id": "cmv5o7mcw0004sqidhs4d8u41",
+          "kind": "SEATS",
+          "label": "Table 1",
+          "minGuests": null,
+          "maxGuests": null,
+          "seatCount": 4,
+          "maxSeatsPerBooking": 4,
+          "position": 2,
+          "archivedAt": null
+        }
+      ],
+      "archivedSpaces": [
+        {
+          "id": "cmv5o7iak0000sqidy5buxnn6",
+          "kind": "TABLE",
+          "label": "Table 1",
+          "minGuests": 1,
+          "maxGuests": 4,
+          "seatCount": null,
+          "maxSeatsPerBooking": null,
+          "position": 0,
+          "archivedAt": "2026-10-12T19:54:19.741Z"
+        }
+      ],
+      "windows": [
+        {
+          "dayOfWeek": "LUNDI",
+          "startTime": "12:00",
+          "endTime": "14:00"
+        },
+        {
+          "dayOfWeek": "LUNDI",
+          "startTime": "19:00",
+          "endTime": "21:00"
+        }
+      ]
+    },
+    "issues": [
+      {
+        "severity": "WARNING",
+        "code": "PLATFORM_DISABLED",
+        "field": null,
+        "message": "La réservation sur place n’est pas encore ouverte aux clients sur Lilia Food."
+      }
+    ],
+    "preview": {
+      "capacity": {
+        "tables": 0,
+        "tableCovers": 0,
+        "seatSpaces": 2,
+        "seats": 10,
+        "totalCovers": 10
+      },
+      "uncoveredPartySizes": [],
+      "days": [
+        {
+          "dayOfWeek": "LUNDI",
+          "opening": {
+            "openTime": "08:00",
+            "closeTime": "23:00"
+          },
+          "slots": [
+            {
+              "time": "12:00",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "12:30",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "13:00",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "13:30",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "14:00",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "19:00",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "19:30",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "20:00",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "20:30",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "21:00",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            }
+          ]
+        },
+        {
+          "dayOfWeek": "MARDI",
+          "opening": {
+            "openTime": "08:00",
+            "closeTime": "23:00"
+          },
+          "slots": []
+        },
+        {
+          "dayOfWeek": "MERCREDI",
+          "opening": {
+            "openTime": "08:00",
+            "closeTime": "23:00"
+          },
+          "slots": []
+        },
+        {
+          "dayOfWeek": "JEUDI",
+          "opening": {
+            "openTime": "08:00",
+            "closeTime": "23:00"
+          },
+          "slots": []
+        },
+        {
+          "dayOfWeek": "VENDREDI",
+          "opening": {
+            "openTime": "08:00",
+            "closeTime": "23:00"
+          },
+          "slots": []
+        },
+        {
+          "dayOfWeek": "SAMEDI",
+          "opening": {
+            "openTime": "08:00",
+            "closeTime": "23:00"
+          },
+          "slots": []
+        },
+        {
+          "dayOfWeek": "DIMANCHE",
+          "opening": {
+            "openTime": "08:00",
+            "closeTime": "23:00"
+          },
+          "slots": []
+        }
+      ]
+    }
+  },
+  "message": "Configuration des réservations enregistrée."
+}

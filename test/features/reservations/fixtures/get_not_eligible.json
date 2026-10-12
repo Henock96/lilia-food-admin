@@ -1,0 +1,58 @@
+{
+  "success": true,
+  "data": {
+    "eligible": false,
+    "entitled": false,
+    "platformEnabled": false,
+    "premiumPaidUntil": null,
+    "limits": {
+      "slotDurationMin": {
+        "min": 30,
+        "max": 240,
+        "default": 90
+      },
+      "slotStepMin": {
+        "allowed": [
+          15,
+          30,
+          60
+        ],
+        "default": 30
+      },
+      "bufferMin": {
+        "min": 0,
+        "max": 60,
+        "default": 15
+      },
+      "minLeadMin": {
+        "min": 30,
+        "max": 2880,
+        "default": 120
+      },
+      "maxAdvanceDays": {
+        "min": 1,
+        "max": 90,
+        "default": 30
+      },
+      "maxPartySize": {
+        "min": 1,
+        "max": 50,
+        "default": 8
+      },
+      "tableGuestsMax": 50,
+      "seatCountMax": 200,
+      "maxSeatsPerBookingMax": 50,
+      "maxTables": 50,
+      "maxSeatSpaces": 5,
+      "maxTotalSeats": 200,
+      "maxWindowsPerDay": 3,
+      "labelMaxLength": 40
+    },
+    "configured": false,
+    "enabled": false,
+    "effective": false,
+    "config": null,
+    "issues": [],
+    "preview": null
+  }
+}
