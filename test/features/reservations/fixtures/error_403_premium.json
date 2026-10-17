@@ -1,0 +1,9 @@
+{
+  "success": false,
+  "message": "Un abonnement Premium actif est nécessaire pour modifier la réservation sur place.",
+  "data": null,
+  "error": {
+    "code": "PREMIUM_REQUIRED"
+  },
+  "statusCode": 403
+}

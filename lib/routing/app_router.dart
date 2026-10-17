@@ -29,6 +29,7 @@ import 'package:lilia_admin/features/incidents/presentation/screens/incidents_sc
 import 'package:lilia_admin/features/claims/presentation/claims_screens.dart';
 import 'package:lilia_admin/features/earnings/presentation/earnings_screen.dart';
 import 'package:lilia_admin/features/offers/presentation/offers_screen.dart';
+import 'package:lilia_admin/features/reservations/presentation/reservation_settings_screen.dart';
 import 'package:lilia_admin/features/incidents/presentation/screens/incident_detail_screen.dart';
 import 'package:lilia_admin/features/photos/presentation/screens/photos_screen.dart';
 import 'package:lilia_admin/features/restaurant/presentation/providers/restaurant_provider.dart';
@@ -134,6 +135,15 @@ GoRouter router(Ref ref) {
         name: 'offers',
         pageBuilder: (context, state) =>
             const MaterialPage(child: OffersScreen()),
+      ),
+      // Premium Lot 3 — « Réservations sur place » : configuration du
+      // restaurant. Pas de garde : la route serveur est réservée au
+      // RESTAURATEUR, et l'écriture au Premium (vérifiée par le serveur).
+      GoRoute(
+        path: '/reservations',
+        name: 'reservations',
+        pageBuilder: (context, state) =>
+            const MaterialPage(child: ReservationSettingsScreen()),
       ),
       // F3-06 — réclamations : vendeur (sa boutique) et support. Pas de garde
       // admin : la portée est appliquée par le serveur.

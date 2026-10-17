@@ -1,0 +1,9 @@
+{
+  "success": false,
+  "message": "La configuration a été modifiée entre-temps. Rechargez-la avant d’enregistrer.",
+  "data": null,
+  "error": {
+    "code": "RESERVATION_SETTINGS_CONFLICT"
+  },
+  "statusCode": 409
+}

@@ -278,6 +278,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             icon: const Icon(Icons.local_offer_outlined),
             tooltip: 'Mes offres',
           ),
+          // Premium Lot 3 — configuration de la réservation sur place.
+          IconButton(
+            onPressed: () => context.pushNamed('reservations'),
+            icon: const Icon(Icons.event_seat_outlined),
+            tooltip: 'Réservations sur place',
+          ),
           // F3-07 — ce que la boutique a reçu et va recevoir.
           IconButton(
             onPressed: () => context.pushNamed('earnings'),

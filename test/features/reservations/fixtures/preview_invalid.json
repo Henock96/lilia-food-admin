@@ -1,0 +1,164 @@
+{
+  "success": true,
+  "data": {
+    "eligible": true,
+    "configured": true,
+    "enabled": true,
+    "entitled": true,
+    "platformEnabled": false,
+    "effective": false,
+    "valid": false,
+    "issues": [
+      {
+        "severity": "ERROR",
+        "code": "RESOURCE_KIND_CHANGED",
+        "field": "spaces[0].kind",
+        "message": "Le type de « Table 1 » ne peut pas changer : archivez-la et créez une nouvelle ressource."
+      },
+      {
+        "severity": "ERROR",
+        "code": "PARTY_SIZE_UNREACHABLE",
+        "field": "maxPartySize",
+        "message": "Aucune table ni aucun espace n’accueille un groupe de 4 personnes."
+      },
+      {
+        "severity": "WARNING",
+        "code": "PARTY_SIZES_UNCOVERED",
+        "field": "spaces",
+        "message": "Aucune ressource n’accueille un groupe de 3, 4 personne(s).",
+        "partySizes": [
+          3,
+          4
+        ]
+      },
+      {
+        "severity": "WARNING",
+        "code": "PLATFORM_DISABLED",
+        "field": null,
+        "message": "La réservation sur place n’est pas encore ouverte aux clients sur Lilia Food."
+      }
+    ],
+    "preview": {
+      "capacity": {
+        "tables": 0,
+        "tableCovers": 0,
+        "seatSpaces": 1,
+        "seats": 6,
+        "totalCovers": 6
+      },
+      "uncoveredPartySizes": [
+        3,
+        4
+      ],
+      "days": [
+        {
+          "dayOfWeek": "LUNDI",
+          "opening": {
+            "openTime": "08:00",
+            "closeTime": "23:00"
+          },
+          "slots": [
+            {
+              "time": "12:00",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "12:30",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "13:00",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "13:30",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "14:00",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "19:00",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "19:30",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "20:00",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "20:30",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            },
+            {
+              "time": "21:00",
+              "inOpeningHours": true,
+              "occupationPastClosing": false
+            }
+          ]
+        },
+        {
+          "dayOfWeek": "MARDI",
+          "opening": {
+            "openTime": "08:00",
+            "closeTime": "23:00"
+          },
+          "slots": []
+        },
+        {
+          "dayOfWeek": "MERCREDI",
+          "opening": {
+            "openTime": "08:00",
+            "closeTime": "23:00"
+          },
+          "slots": []
+        },
+        {
+          "dayOfWeek": "JEUDI",
+          "opening": {
+            "openTime": "08:00",
+            "closeTime": "23:00"
+          },
+          "slots": []
+        },
+        {
+          "dayOfWeek": "VENDREDI",
+          "opening": {
+            "openTime": "08:00",
+            "closeTime": "23:00"
+          },
+          "slots": []
+        },
+        {
+          "dayOfWeek": "SAMEDI",
+          "opening": {
+            "openTime": "08:00",
+            "closeTime": "23:00"
+          },
+          "slots": []
+        },
+        {
+          "dayOfWeek": "DIMANCHE",
+          "opening": {
+            "openTime": "08:00",
+            "closeTime": "23:00"
+          },
+          "slots": []
+        }
+      ]
+    }
+  }
+}

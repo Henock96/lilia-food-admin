@@ -1,0 +1,39 @@
+{
+  "success": false,
+  "message": "La configuration contient des erreurs.",
+  "data": null,
+  "error": {
+    "code": "RESERVATION_SETTINGS_INVALID",
+    "issues": [
+      {
+        "severity": "ERROR",
+        "code": "RESOURCE_KIND_CHANGED",
+        "field": "spaces[0].kind",
+        "message": "Le type de « Table 1 » ne peut pas changer : archivez-la et créez une nouvelle ressource."
+      },
+      {
+        "severity": "ERROR",
+        "code": "PARTY_SIZE_UNREACHABLE",
+        "field": "maxPartySize",
+        "message": "Aucune table ni aucun espace n’accueille un groupe de 4 personnes."
+      },
+      {
+        "severity": "WARNING",
+        "code": "PARTY_SIZES_UNCOVERED",
+        "field": "spaces",
+        "message": "Aucune ressource n’accueille un groupe de 3, 4 personne(s).",
+        "partySizes": [
+          3,
+          4
+        ]
+      },
+      {
+        "severity": "WARNING",
+        "code": "PLATFORM_DISABLED",
+        "field": null,
+        "message": "La réservation sur place n’est pas encore ouverte aux clients sur Lilia Food."
+      }
+    ]
+  },
+  "statusCode": 400
+}

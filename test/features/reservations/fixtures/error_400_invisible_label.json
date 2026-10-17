@@ -1,0 +1,23 @@
+{
+  "success": false,
+  "message": "La configuration contient des erreurs.",
+  "data": null,
+  "error": {
+    "code": "RESERVATION_SETTINGS_INVALID",
+    "issues": [
+      {
+        "severity": "ERROR",
+        "code": "LABEL_INVALID_CHARS",
+        "field": "spaces[2].label",
+        "message": "Le nom contient un caractère invisible ou de contrôle : retapez-le."
+      },
+      {
+        "severity": "WARNING",
+        "code": "PLATFORM_DISABLED",
+        "field": null,
+        "message": "La réservation sur place n’est pas encore ouverte aux clients sur Lilia Food."
+      }
+    ]
+  },
+  "statusCode": 400
+}
