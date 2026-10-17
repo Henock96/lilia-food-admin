@@ -103,8 +103,10 @@ class ApiClient {
             options: Options(contentType: 'multipart/form-data'),
           ));
 
-  Future<Response<dynamic>> patchJson(String path, {Object? body}) =>
-      _run(() => dio.patch<dynamic>(path, data: body));
+  Future<Response<dynamic>> patchJson(String path,
+          {Object? body, Map<String, String>? headers}) =>
+      _run(() => dio.patch<dynamic>(path,
+          data: body, options: Options(headers: headers)));
 
   Future<Response<dynamic>> putJson(String path, {Object? body}) =>
       _run(() => dio.put<dynamic>(path, data: body));

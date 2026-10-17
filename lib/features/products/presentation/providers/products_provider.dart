@@ -82,9 +82,20 @@ class Products extends _$Products {
     required String action,
     required int units,
   }) async {
-    final result = await ref
-        .read(productServiceProvider)
-        .adjustStock(productId, action: action, units: units);
+    final ({Product product, int? reservedAtVendor}) result;
+    try {
+      result = await ref
+          .read(productServiceProvider)
+          .adjustStock(productId, action: action, units: units);
+    } catch (_) {
+      // Un échec réseau ne dit pas si le serveur a enregistré le geste : on
+      // relit le stock réel avant que le vendeur ne recommence (ADM-01).
+      // Relecture lancée, pas attendue : Riverpod 3 rejoue un chargement en
+      // échec avec un délai croissant, et attendre ici retarderait d'autant
+      // le message d'erreur du geste. La liste porte son propre état.
+      ref.invalidateSelf();
+      rethrow;
+    }
     await refresh();
     return result.reservedAtVendor;
   }

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/utils/api_response.dart';
 
@@ -120,6 +122,10 @@ class ProductService {
   /// au restant, sans perdre une vente faite pendant la saisie) et « Faire
   /// l'inventaire = N » (`COUNT`, stock réel seulement : le serveur retire
   /// les unités déjà réservées par des commandes pas encore parties).
+  ///
+  /// Chaque appel est **un** geste et porte sa propre `Idempotency-Key` : un
+  /// rejeu réseau du même geste la réutilise et le serveur ne compte `RESTOCK`
+  /// qu'une fois ; deux gestes distincts ne la partagent jamais (ADM-01).
   Future<({Product product, int? reservedAtVendor})> adjustStock(
     String productId, {
     required String action,
@@ -128,6 +134,7 @@ class ProductService {
     final res = await _api.patchJson(
       '/products/$productId/stock',
       body: {'action': action, 'units': units},
+      headers: {'Idempotency-Key': _newGestureKey('stock-$productId')},
     );
     final body = res.data as Map<String, dynamic>;
     final productJson = body['data'] as Map<String, dynamic>?;
@@ -195,5 +202,16 @@ class ProductService {
 
   Future<void> deleteProduct(String productId) async {
     await _api.deleteJson('/products/$productId');
+  }
+
+  static final Random _rng = Random.secure();
+
+  /// Clé d'un geste : l'horodatage seul pourrait coïncider entre deux appuis
+  /// rapprochés, le suffixe aléatoire l'exclut.
+  static String _newGestureKey(String prefix) {
+    final suffix = List.generate(8, (_) => _rng.nextInt(256))
+        .map((b) => b.toRadixString(16).padLeft(2, '0'))
+        .join();
+    return '$prefix-${DateTime.now().microsecondsSinceEpoch}-$suffix';
   }
 }

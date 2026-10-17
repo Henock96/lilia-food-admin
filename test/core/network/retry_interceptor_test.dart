@@ -75,4 +75,31 @@ void main() {
     );
     expect(adapter.calls, 3); // initial + 2 retries (maxRetries=2)
   });
+
+  // ADM-01 (audit du 13/10/2026) — une écriture peut avoir été commitée par le
+  // serveur avant le 5xx ou le timeout. La rejouer sans clé, c'est risquer de
+  // la faire deux fois : `RESTOCK` ajoute N au stock, deux fois = 2N.
+  for (final method in ['PATCH', 'PUT', 'DELETE']) {
+    test('$method sans Idempotency-Key non retryé sur 503', () async {
+      final adapter = _CountingAdapter((_) => 503);
+      final dio = _dioWith(adapter);
+      await expectLater(
+        dio.request('/products/p1/stock',
+            data: {'action': 'RESTOCK', 'units': 10},
+            options: Options(method: method)),
+        throwsA(isA<DioException>()),
+      );
+      expect(adapter.calls, 1);
+    });
+  }
+
+  test('PATCH avec Idempotency-Key retryé sur 503', () async {
+    final adapter = _CountingAdapter((c) => c == 0 ? 503 : 200);
+    final dio = _dioWith(adapter);
+    final res = await dio.patch('/products/p1/stock',
+        data: {'action': 'RESTOCK', 'units': 10},
+        options: Options(headers: {'Idempotency-Key': 'geste-1'}));
+    expect(res.statusCode, 200);
+    expect(adapter.calls, 2);
+  });
 }
