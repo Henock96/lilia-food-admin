@@ -121,4 +121,30 @@ void main() {
     expect(appels, 1);
     expect(products, hasLength(1));
   });
+
+  // ADM-01 — « Réapprovisionner +N » ajoute N : sans clé, un rejeu après un
+  // commit perdu en route ajoutait 2N. La clé rend le geste rejouable sans
+  // risque, et deux gestes distincts n'en partagent jamais une.
+  test('adjustStock porte une Idempotency-Key, propre à chaque geste', () async {
+    final keys = <String?>[];
+    final client = buildClient((a) {
+      a.onPatch(
+        '/products/p1/stock',
+        (s) => s.reply(200, {'data': product('p1')}),
+        data: {'action': 'RESTOCK', 'units': 10},
+      );
+    });
+    client.dio.interceptors.add(InterceptorsWrapper(onRequest: (o, h) {
+      keys.add(o.headers['Idempotency-Key'] as String?);
+      h.next(o);
+    }));
+
+    final service = ProductService(client);
+    await service.adjustStock('p1', action: 'RESTOCK', units: 10);
+    await service.adjustStock('p1', action: 'RESTOCK', units: 10);
+
+    expect(keys, hasLength(2));
+    expect(keys.every((k) => k != null && k.isNotEmpty), isTrue);
+    expect(keys[0], isNot(keys[1]));
+  });
 }

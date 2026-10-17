@@ -2,8 +2,14 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 
 /// Rejoue les requêtes échouées sur 5xx / timeout / erreur réseau, avec
-/// backoff exponentiel + jitter. Ne rejoue JAMAIS les 4xx. Les POST ne sont
-/// rejoués que s'ils portent un header `Idempotency-Key` (checkout).
+/// backoff exponentiel + jitter. Ne rejoue JAMAIS les 4xx.
+///
+/// Seules les **lectures** (`GET`, `HEAD`) sont rejouées d'office. Une écriture
+/// — `POST`, mais aussi `PUT`, `PATCH`, `DELETE` — ne l'est que si elle porte
+/// un header `Idempotency-Key` : le serveur a pu la commiter avant le 5xx ou
+/// le timeout, et la rejouer sans clé la ferait deux fois. Le cas qui l'a
+/// montré : `PATCH /products/:id/stock` `RESTOCK` ajoute N au stock — rejoué,
+/// il en ajoutait 2N (audit du 13/10/2026, ADM-01).
 class RetryInterceptor extends Interceptor {
   final Dio dio;
   final int maxRetries;
@@ -47,13 +53,10 @@ class RetryInterceptor extends Interceptor {
 
   bool _shouldRetry(DioException err) {
     final method = err.requestOptions.method.toUpperCase();
-    final isIdempotent = method == 'GET' ||
-        method == 'PUT' ||
-        method == 'PATCH' ||
-        method == 'DELETE';
+    final isRead = method == 'GET' || method == 'HEAD';
     final hasIdempotencyKey =
         err.requestOptions.headers.containsKey('Idempotency-Key');
-    if (!isIdempotent && !hasIdempotencyKey) return false;
+    if (!isRead && !hasIdempotencyKey) return false;
 
     switch (err.type) {
       case DioExceptionType.connectionTimeout:

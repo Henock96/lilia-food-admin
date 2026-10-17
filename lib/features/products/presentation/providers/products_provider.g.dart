@@ -141,7 +141,7 @@ final class ProductsProvider
   Products create() => Products();
 }
 
-String _$productsHash() => r'749d77c21e267de7c689555e59b461233e32dfb7';
+String _$productsHash() => r'0463bfe91991064d64788578e8004cbe75fb2103';
 
 /// Catalogue du vendeur courant (`catalogScopeProvider`).
 ///
