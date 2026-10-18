@@ -2,6 +2,7 @@ import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/utils/api_response.dart';
 
 import '../../../models/order.dart';
+import '../../../models/pickup_arbitration_reason.dart';
 import '../../../models/vendor_rejection_reason.dart';
 
 /// Une page de commandes, avec les compteurs d'onglets du serveur.
@@ -156,6 +157,24 @@ class OrderService {
     await _api.postJson(
       '/orders/$orderId/pickup/handover',
       body: {'code': code},
+    );
+  }
+
+  /// 1B (ADM-03) — l'ADMIN clôture un retrait par arbitrage motivé : la
+  /// preuve `PICKUP_ADMIN_OVERRIDE` ouvre le versement du vendeur. Exige
+  /// `FINANCE_EXECUTE` (donc la double authentification récente) côté serveur.
+  Future<void> arbitratePickup(
+    String orderId, {
+    required PickupArbitrationReason reason,
+    String? note,
+  }) async {
+    final trimmed = note?.trim();
+    await _api.postJson(
+      '/admin/orders/$orderId/pickup/arbitrate',
+      body: {
+        'reason': reason.wire,
+        if (trimmed != null && trimmed.isNotEmpty) 'note': trimmed,
+      },
     );
   }
 

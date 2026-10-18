@@ -32,6 +32,12 @@ Future<void> performOrderAction(
         );
       case OrderAction.handOver when request.pickupCode != null:
         await controller.handOverPickupWithCode(order.id, request.pickupCode!);
+      case OrderAction.handOver when request.arbitrationReason != null:
+        await controller.arbitratePickup(
+          order.id,
+          reason: request.arbitrationReason!,
+          note: request.note,
+        );
       case OrderAction.startPreparation:
       case OrderAction.markReady:
       case OrderAction.handOver:
@@ -79,6 +85,8 @@ String _successMessage(OrderActionRequest request) => switch (request.action) {
       OrderAction.markReady => 'Commande prête',
       OrderAction.handOver when request.pickupCode != null =>
         'Commande remise — le code du client prouve la remise',
+      OrderAction.handOver when request.arbitrationReason != null =>
+        'Commande clôturée par arbitrage — versement du vendeur ouvert',
       OrderAction.handOver => 'Commande remise au client',
       OrderAction.cancel => 'Commande annulée',
     };
