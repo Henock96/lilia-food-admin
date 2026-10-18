@@ -5,6 +5,7 @@ import 'package:lilia_admin/theme/lilia_tokens.dart';
 
 import '../../../../models/order.dart';
 import '../../../../models/order_actions.dart';
+import '../../../../models/pickup_arbitration_reason.dart';
 import '../../../../models/role.dart';
 import '../../../../models/vendor_rejection_reason.dart';
 
@@ -17,6 +18,7 @@ class OrderActionRequest {
     this.note,
     this.pickupCode,
     this.outOfStockProductIds = const [],
+    this.arbitrationReason,
   });
 
   final OrderAction action;
@@ -35,6 +37,10 @@ class OrderActionRequest {
   /// F3-10 — refus « rupture » : les produits réellement manquants. Ils
   /// passent à 0 au lieu d'être remis en stock ; les autres y retournent.
   final List<String> outOfStockProductIds;
+
+  /// 1B — ADMIN, retrait : motif de l'arbitrage (précision dans [note]).
+  /// Présent ⇒ la remise part par l'arbitrage, jamais par la route de statut.
+  final PickupArbitrationReason? arbitrationReason;
 }
 
 /// Gestes possibles sur une commande (Phase 3, F3-01 — règle R1).
@@ -62,6 +68,12 @@ class OrderActionsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 1B — rôle pas encore connu (profil en cours de synchronisation) : aucun
+    // geste. Sinon un `HAND_OVER` publié par le serveur partirait par le
+    // chemin générique, sans le dialogue d'arbitrage de l'ADMIN.
+    if (role != Role.admin && role != Role.restaurateur) {
+      return const SizedBox.shrink();
+    }
     final actions = resolveOrderActions(order, role);
     if (actions.isEmpty) return const SizedBox.shrink();
 
@@ -153,6 +165,14 @@ class OrderActionsPanel extends StatelessWidget {
         final request = await showDialog<OrderActionRequest>(
           context: context,
           builder: (_) => const HandOverPickupDialog(),
+        );
+        if (request != null) await onAction(request);
+      case OrderAction.handOver when !order.isDelivery && role == Role.admin:
+        // 1B (ADM-03) — l'ADMIN arbitre : sa clôture ouvre le versement du
+        // vendeur. Confirmation et motif, jamais un appui direct.
+        final request = await showDialog<OrderActionRequest>(
+          context: context,
+          builder: (_) => const PickupArbitrationDialog(),
         );
         if (request != null) await onAction(request);
       case OrderAction.startPreparation:
@@ -492,6 +512,102 @@ class _HandOverPickupDialogState extends State<HandOverPickupDialog> {
                   )
               : null,
           child: const Text('Valider le code'),
+        ),
+      ],
+    );
+  }
+}
+
+/// 1B (ADM-03) — clôture d'arbitrage d'un retrait par l'ADMIN.
+///
+/// La commande passe « remise » sans le code du client et le versement du
+/// vendeur s'ouvre : le dialogue le dit, et exige un motif (liste fermée du
+/// serveur), plus une précision pour « Autre ».
+class PickupArbitrationDialog extends StatefulWidget {
+  const PickupArbitrationDialog({super.key});
+
+  @override
+  State<PickupArbitrationDialog> createState() =>
+      _PickupArbitrationDialogState();
+}
+
+class _PickupArbitrationDialogState extends State<PickupArbitrationDialog> {
+  PickupArbitrationReason? _reason;
+  final _note = TextEditingController();
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  bool get _complete => _reason != null && _reason!.acceptsNote(_note.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Clôturer par arbitrage ?'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'La commande passera « remise » sans le code du client, et le '
+              'versement du vendeur sera ouvert. Le motif est journalisé.',
+            ),
+            const SizedBox(height: 8),
+            RadioGroup<PickupArbitrationReason>(
+              groupValue: _reason,
+              onChanged: (value) => setState(() => _reason = value),
+              child: Column(
+                children: PickupArbitrationReason.values
+                    .map(
+                      (r) => RadioListTile<PickupArbitrationReason>(
+                        value: r,
+                        title: Text(r.label),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+            TextField(
+              key: const Key('pickup-arbitration-note'),
+              controller: _note,
+              maxLength: 300,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: _reason == PickupArbitrationReason.other
+                    ? 'Précision (obligatoire)'
+                    : 'Précision (facultatif)',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Retour'),
+        ),
+        FilledButton(
+          key: const Key('pickup-arbitration-confirm'),
+          onPressed: _complete
+              ? () {
+                  final note = _note.text.trim();
+                  Navigator.pop(
+                    context,
+                    OrderActionRequest(
+                      OrderAction.handOver,
+                      arbitrationReason: _reason,
+                      note: note.isEmpty ? null : note,
+                    ),
+                  );
+                }
+              : null,
+          child: const Text('Clôturer'),
         ),
       ],
     );

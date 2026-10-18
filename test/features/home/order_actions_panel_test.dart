@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_admin/features/home/presentation/widgets/order_actions_panel.dart';
 import 'package:lilia_admin/models/order.dart';
 import 'package:lilia_admin/models/order_actions.dart';
+import 'package:lilia_admin/models/pickup_arbitration_reason.dart';
 import 'package:lilia_admin/models/role.dart';
 import 'package:lilia_admin/models/vendor_rejection_reason.dart';
 
@@ -191,13 +192,81 @@ void main() {
       expect(requests, isEmpty);
     });
 
-    testWidgets('l’admin clôture sans saisir de code (arbitrage)', (tester) async {
+    // 1B (ADM-03) — pour l'ADMIN, la remise d'un retrait est un arbitrage :
+    // elle ouvre le versement du vendeur. Elle partait en un appui ; elle
+    // exige désormais une confirmation et un motif.
+    testWidgets('l’admin n’envoie rien sans passer par l’arbitrage', (tester) async {
       await pumpAs(tester, pickup(), Role.admin);
       await tester.tap(find.text('Remise au client'));
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('pickup-handover-code')), findsNothing);
+      expect(find.byKey(const Key('pickup-arbitration-confirm')), findsOneWidget);
+      expect(requests, isEmpty);
+    });
+
+    testWidgets('arbitrage : motif obligatoire, puis la demande porte le motif', (tester) async {
+      await pumpAs(tester, pickup(), Role.admin);
+      await tester.tap(find.text('Remise au client'));
+      await tester.pumpAndSettle();
+
+      final confirm = find.byKey(const Key('pickup-arbitration-confirm'));
+      expect(tester.widget<FilledButton>(confirm).onPressed, isNull);
+
+      await tester.tap(find.text(PickupArbitrationReason.customerCollectedNoCode.label));
+      await tester.pump();
+      await tester.tap(confirm);
+      await tester.pumpAndSettle();
+
+      expect(requests.single.action, OrderAction.handOver);
+      expect(
+        requests.single.arbitrationReason,
+        PickupArbitrationReason.customerCollectedNoCode,
+      );
       expect(requests.single.pickupCode, isNull);
+    });
+
+    testWidgets('arbitrage « Autre » : une note de 5 caractères au moins', (tester) async {
+      await pumpAs(tester, pickup(), Role.admin);
+      await tester.tap(find.text('Remise au client'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(PickupArbitrationReason.other.label));
+      await tester.pump();
+
+      final confirm = find.byKey(const Key('pickup-arbitration-confirm'));
+      await tester.enterText(find.byKey(const Key('pickup-arbitration-note')), 'ok');
+      await tester.pump();
+      expect(tester.widget<FilledButton>(confirm).onPressed, isNull);
+
+      await tester.enterText(
+        find.byKey(const Key('pickup-arbitration-note')),
+        'Client venu sans téléphone',
+      );
+      await tester.pump();
+      await tester.tap(confirm);
+      await tester.pumpAndSettle();
+
+      expect(requests.single.arbitrationReason, PickupArbitrationReason.other);
+      expect(requests.single.note, 'Client venu sans téléphone');
+    });
+
+    testWidgets('profil pas encore chargé : aucun geste, même publié', (tester) async {
+      // Sinon un ADMIN dont le profil se synchronise encore remettrait la
+      // commande en un appui, par le chemin générique.
+      await pumpAs(tester, pickup(), Role.unknown);
+
+      expect(find.text('Remise au client'), findsNothing);
+      expect(find.byType(ElevatedButton), findsNothing);
+    });
+
+    testWidgets('arbitrage abandonné : rien ne part', (tester) async {
+      await pumpAs(tester, pickup(), Role.admin);
+      await tester.tap(find.text('Remise au client'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Retour'));
+      await tester.pumpAndSettle();
+
+      expect(requests, isEmpty);
     });
   });
 }

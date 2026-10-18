@@ -147,7 +147,7 @@ final class RestaurantOrdersProvider
   }
 }
 
-String _$restaurantOrdersHash() => r'9b2ea83fd9001276325e7a1e997d2d734b4be4ef';
+String _$restaurantOrdersHash() => r'a6ac6fe16d03da962c5cf9c4f0d08aad33faef9a';
 
 /// Commandes du back-office, **paginées par le serveur**, une instance par
 /// onglet de statut (`null` = « Toutes »).

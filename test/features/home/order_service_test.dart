@@ -3,6 +3,7 @@ import 'package:http_mock_adapter/http_mock_adapter.dart';
 import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/features/home/data/order_service.dart';
 import 'package:lilia_admin/models/order.dart';
+import 'package:lilia_admin/models/pickup_arbitration_reason.dart';
 import 'package:lilia_admin/models/vendor_rejection_reason.dart';
 
 /// Contrat de lecture de l'écran Commandes.
@@ -331,6 +332,40 @@ void main() {
       );
 
       await t.service.handOverPickupWithCode('o1', '4821');
+    });
+
+    // 1B (ADM-03) — l'ADMIN arbitre : jamais la route de statut.
+    test('arbitrage ADMIN : POST /admin/orders/:id/pickup/arbitrate, motif + note', () async {
+      final t = build();
+      t.adapter.onPost(
+        '/admin/orders/o1/pickup/arbitrate',
+        (s) => s.reply(200, {
+          'data': {'id': 'o1', 'status': 'LIVRER'},
+        }),
+        data: {'reason': 'OTHER', 'note': 'Client venu sans téléphone'},
+      );
+
+      await t.service.arbitratePickup(
+        'o1',
+        reason: PickupArbitrationReason.other,
+        note: '  Client venu sans téléphone ',
+      );
+    });
+
+    test('arbitrage sans précision : la note n’est pas envoyée', () async {
+      final t = build();
+      t.adapter.onPost(
+        '/admin/orders/o1/pickup/arbitrate',
+        (s) => s.reply(200, {
+          'data': {'id': 'o1', 'status': 'LIVRER'},
+        }),
+        data: {'reason': 'CUSTOMER_COLLECTED_NO_CODE'},
+      );
+
+      await t.service.arbitratePickup(
+        'o1',
+        reason: PickupArbitrationReason.customerCollectedNoCode,
+      );
     });
 
     test('retrait (F3-07) : un code faux remonte en erreur, message serveur', () async {

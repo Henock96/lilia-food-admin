@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/features/auth/user_sync_provider.dart';
 import 'package:lilia_admin/models/order.dart';
+import 'package:lilia_admin/models/pickup_arbitration_reason.dart';
 import 'package:lilia_admin/models/role.dart';
 import 'package:lilia_admin/models/vendor_rejection_reason.dart';
 
@@ -129,6 +130,19 @@ class RestaurantOrders extends _$RestaurantOrders {
     await ref
         .read(orderServiceRepositoryProvider)
         .handOverPickupWithCode(orderId, code);
+    ref.invalidateSelf();
+  }
+
+  /// 1B — l'ADMIN clôture un retrait par arbitrage motivé. Pas de bascule
+  /// optimiste : la preuve et l'échéance viennent du serveur.
+  Future<void> arbitratePickup(
+    String orderId, {
+    required PickupArbitrationReason reason,
+    String? note,
+  }) async {
+    await ref
+        .read(orderServiceRepositoryProvider)
+        .arbitratePickup(orderId, reason: reason, note: note);
     ref.invalidateSelf();
   }
 
