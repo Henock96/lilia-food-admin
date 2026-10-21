@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:lilia_admin/core/utils/currency.dart';
 import 'package:lilia_admin/core/utils/date_format.dart';
 import '../../../../models/order.dart';
+import '../refresh_ticker.dart';
 import '../widgets/order_action_dispatch.dart';
 import '../widgets/order_actions_panel.dart';
 import '../../../../models/role.dart';
@@ -84,11 +85,26 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
       if (!mounted) return;
       ref.invalidate(restaurantOrdersProvider);
     });
+
+    // Lot 2 (ADM-04) — le socket ne suit que les commandes déjà affichées et
+    // le push « nouvelle commande » ne part qu'au vendeur : sans relecture,
+    // une nouvelle commande n'apparaissait qu'au tirage manuel.
+    _refresh = RefreshTicker(onTick: _refreshIfVisible)..start();
+  }
+
+  late final RefreshTicker _refresh;
+
+  /// Ne relit que si l'onglet Commandes est celui affiché : les branches
+  /// cachées de la navigation ont leurs tickers coupés (`TickerMode`).
+  void _refreshIfVisible() {
+    if (!mounted || !TickerMode.valuesOf(context).enabled) return;
+    ref.invalidate(restaurantOrdersProvider);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _refresh.stop();
     _wsSubscription?.cancel();
     _searchDebounce?.cancel();
     _searchController.dispose();
@@ -112,6 +128,9 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Lot 2 (ADM-04) — arrêt en arrière-plan ; au retour, relecture
+    // immédiate (le commentaire ci-dessous la promettait, rien ne la faisait).
+    _refresh.handleLifecycle(state);
     final socket = ref.read(adminTrackingSocketServiceProvider);
     if (state == AppLifecycleState.resumed) {
       // Retour foreground → reconnecter et re-watch les commandes actives.

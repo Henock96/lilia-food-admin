@@ -15,6 +15,7 @@ import 'package:lilia_admin/features/home/presentation/widgets/delivery_proof_ca
 import 'package:lilia_admin/features/auth/user_sync_provider.dart';
 import 'package:lilia_admin/models/role.dart';
 import '../../../../models/order.dart';
+import '../refresh_ticker.dart';
 import '../widgets/order_action_dispatch.dart';
 import '../widgets/order_actions_panel.dart';
 import '../../../../models/app_deliverer.dart';
@@ -48,8 +49,13 @@ class OrderDetailScreen extends ConsumerWidget {
     // contient la commande quel que soit son statut. Lire l'onglet filtré
     // ferait disparaître la commande de sa propre fiche à la seconde où son
     // statut change.
+    // Lot 2 (ADM-02) — la fiche se relit par identifiant : la page 1 de
+    // « Toutes » ne contient que les vingt plus récentes, et une commande
+    // plus ancienne restait figée sur l'instantané de navigation. La liste et
+    // l'instantané ne servent plus que d'affichage en attendant le serveur.
+    final staffState = ref.watch(staffOrderProvider(order.id));
     final ordersState = ref.watch(restaurantOrdersProvider(null, ''));
-    final currentOrder =
+    final currentOrder = staffState.value ??
         ordersState.whenOrNull(
           data: (page) {
             try {
@@ -72,7 +78,10 @@ class OrderDetailScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.invalidate(restaurantOrdersProvider),
+            onPressed: () {
+              ref.invalidate(staffOrderProvider(order.id));
+              ref.invalidate(restaurantOrdersProvider);
+            },
             tooltip: 'Actualiser',
           ),
         ],
@@ -82,6 +91,13 @@ class OrderDetailScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Lot 2 (ADM-04) — relecture toutes les 30 s et au retour au
+            // premier plan, tant que la fiche est affichée.
+            _StaffOrderRefresher(orderId: order.id),
+            // Lot 2 (ADM-02) — la dernière relecture a échoué : dire que
+            // l'affichage peut être en retard, même si une valeur précédente
+            // est encore là (`staffOrderIsStale`).
+            if (staffOrderIsStale(staffState)) const _StaleOrderBanner(),
             // Bannière statut
             _buildStatusBanner(context, currentOrder, statusInfo),
             const SizedBox(height: 16),
@@ -1412,6 +1428,81 @@ class _DeliveryStateCard extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Lot 2 (ADM-04) — relit la fiche toutes les 30 s tant qu'elle est affichée,
+/// et aussitôt au retour au premier plan. Ne dessine rien.
+class _StaffOrderRefresher extends ConsumerStatefulWidget {
+  const _StaffOrderRefresher({required this.orderId});
+
+  final String orderId;
+
+  @override
+  ConsumerState<_StaffOrderRefresher> createState() =>
+      _StaffOrderRefresherState();
+}
+
+class _StaffOrderRefresherState extends ConsumerState<_StaffOrderRefresher>
+    with WidgetsBindingObserver {
+  late final RefreshTicker _refresh = RefreshTicker(onTick: _refreshIfVisible);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refresh.start();
+  }
+
+  void _refreshIfVisible() {
+    if (!mounted || !TickerMode.valuesOf(context).enabled) return;
+    ref.invalidate(staffOrderProvider(widget.orderId));
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) =>
+      _refresh.handleLifecycle(state);
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _refresh.stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+/// Lot 2 (ADM-02) — la fiche n'a pas pu être relue : l'affichage vient de la
+/// liste ou de l'écran précédent, et peut être en retard sur le serveur.
+class _StaleOrderBanner extends StatelessWidget {
+  const _StaleOrderBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.sync_problem, color: Colors.orange),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Fiche non actualisée : le statut affiché peut être en retard. '
+              'Touchez « Actualiser ».',
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

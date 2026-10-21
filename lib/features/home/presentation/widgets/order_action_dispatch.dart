@@ -38,13 +38,20 @@ Future<void> performOrderAction(
           reason: request.arbitrationReason!,
           note: request.note,
         );
+      case OrderAction.cancel:
+        // Lot 2 (ADM-09) — motif facultatif, journalisé par le serveur.
+        await controller.updateOrderStatus(
+          order.id,
+          OrderStatus.annuler,
+          reason: request.note,
+        );
       case OrderAction.startPreparation:
       case OrderAction.markReady:
       case OrderAction.handOver:
-      case OrderAction.cancel:
         await controller.updateOrderStatus(order.id, request.action.targetStatus!);
     }
     ref.invalidate(restaurantOrdersProvider);
+    ref.invalidate(staffOrderProvider(order.id));
     messenger.showSnackBar(
       SnackBar(
         content: Row(
@@ -60,6 +67,10 @@ Future<void> performOrderAction(
       ),
     );
   } catch (e) {
+    // Lot 2 (ADM-06) — un échec ne dit pas que rien n'a été écrit (timeout
+    // après commit) : la liste et la fiche se relisent sur le serveur.
+    ref.invalidate(restaurantOrdersProvider);
+    ref.invalidate(staffOrderProvider(order.id));
     messenger.showSnackBar(
       SnackBar(
         content: Row(

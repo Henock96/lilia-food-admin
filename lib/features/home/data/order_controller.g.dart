@@ -51,6 +51,109 @@ final class OrderServiceRepositoryProvider
 String _$orderServiceRepositoryHash() =>
     r'a6deabd3562a64c9ebf57900cce5d3aa40671b25';
 
+/// Lot 2 (ADM-02) — une commande relue par son identifiant pour la fiche.
+///
+/// La fiche lisait la commande dans la page 1 de « Toutes » : hors de cette
+/// page, elle restait figée sur l'instantané de navigation, statut et gestes
+/// compris. Invalidé après chaque geste, par le polling et au retour au
+/// premier plan.
+
+@ProviderFor(staffOrder)
+final staffOrderProvider = StaffOrderFamily._();
+
+/// Lot 2 (ADM-02) — une commande relue par son identifiant pour la fiche.
+///
+/// La fiche lisait la commande dans la page 1 de « Toutes » : hors de cette
+/// page, elle restait figée sur l'instantané de navigation, statut et gestes
+/// compris. Invalidé après chaque geste, par le polling et au retour au
+/// premier plan.
+
+final class StaffOrderProvider
+    extends $FunctionalProvider<AsyncValue<Order>, Order, FutureOr<Order>>
+    with $FutureModifier<Order>, $FutureProvider<Order> {
+  /// Lot 2 (ADM-02) — une commande relue par son identifiant pour la fiche.
+  ///
+  /// La fiche lisait la commande dans la page 1 de « Toutes » : hors de cette
+  /// page, elle restait figée sur l'instantané de navigation, statut et gestes
+  /// compris. Invalidé après chaque geste, par le polling et au retour au
+  /// premier plan.
+  StaffOrderProvider._({
+    required StaffOrderFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'staffOrderProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$staffOrderHash();
+
+  @override
+  String toString() {
+    return r'staffOrderProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<Order> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<Order> create(Ref ref) {
+    final argument = this.argument as String;
+    return staffOrder(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is StaffOrderProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$staffOrderHash() => r'fd6797412481e6ccf1737be433eae7fd0f83f677';
+
+/// Lot 2 (ADM-02) — une commande relue par son identifiant pour la fiche.
+///
+/// La fiche lisait la commande dans la page 1 de « Toutes » : hors de cette
+/// page, elle restait figée sur l'instantané de navigation, statut et gestes
+/// compris. Invalidé après chaque geste, par le polling et au retour au
+/// premier plan.
+
+final class StaffOrderFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<Order>, String> {
+  StaffOrderFamily._()
+    : super(
+        retry: null,
+        name: r'staffOrderProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Lot 2 (ADM-02) — une commande relue par son identifiant pour la fiche.
+  ///
+  /// La fiche lisait la commande dans la page 1 de « Toutes » : hors de cette
+  /// page, elle restait figée sur l'instantané de navigation, statut et gestes
+  /// compris. Invalidé après chaque geste, par le polling et au retour au
+  /// premier plan.
+
+  StaffOrderProvider call(String orderId) =>
+      StaffOrderProvider._(argument: orderId, from: this);
+
+  @override
+  String toString() => r'staffOrderProvider';
+}
+
 /// Commandes du back-office, **paginées par le serveur**, une instance par
 /// onglet de statut (`null` = « Toutes »).
 ///
@@ -147,7 +250,7 @@ final class RestaurantOrdersProvider
   }
 }
 
-String _$restaurantOrdersHash() => r'a6ac6fe16d03da962c5cf9c4f0d08aad33faef9a';
+String _$restaurantOrdersHash() => r'63d65344231f59fa8038695c9f658b278d86a13b';
 
 /// Commandes du back-office, **paginées par le serveur**, une instance par
 /// onglet de statut (`null` = « Toutes »).

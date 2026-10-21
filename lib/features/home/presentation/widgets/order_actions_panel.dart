@@ -50,7 +50,7 @@ class OrderActionRequest {
 /// QUE ce que le serveur publie (`resolveOrderActions`), recueille ce que le
 /// geste exige (temps de préparation, motif, confirmation) et rend une
 /// [OrderActionRequest] — il ne parle pas au réseau lui-même.
-class OrderActionsPanel extends StatelessWidget {
+class OrderActionsPanel extends StatefulWidget {
   const OrderActionsPanel({
     super.key,
     required this.order,
@@ -67,6 +67,32 @@ class OrderActionsPanel extends StatelessWidget {
   final bool compact;
 
   @override
+  State<OrderActionsPanel> createState() => _OrderActionsPanelState();
+}
+
+class _OrderActionsPanelState extends State<OrderActionsPanel> {
+  /// Lot 2 (ADM-08) — un geste à la fois : un double appui envoyait deux
+  /// requêtes, la seconde échouait (verrou serveur) et affichait une erreur
+  /// après un succès. Couvre tout le geste, dialogues compris.
+  bool _busy = false;
+
+  Order get order => widget.order;
+  Role get role => widget.role;
+  bool get compact => widget.compact;
+  Future<void> Function(OrderActionRequest request) get onAction =>
+      widget.onAction;
+
+  Future<void> _guarded(BuildContext context, OrderAction action) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await _handle(context, action);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     // 1B — rôle pas encore connu (profil en cours de synchronisation) : aucun
     // geste. Sinon un `HAND_OVER` publié par le serveur partirait par le
@@ -80,7 +106,7 @@ class OrderActionsPanel extends StatelessWidget {
     final buttons = actions.map((action) {
       final look = orderActionLook(action);
       final button = ElevatedButton.icon(
-        onPressed: () => _handle(context, action),
+        onPressed: _busy ? null : () => _guarded(context, action),
         style: ElevatedButton.styleFrom(
           backgroundColor: look.color,
           foregroundColor: Colors.white,
@@ -137,27 +163,15 @@ class OrderActionsPanel extends StatelessWidget {
         );
         if (rejection != null) await onAction(rejection);
       case OrderAction.cancel:
-        final confirmed = await showDialog<bool>(
+        // Lot 2 (ADM-09) — la confirmation dit ce que l'annulation déclenche,
+        // et un motif facultatif accompagne le geste (journalisé).
+        final request = await showDialog<OrderActionRequest>(
           context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Annuler la commande ?'),
-            content: const Text(
-              'Cette action est irréversible. Le client sera notifié.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Non'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Oui, annuler'),
-              ),
-            ],
+          builder: (_) => CancelOrderDialog(
+            paid: order.status != OrderStatus.enattente,
           ),
         );
-        if (confirmed == true) await onAction(OrderActionRequest(action));
+        if (request != null) await onAction(request);
       case OrderAction.handOver when !order.isDelivery && role == Role.restaurateur:
         // F3-07 — au comptoir, le code du client prouve la remise ; sans
         // lui, le vendeur peut remettre quand même, mais son paiement attend
@@ -200,6 +214,80 @@ class OrderActionsPanel extends StatelessWidget {
         (label: 'Remise au client', icon: Icons.shopping_bag, color: Colors.teal.shade700),
       OrderAction.cancel => (label: 'Annuler', icon: Icons.cancel, color: LiliaColors.red500),
     };
+
+/// Lot 2 (ADM-09) — annulation : dit ce qu'elle déclenche, motif facultatif.
+///
+/// L'ancien texte (« Le client sera notifié ») taisait l'essentiel : annuler
+/// une commande payée ouvre un remboursement. Le motif, journalisé par le
+/// serveur, dit pourquoi ; il reste facultatif pour ne pas ralentir un geste
+/// d'urgence.
+class CancelOrderDialog extends StatefulWidget {
+  const CancelOrderDialog({super.key, required this.paid});
+
+  /// La commande a-t-elle été payée (tout statut après `EN_ATTENTE`) ?
+  final bool paid;
+
+  @override
+  State<CancelOrderDialog> createState() => _CancelOrderDialogState();
+}
+
+class _CancelOrderDialogState extends State<CancelOrderDialog> {
+  final _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Annuler la commande ?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.paid
+                ? 'Cette action est irréversible. Le client sera notifié, et '
+                    'un remboursement sera ouvert automatiquement.'
+                : 'Cette action est irréversible. Le client sera notifié.',
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('order-cancel-reason'),
+            controller: _reason,
+            maxLength: 200,
+            decoration: const InputDecoration(
+              labelText: 'Motif (facultatif)',
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Non'),
+        ),
+        TextButton(
+          onPressed: () {
+            final reason = _reason.text.trim();
+            Navigator.pop(
+              context,
+              OrderActionRequest(
+                OrderAction.cancel,
+                note: reason.isEmpty ? null : reason,
+              ),
+            );
+          },
+          style: TextButton.styleFrom(foregroundColor: Colors.red),
+          child: const Text('Oui, annuler'),
+        ),
+      ],
+    );
+  }
+}
 
 /// Choix du temps de préparation annoncé au client.
 class PrepTimeDialog extends StatefulWidget {
