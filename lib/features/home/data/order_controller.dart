@@ -16,6 +16,25 @@ OrderService orderServiceRepository(Ref ref) {
   return OrderService(ref.watch(apiClientProvider));
 }
 
+/// Lot 2 (ADM-02) — une commande relue par son identifiant pour la fiche.
+///
+/// La fiche lisait la commande dans la page 1 de « Toutes » : hors de cette
+/// page, elle restait figée sur l'instantané de navigation, statut et gestes
+/// compris. Invalidé après chaque geste, par le polling et au retour au
+/// premier plan.
+@riverpod
+Future<Order> staffOrder(Ref ref, String orderId) {
+  return ref.watch(orderServiceRepositoryProvider).getStaffOrder(orderId);
+}
+
+/// La fiche affichée est-elle peut-être en retard sur le serveur ?
+///
+/// Vrai dès que la **dernière** relecture a échoué. ⚠️ Pas `hasError &&
+/// !hasValue` : après une première lecture réussie, Riverpod 3 garde la valeur
+/// précédente dans l'erreur (`hasValue` reste vrai), et un échec répété — un
+/// timeout, ou un 404 si la commande sort de la portée — ne se verrait jamais.
+bool staffOrderIsStale(AsyncValue<Order> state) => state.hasError;
+
 /// Commandes du back-office, **paginées par le serveur**, une instance par
 /// onglet de statut (`null` = « Toutes »).
 ///
@@ -84,7 +103,11 @@ class RestaurantOrders extends _$RestaurantOrders {
   /// l'onglet « En préparation ») : on n'essaie donc pas de deviner la nouvelle
   /// liste, on invalide toute la famille au succès. Les compteurs des sept
   /// onglets bougent de toute façon ensemble.
-  Future<void> updateOrderStatus(String orderId, OrderStatus newStatus) async {
+  Future<void> updateOrderStatus(
+    String orderId,
+    OrderStatus newStatus, {
+    String? reason,
+  }) async {
     final previous = state.value;
     final service = ref.read(orderServiceRepositoryProvider);
 
@@ -106,10 +129,13 @@ class RestaurantOrders extends _$RestaurantOrders {
     }
 
     try {
-      await service.updateOrderStatus(orderId, newStatus);
+      await service.updateOrderStatus(orderId, newStatus, reason: reason);
       ref.invalidateSelf();
     } catch (_) {
-      if (previous != null) state = AsyncData(previous);
+      // Lot 2 (ADM-06) — un échec ne dit pas que rien n'a été écrit : le
+      // serveur a pu commiter avant un timeout. Remettre l'ancien statut
+      // afficherait un état faux ; on relit le serveur.
+      ref.invalidateSelf();
       rethrow;
     }
   }

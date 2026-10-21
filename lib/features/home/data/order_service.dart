@@ -134,11 +134,29 @@ class OrderService {
     );
   }
 
-  Future<void> updateOrderStatus(String orderId, OrderStatus status) async {
+  /// `reason` (Lot 2, ADM-09) : motif facultatif, retenu par le serveur pour
+  /// une annulation seulement. Vide ou absent, il n'est pas envoyé.
+  Future<void> updateOrderStatus(
+    String orderId,
+    OrderStatus status, {
+    String? reason,
+  }) async {
+    final trimmed = reason?.trim();
     await _api.patchJson(
       '/orders/$orderId/status',
-      body: {'status': status.toWire()},
+      body: {
+        'status': status.toWire(),
+        if (trimmed != null && trimmed.isNotEmpty) 'reason': trimmed,
+      },
     );
+  }
+
+  /// Lot 2 (ADM-02) — une commande relue par son identifiant
+  /// (`GET /orders/restaurant/:id`), avec la portée et les gestes de la liste.
+  /// La fiche ne dépend plus de la présence de la commande dans la page 1.
+  Future<Order> getStaffOrder(String orderId) async {
+    final res = await _api.getJson('/orders/restaurant/$orderId');
+    return Order.fromJson(ApiResponse.mapOf(res.data));
   }
 
   /// Accepte une commande payée (Phase 3, F3-01). Le temps de préparation est

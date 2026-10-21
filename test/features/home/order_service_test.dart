@@ -443,4 +443,47 @@ void main() {
       );
     });
   });
+
+  // Lot 2 (ADM-02) — la fiche se relit par identifiant, plus dans la page 1.
+  group('fiche commande (Lot 2)', () {
+    test('relit la commande sur GET /orders/restaurant/:id', () async {
+      final t = build();
+      t.adapter.onGet(
+        '/orders/restaurant/o42',
+        (s) => s.reply(200, {'data': orderJson('o42', status: 'PRET')}),
+      );
+
+      final order = await t.service.getStaffOrder('o42');
+
+      expect(order.id, 'o42');
+      expect(order.status, OrderStatus.pret);
+    });
+
+    // ADM-09 — l'annulation peut dire pourquoi ; sans motif, rien n'est envoyé.
+    test('annulation avec motif : le motif part avec le statut', () async {
+      final t = build();
+      t.adapter.onPatch(
+        '/orders/o1/status',
+        (s) => s.reply(200, {'data': orderJson('o1', status: 'ANNULER')}),
+        data: {'status': 'ANNULER', 'reason': 'Client injoignable'},
+      );
+
+      await t.service.updateOrderStatus(
+        'o1',
+        OrderStatus.annuler,
+        reason: '  Client injoignable ',
+      );
+    });
+
+    test('sans motif : le corps ne change pas (contrat d’avant)', () async {
+      final t = build();
+      t.adapter.onPatch(
+        '/orders/o1/status',
+        (s) => s.reply(200, {'data': orderJson('o1', status: 'PRET')}),
+        data: {'status': 'PRET'},
+      );
+
+      await t.service.updateOrderStatus('o1', OrderStatus.pret, reason: '  ');
+    });
+  });
 }

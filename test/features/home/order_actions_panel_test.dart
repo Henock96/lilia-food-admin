@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_admin/features/home/presentation/widgets/order_actions_panel.dart';
@@ -113,6 +115,70 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(requests.single.action, OrderAction.cancel);
+  });
+
+  // Lot 2 (ADM-09) — annuler une commande payée ouvre un remboursement : la
+  // confirmation le dit, et un motif peut accompagner le geste.
+  testWidgets('annuler une commande payée annonce le remboursement et porte le motif', (tester) async {
+    await pump(tester, _order(['CANCEL'], status: 'EN_PREPARATION'));
+
+    await tester.tap(find.text('Annuler'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('remboursement'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('order-cancel-reason')),
+      'Client injoignable',
+    );
+    await tester.tap(find.text('Oui, annuler'));
+    await tester.pumpAndSettle();
+
+    expect(requests.single.action, OrderAction.cancel);
+    expect(requests.single.note, 'Client injoignable');
+  });
+
+  testWidgets('annuler sans motif : la demande part sans note', (tester) async {
+    await pump(tester, _order(['CANCEL'], status: 'EN_PREPARATION'));
+
+    await tester.tap(find.text('Annuler'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Oui, annuler'));
+    await tester.pumpAndSettle();
+
+    expect(requests.single.note, isNull);
+  });
+
+  // Lot 2 (ADM-08) — un double appui envoyait deux requêtes : la seconde
+  // échouait (verrou serveur) et affichait une erreur après un succès.
+  testWidgets('double appui pendant un geste en cours : une seule demande', (tester) async {
+    final pending = Completer<void>();
+    var calls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: OrderActionsPanel(
+            order: _order(['MARK_READY'], status: 'EN_PREPARATION'),
+            role: Role.restaurateur,
+            onAction: (_) {
+              calls++;
+              return pending.future;
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Prête'));
+    await tester.pump();
+    await tester.tap(find.text('Prête'), warnIfMissed: false);
+    await tester.pump();
+    expect(calls, 1);
+
+    pending.complete();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Prête'));
+    await tester.pump();
+    expect(calls, 2);
   });
 
   testWidgets('un geste simple part sans boîte de dialogue', (tester) async {
