@@ -227,7 +227,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               iconColor: _AppColors.danger,
               title: 'Incidents',
               subtitle: 'Suivre et résoudre les incidents opérationnels',
-              onTap: () => context.goNamed('incidents'),
+              // pushNamed : `/incidents` est hors des onglets, `go` y
+              // remplaçait toute la pile.
+              onTap: () => context.pushNamed('incidents'),
             ),
             _AdminMenuTile(
               icon: Icons.delivery_dining_outlined,

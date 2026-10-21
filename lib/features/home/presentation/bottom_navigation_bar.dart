@@ -26,6 +26,20 @@ class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
     final userProfile = ref.watch(currentUserProfileProvider);
     final isAdmin = userProfile?.role == Role.admin;
 
+    // Retour Android : sur un autre onglet que « Stats », revenir à « Stats »
+    // au lieu de quitter l'app. Un écran empilé dans l'onglet est dépilé
+    // avant (go_router dépile d'abord le navigateur de la branche).
+    final onFirstTab = widget.navigationShell.currentIndex == 0;
+    return PopScope(
+      canPop: onFirstTab,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) widget.navigationShell.goBranch(0);
+      },
+      child: _buildScaffold(isAdmin),
+    );
+  }
+
+  Widget _buildScaffold(bool isAdmin) {
     return Scaffold(
       body: widget.navigationShell,
       bottomNavigationBar: NavigationBar(
