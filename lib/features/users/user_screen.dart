@@ -86,23 +86,26 @@ class UserPage extends ConsumerWidget {
                         ListTile(
                           leading: const Icon(Icons.restaurant_menu_outlined),
                           title: const Text('Mes Menus'),
-                          onTap: () => context.goNamed('menus'),
+                          // pushNamed, pas goNamed : `go` remplaçait le Profil,
+                          // l'écran n'avait plus de retour et le bouton retour
+                          // Android quittait l'app.
+                          onTap: () => context.pushNamed('menus'),
                         ),
                         ListTile(
                           leading: const Icon(Icons.fastfood_outlined),
                           title: const Text('Mes Produits'),
-                          onTap: () => context.goNamed('produits'),
+                          onTap: () => context.pushNamed('produits'),
                         ),
                         ListTile(
                           leading: const Icon(Icons.category_outlined),
                           title: const Text('Mes Categories'),
-                          onTap: () => context.goNamed('categories'),
+                          onTap: () => context.pushNamed('categories'),
                         ),
                         // F3-09 — accompagnements au choix, suppléments.
                         ListTile(
                           leading: const Icon(Icons.checklist_outlined),
                           title: const Text('Options & suppléments'),
-                          onTap: () => context.goNamed('options'),
+                          onTap: () => context.pushNamed('options'),
                         ),
                       ],
                       // Admin-only items
@@ -122,12 +125,12 @@ class UserPage extends ConsumerWidget {
                         ListTile(
                           leading: const Icon(Icons.image_outlined),
                           title: const Text('Bannières'),
-                          onTap: () => context.goNamed('banners'),
+                          onTap: () => context.pushNamed('banners'),
                         ),
                         ListTile(
                           leading: const Icon(Icons.add_business_outlined),
                           title: const Text('Créer un restaurant'),
-                          onTap: () => context.goNamed('create-restaurant'),
+                          onTap: () => context.pushNamed('create-restaurant'),
                         ),
                       ],
                             

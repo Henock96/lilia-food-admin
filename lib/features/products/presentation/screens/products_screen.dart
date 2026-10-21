@@ -28,12 +28,13 @@ class ProductsScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.category_outlined),
-            onPressed: () => context.goNamed('categories'),
+            // pushNamed : le retour ramène aux produits.
+            onPressed: () => context.pushNamed('categories'),
             tooltip: 'Gérer les sections de menu',
           ),
           IconButton(
             icon: const Icon(Icons.checklist_outlined),
-            onPressed: () => context.goNamed('options'),
+            onPressed: () => context.pushNamed('options'),
             tooltip: 'Options & suppléments',
           ),
           IconButton(
