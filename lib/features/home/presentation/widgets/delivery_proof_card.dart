@@ -76,7 +76,19 @@ class DeliveryProofCard extends StatelessWidget {
 /// Libellé de chaque preuve. `whyNoPayout` n'est lu que pour les preuves qui
 /// n'ouvrent pas le paiement automatique.
 ({String title, IconData icon, Color color, String? whyNoPayout})?
-    deliveryProofLook(Order order) => switch (order.deliveryProof) {
+    deliveryProofLook(Order order) => deliveryProofLookFor(order.deliveryProof);
+
+/// Lot 3 (ADM-11) — preuves qui n'établissent pas que le client a reçu sa
+/// commande : un versement manuel sur elles engage la plateforme. Absente
+/// (`null`) compte aussi comme faible.
+const weakDeliveryProofs = {'PICKUP_VENDOR_DECLARED', 'DELIVERY_UNVERIFIED'};
+
+bool isWeakDeliveryProof(String? proof) =>
+    proof == null || weakDeliveryProofs.contains(proof);
+
+/// Même table, à partir du seul code de preuve.
+({String title, IconData icon, Color color, String? whyNoPayout})?
+    deliveryProofLookFor(String? proof) => switch (proof) {
           'PICKUP_CODE' => (
               title: 'Remise prouvée par le code du client',
               icon: Icons.verified,
