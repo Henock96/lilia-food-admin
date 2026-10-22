@@ -125,8 +125,10 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: '/gains',
         name: 'earnings',
+        // Lot 5 (ADM-22) — hors du shell, donc hors de sa garde de rôle : un
+        // compte CLIENT voyait un écran vide en 403. Même garde ici.
         pageBuilder: (context, state) =>
-            const MaterialPage(child: EarningsScreen()),
+            const MaterialPage(child: _RoleGuard(child: EarningsScreen())),
       ),
       // F3-11 — « Mes offres » : promotions financées par le vendeur. Pas de
       // garde : la route serveur est réservée au RESTAURATEUR.
@@ -134,7 +136,7 @@ GoRouter router(Ref ref) {
         path: '/offres',
         name: 'offers',
         pageBuilder: (context, state) =>
-            const MaterialPage(child: OffersScreen()),
+            const MaterialPage(child: _RoleGuard(child: OffersScreen())),
       ),
       // Premium Lot 3 — « Réservations sur place » : configuration du
       // restaurant. Pas de garde : la route serveur est réservée au
@@ -142,8 +144,9 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: '/reservations',
         name: 'reservations',
-        pageBuilder: (context, state) =>
-            const MaterialPage(child: ReservationSettingsScreen()),
+        pageBuilder: (context, state) => const MaterialPage(
+          child: _RoleGuard(child: ReservationSettingsScreen()),
+        ),
       ),
       // F3-06 — réclamations : vendeur (sa boutique) et support. Pas de garde
       // admin : la portée est appliquée par le serveur.
@@ -151,13 +154,15 @@ GoRouter router(Ref ref) {
         path: '/reclamations',
         name: 'claims',
         pageBuilder: (context, state) =>
-            const MaterialPage(child: ClaimsScreen()),
+            const MaterialPage(child: _RoleGuard(child: ClaimsScreen())),
         routes: [
           GoRoute(
             path: ':id',
             name: 'claim-detail',
             pageBuilder: (context, state) => MaterialPage(
-              child: ClaimDetailScreen(claimId: state.pathParameters['id']!),
+              child: _RoleGuard(
+                child: ClaimDetailScreen(claimId: state.pathParameters['id']!),
+              ),
             ),
           ),
         ],
@@ -190,9 +195,11 @@ GoRouter router(Ref ref) {
             );
           }
           return MaterialPage(
-            child: PhotosScreen(
-              entityTypeString: entityType,
-              parentId: parentId,
+            child: _RoleGuard(
+              child: PhotosScreen(
+                entityTypeString: entityType,
+                parentId: parentId,
+              ),
             ),
           );
         },
