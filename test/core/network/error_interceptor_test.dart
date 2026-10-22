@@ -58,6 +58,18 @@ void main() {
       });
     }
 
+    // Lot 1C — geste sensible, session sans second facteur : l'app le fait,
+    // à condition de se reconnecter avec le code.
+    test('MFA_SESSION_REQUIRED : reconnexion avec le code, pas l’admin web', () {
+      final e = _mapResponse(401, {
+        'message': 'Reconnectez-vous avec votre code.',
+        'error': {'code': 'MFA_SESSION_REQUIRED'},
+      });
+      expect(e.message, mfaSessionRequiredMessage);
+      expect(e.code, 'MFA_SESSION_REQUIRED');
+      expect(e.kind, ApiErrorKind.unauthorized);
+    });
+
     test('un autre refus garde le message du serveur', () {
       final e = _mapResponse(403, {
         'message': 'Capacité manquante',

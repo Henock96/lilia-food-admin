@@ -43,8 +43,10 @@ String? sessionEndNoticeFor(Object error) {
   // 15 min) n'est pas une session morte : l'app affiche « faites-le depuis
   // l'admin web ». Le déconnecter ferait perdre sa session à un ADMIN en
   // service pour un simple refus de geste.
+  // Idem pour 401 `MFA_SESSION_REQUIRED` (Lot 1C) : refus d'un geste, pas
+  // d'une session.
   if (error.kind == ApiErrorKind.unauthorized &&
-      !mfaWebOnlyCodes.contains(error.code)) {
+      !mfaRefusalCodes.contains(error.code)) {
     return kSessionExpiredNotice;
   }
   return null;

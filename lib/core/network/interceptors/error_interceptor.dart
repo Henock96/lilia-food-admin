@@ -46,9 +46,13 @@ class ErrorInterceptor extends Interceptor {
     // F3-08 — un geste financier exige une authentification récente avec
     // second facteur, que cette application ne sait pas redemander : il se
     // fait depuis l'admin web. Le dire, plutôt que « confirmez votre code ».
-    final message = mfaWebOnlyCodes.contains(code)
-        ? mfaWebOnlyMessage
-        : _extractMessage(err.response?.data) ?? _fallback;
+    // Lot 1C — geste sensible sur une session ouverte sans second facteur :
+    // l'app sait le faire, il suffit de se reconnecter avec le code.
+    final message = code == mfaSessionRequiredCode
+        ? mfaSessionRequiredMessage
+        : mfaWebOnlyCodes.contains(code)
+            ? mfaWebOnlyMessage
+            : _extractMessage(err.response?.data) ?? _fallback;
     return ApiException(
       message,
       statusCode: status,
@@ -89,3 +93,15 @@ const mfaWebOnlyCodes = {'MFA_REQUIRED', 'MFA_STEP_UP_REQUIRED'};
 const mfaWebOnlyMessage =
     'Ce geste fait partir de l’argent : il se fait depuis l’admin web, qui '
     'vous redemande votre code de double authentification.';
+
+/// Lot 1C (ADM-05) — 401 du backend sur un geste ADMIN sensible quand la
+/// session ne porte pas de second facteur (ouverte avant l'enrôlement TOTP).
+const mfaSessionRequiredCode = 'MFA_SESSION_REQUIRED';
+
+const mfaSessionRequiredMessage =
+    'Ce geste exige une session ouverte avec votre code de double '
+    'authentification. Déconnectez-vous, puis reconnectez-vous avec votre code.';
+
+/// Refus de double authentification : ils visent un geste, jamais la
+/// session. La garde de session ne déconnecte pas sur eux.
+const mfaRefusalCodes = {...mfaWebOnlyCodes, mfaSessionRequiredCode};
