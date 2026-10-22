@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:lilia_admin/features/admin/data/refunds_service.dart';
-import 'package:lilia_admin/features/admin/domain/approval_response.dart';
 import 'package:lilia_admin/models/refund.dart';
 
 /// File des remboursements dus aux clients.
@@ -80,6 +79,16 @@ class _RefundsScreenState extends ConsumerState<RefundsScreen> {
       appBar: AppBar(title: const Text('Remboursements')),
       body: Column(
         children: [
+          // Lot 3 (D-3) — le remboursement se fait sur le web.
+          const MaterialBanner(
+            key: Key('refunds-web-only-banner'),
+            leading: Icon(Icons.info_outline),
+            content: Text(
+              'Les remboursements se traitent depuis l’admin web : virement '
+              'au client, clôture et refus. Cet écran sert à suivre la file.',
+            ),
+            actions: [SizedBox.shrink()],
+          ),
           _FilterBar(selected: _filter, onChanged: _changeFilter),
           Expanded(
             child: refundsAsync.when(
@@ -117,10 +126,7 @@ class _RefundsScreenState extends ConsumerState<RefundsScreen> {
                           onLoadMore: _loadMore,
                         );
                       }
-                      return _RefundCard(
-                        refund: refunds[i],
-                        onChanged: _resetPagination,
-                      );
+                      return _RefundCard(refund: refunds[i]);
                     },
                   ),
                 );
@@ -209,93 +215,21 @@ class _FilterBar extends StatelessWidget {
   }
 }
 
-class _RefundCard extends ConsumerStatefulWidget {
-  const _RefundCard({required this.refund, required this.onChanged});
+/// Une ligne de la file, en consultation.
+///
+/// Lot 3 (ADM-14, décision D-3 du 22/10/2026) — le remboursement est réservé
+/// à l'admin web : virement au client (`/execute`) comme clôture déclarative
+/// (« Remboursé » / « Refusé »). L'app ne propose plus ces gestes ; marquer
+/// « remboursé » depuis le téléphone sans virement, c'est précisément ce que
+/// la décision renvoie au poste de travail.
+class _RefundCard extends StatelessWidget {
+  const _RefundCard({required this.refund});
 
   final Refund refund;
-  final VoidCallback onChanged;
-
-  @override
-  ConsumerState<_RefundCard> createState() => _RefundCardState();
-}
-
-class _RefundCardState extends ConsumerState<_RefundCard> {
-  bool _busy = false;
-
-  Future<void> _apply(RefundStatus next) async {
-    final notes = await _askNotes(next);
-    // `null` = l'admin a fermé la boîte de dialogue. Une chaîne vide est une
-    // réponse valide (pas de commentaire), il ne faut pas confondre les deux.
-    if (notes == null) return;
-
-    setState(() => _busy = true);
-    try {
-      final approvalRequested = await ref
-          .read(refundsServiceProvider)
-          .updateStatus(widget.refund.id, next, notes: notes);
-      // R-01 — une demande d'approbation n'a rien changé : le dire. La liste
-      // est relue dans tous les cas ; elle montrera le statut inchangé.
-      if (approvalRequested && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(refundClosurePendingMessage)),
-        );
-      }
-      widget.onChanged();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Échec : $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  /// Demande un commentaire. Obligatoire sur un refus : refuser un
-  /// remboursement sans motif écrit rend le litige ingérable ensuite.
-  Future<String?> _askNotes(RefundStatus next) async {
-    final controller = TextEditingController();
-    final required = next == RefundStatus.rejected;
-
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(next.label),
-        content: TextField(
-          controller: controller,
-          maxLines: 3,
-          maxLength: 500,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: required
-                ? 'Motif du refus (obligatoire)'
-                : 'Note interne (optionnel) — référence du virement…',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (required && controller.text.trim().isEmpty) return;
-              Navigator.of(ctx).pop(controller.text);
-            },
-            child: const Text('Confirmer'),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
-    final r = widget.refund;
+    final r = refund;
     final cs = Theme.of(context).colorScheme;
     final money = NumberFormat.decimalPattern('fr');
 
@@ -362,16 +296,17 @@ class _RefundCardState extends ConsumerState<_RefundCard> {
             ],
             if (r.status.nextStates.isNotEmpty) ...[
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                children: r.status.nextStates
-                    .map(
-                      (next) => OutlinedButton(
-                        onPressed: _busy ? null : () => _apply(next),
-                        child: Text(next.label),
-                      ),
-                    )
-                    .toList(),
+              Row(
+                children: [
+                  Icon(Icons.computer, size: 16, color: cs.onSurfaceVariant),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'À traiter depuis l’admin web.',
+                      style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+                    ),
+                  ),
+                ],
               ),
             ],
           ],

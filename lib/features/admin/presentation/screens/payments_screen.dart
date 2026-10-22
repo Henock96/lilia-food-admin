@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lilia_admin/features/admin/presentation/providers/admin_operations_provider.dart';
+import 'package:lilia_admin/features/admin/presentation/widgets/manual_payment_confirm_dialog.dart';
 import 'package:lilia_admin/models/admin_payment.dart';
 import 'package:lilia_admin/models/payments_stats.dart';
 
@@ -80,7 +81,17 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
   String? _processingId;
 
   Future<void> _confirmPayment(AdminPayment payment) async {
+    // Verrou posé avant le dialogue : un second appui pendant qu'il est
+    // ouvert ne lance rien.
+    if (_processingId != null) return;
     setState(() => _processingId = payment.id);
+    // Lot 3 (ADM-10) — plus de confirmation en un seul appui.
+    final confirmed = await confirmManualPaymentDialog(context, payment);
+    if (!mounted) return;
+    if (!confirmed) {
+      setState(() => _processingId = null);
+      return;
+    }
     try {
       await ref
           .read(adminOperationsRepositoryProvider)

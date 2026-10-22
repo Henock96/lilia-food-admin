@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_admin/core/network/api_exception.dart';
 import 'package:lilia_admin/core/utils/currency.dart';
 import 'package:lilia_admin/features/admin/presentation/providers/admin_operations_provider.dart';
+import 'package:lilia_admin/features/home/presentation/widgets/delivery_proof_card.dart';
 import 'package:lilia_admin/models/order_financials.dart';
 
 /// Carte « Payer le restaurant » du détail d'une commande.
@@ -24,9 +25,14 @@ import 'package:lilia_admin/models/order_financials.dart';
 ///     à un tiers ne doit pas tenir à un tap : la modale récapitule le
 ///     bénéficiaire, le montant net et le numéro masqué.
 class OrderPayoutCard extends ConsumerStatefulWidget {
-  const OrderPayoutCard({super.key, required this.orderId});
+  const OrderPayoutCard({super.key, required this.orderId, this.deliveryProof});
 
   final String orderId;
+
+  /// Lot 3 (ADM-11) — preuve de remise de la commande (`Order.deliveryProof`),
+  /// montrée dans la modale avant tout versement. `GET …/financials` ne la
+  /// porte pas ; la fiche commande, si.
+  final String? deliveryProof;
 
   @override
   ConsumerState<OrderPayoutCard> createState() => _OrderPayoutCardState();
@@ -378,15 +384,44 @@ class _OrderPayoutCardState extends ConsumerState<OrderPayoutCard> {
     bool retry = false,
   }) async {
     final noteController = TextEditingController();
+    // Lot 3 (ADM-11) — la preuve de remise, sous les yeux avant de payer. Sur
+    // une preuve faible (remise déclarée par le vendeur, livraison sans
+    // code, ou aucune), un versement manuel engage la plateforme : il faut
+    // le reconnaître explicitement.
+    final proof = widget.deliveryProof;
+    final weakProof = isWeakDeliveryProof(proof);
+    final proofTitle =
+        deliveryProofLookFor(proof)?.title ?? 'Aucune preuve de remise';
+    var weakProofAcknowledged = false;
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
         title: Text(retry ? 'Réessayer le paiement' : 'Payer le restaurant'),
+        // Défilable : avertissement, note et case à cocher dépassent un petit
+        // écran, surtout clavier ouvert.
+        scrollable: true,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (weakProof) ...[
+              Container(
+                key: const Key('payout-weak-proof-warning'),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$proofTitle : la remise au client n’est pas prouvée. Ce '
+                  'versement manuel engage Lilia Food.',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             Text(
               'Vous allez envoyer ${formatXaf(f.payoutAmount)} à '
               '${f.restaurantName}.',
@@ -403,6 +438,7 @@ class _OrderPayoutCardState extends ConsumerState<OrderPayoutCard> {
               value:
                   '${formatXaf(f.commissionAmount)} (${_formatPercent(f.commissionPercent)} %)',
             ),
+            _Row(label: 'Preuve de remise', value: proofTitle),
             const SizedBox(height: 12),
             Text(
               'Cette opération est irréversible : un virement Mobile Money ne '
@@ -419,6 +455,19 @@ class _OrderPayoutCardState extends ConsumerState<OrderPayoutCard> {
                 border: OutlineInputBorder(),
               ),
             ),
+            if (weakProof)
+              CheckboxListTile(
+                key: const Key('payout-weak-proof-ack'),
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: weakProofAcknowledged,
+                onChanged: (v) =>
+                    setDialogState(() => weakProofAcknowledged = v ?? false),
+                title: const Text(
+                  'Je verse sans preuve de remise, en connaissance de cause.',
+                  style: TextStyle(fontSize: 13),
+                ),
+              ),
           ],
         ),
         actions: [
@@ -427,10 +476,13 @@ class _OrderPayoutCardState extends ConsumerState<OrderPayoutCard> {
             child: const Text('Annuler'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
+            onPressed: !weakProof || weakProofAcknowledged
+                ? () => Navigator.of(dialogContext).pop(true)
+                : null,
             child: const Text('Confirmer le paiement'),
           ),
         ],
+      ),
       ),
     );
 

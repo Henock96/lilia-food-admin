@@ -155,7 +155,10 @@ class OrderDetailScreen extends ConsumerWidget {
             // lui montrer le bouton lui promettrait une action que le backend
             // lui refuse (403), et lui exposerait la marge de la plateforme.
             if (_canSeePayout(ref, currentOrder)) ...[
-              OrderPayoutCard(orderId: currentOrder.id),
+              OrderPayoutCard(
+                orderId: currentOrder.id,
+                deliveryProof: currentOrder.deliveryProof,
+              ),
               const SizedBox(height: 16),
             ],
             const SizedBox(height: 8),
