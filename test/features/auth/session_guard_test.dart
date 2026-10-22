@@ -66,6 +66,19 @@ void main() {
         isNull,
       );
     });
+    test('401 MFA_SESSION_REQUIRED (Lot 1C) → aucune déconnexion', () {
+      expect(
+        sessionEndNoticeFor(
+          const ApiException(
+            'Reconnectez-vous avec votre code.',
+            statusCode: 401,
+            kind: ApiErrorKind.unauthorized,
+            code: 'MFA_SESSION_REQUIRED',
+          ),
+        ),
+        isNull,
+      );
+    });
     test('autre 403 → aucune déconnexion', () {
       expect(sessionEndNoticeFor(_forbidden), isNull);
     });
