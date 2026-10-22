@@ -10,13 +10,30 @@ class ClientRepository {
 
   ClientRepository(this._api);
 
+  /// Taille de page maximale acceptée par l'API.
+  static const int _pageSize = 100;
+
+  /// Garde-fou : la boucle est pilotée par une valeur venue du serveur.
+  static const int _maxPages = 50;
+
+  /// Tous les clients d'un vendeur.
+  ///
+  /// Lot 4 (ADM-12) : l'appel partait sans `page` ni `limit`, le serveur
+  /// rendait sa page par défaut (20) et l'écran s'arrêtait là, sans suite. Les
+  /// pages sont enchaînées jusqu'au total annoncé : l'écran filtre en local
+  /// (la route n'a pas de recherche), il lui faut la liste entière.
   Future<List<AppUser>> fetchClients(String restaurantId) async {
-    final res = await _api.getJson('/restaurants/$restaurantId/clients');
-    // /restaurants/:id/clients double-enveloppé (`{ data: { data: [...], total } }`).
-    final clientsData = ApiResponse.listOf(ApiResponse.mapOf(res.data));
-    return clientsData
-        .map((json) => AppUser.fromJson(json as Map<String, dynamic>))
-        .toList();
+    final clients = <AppUser>[];
+    for (var page = 1; page <= _maxPages; page++) {
+      final res = await _api.getJson('/restaurants/$restaurantId/clients',
+          query: {'page': '$page', 'limit': '$_pageSize'});
+      // Double-enveloppé : `{ data: { data: [...], total, page, limit } }`.
+      final batch = ApiResponse.listOf(res.data);
+      clients.addAll(
+          batch.map((json) => AppUser.fromJson(json as Map<String, dynamic>)));
+      if (batch.isEmpty || page >= ApiResponse.totalPagesOf(res.data)) break;
+    }
+    return clients;
   }
 
   /// Récupère les clients de la plateforme, paginés et filtrables (ADMIN).

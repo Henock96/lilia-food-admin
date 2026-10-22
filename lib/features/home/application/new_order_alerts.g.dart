@@ -114,7 +114,7 @@ final class NewOrderAlertsProvider
   }
 }
 
-String _$newOrderAlertsHash() => r'c9ea184315d44065abfff0da824fcbbcad88f4fe';
+String _$newOrderAlertsHash() => r'f481c1dfa006b4b6b0d0198de00d53f551cd4f74';
 
 /// File des commandes payées à signaler en plein écran (sonnerie vendeur,
 /// Phase 3 F3-01).

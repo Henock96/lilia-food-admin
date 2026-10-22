@@ -16,7 +16,7 @@ class AdminVendorsList extends _$AdminVendorsList {
   @override
   Future<List<AdminVendorItem>> build() async {
     final service = ref.read(adminVendorsServiceProvider);
-    return service.listVendors();
+    return service.listAllVendors();
   }
 
   Future<void> approve(String restaurantId) async {

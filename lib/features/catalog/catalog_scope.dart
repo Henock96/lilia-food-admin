@@ -70,7 +70,7 @@ String? catalogTargetRestaurantId(Ref ref) {
 @riverpod
 Future<List<AdminVendorItem>> catalogSelectableVendors(Ref ref) async {
   if (!ref.watch(isCatalogAdminProvider)) return const [];
-  return ref.watch(adminVendorsServiceProvider).listVendors(limit: 100);
+  return ref.watch(adminVendorsServiceProvider).listAllVendors();
 }
 
 /// Type du vendeur sur lequel porte le catalogue — **le vendeur ciblé**, pas

@@ -255,8 +255,9 @@ class NotificationService {
         _ref.invalidate(adminPendingVendorsProvider);
         _ref.invalidate(adminVendorsListProvider);
       case NotificationTarget.vendorProfile:
-        // Le profil porte le restaurant et son `adminApproved`.
-        _ref.invalidate(userDataSynchronizerProvider);
+        // Le profil porte le restaurant et son `adminApproved`. Depuis le
+        // Lot 4, la synchronisation ne repart plus d'elle-même : on la demande.
+        _ref.read(userDataSynchronizerProvider.notifier).resync();
       case null:
         break;
     }

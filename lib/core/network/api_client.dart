@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../constants/app_constants.dart';
+import '../../features/auth/application/session_guard.dart';
 import '../../features/auth/repository/firebase_auth_repository.dart';
 import 'api_exception.dart';
 import 'interceptors/auth_interceptor.dart';
@@ -152,8 +153,13 @@ class ApiClient {
       RequestSnapshot(method: o.method, path: o.path, statusCode: status);
 }
 
+/// Lot 4 (ADM-24) — toute erreur d'API passe par la garde de session :
+/// compte révoqué ou session expirée ⇒ déconnexion, une seule fois.
 @Riverpod(keepAlive: true)
-NetworkObserver networkObserver(Ref ref) => const NoopNetworkObserver();
+NetworkObserver networkObserver(Ref ref) => SessionAwareNetworkObserver(
+  const NoopNetworkObserver(),
+  ref.read(sessionGuardProvider.notifier),
+);
 
 @Riverpod(keepAlive: true)
 ApiClient apiClient(Ref ref) {

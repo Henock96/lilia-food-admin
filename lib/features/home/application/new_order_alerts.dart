@@ -35,4 +35,18 @@ class NewOrderAlerts extends _$NewOrderAlerts {
     state = state.where((id) => id != orderId).toList();
     await ref.read(alertSilencerProvider)(orderId);
   }
+
+  /// Lot 4 (ADM-21) — déconnexion : coupe les sonneries en cours et oublie
+  /// tout. La file est `keepAlive` et affichée au-dessus du routeur : sans
+  /// cela, l'alerte d'une commande du compte précédent restait à l'écran de
+  /// connexion, puis sur le compte suivant.
+  Future<void> reset() async {
+    final pending = state;
+    state = const [];
+    _handled.clear();
+    final silence = ref.read(alertSilencerProvider);
+    for (final orderId in pending) {
+      await silence(orderId);
+    }
+  }
 }

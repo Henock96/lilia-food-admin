@@ -7,6 +7,10 @@ import 'package:lilia_admin/features/auth/app_user_model.dart';
 import 'package:lilia_admin/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_admin/services/notification_service.dart';
 import 'package:lilia_admin/features/auth/controller/pending_mfa_sign_in.dart';
+import 'package:lilia_admin/features/auth/application/session_guard.dart';
+import 'package:lilia_admin/features/home/application/new_order_alerts.dart';
+import 'package:lilia_admin/services/admin_tracking_socket_service.dart';
+import 'package:lilia_admin/services/tracking_socket_provider.dart';
 
 part 'auth_controller.g.dart';
 
@@ -23,6 +27,8 @@ class AuthController extends _$AuthController {
     String password,
   ) async {
     state = const AsyncValue.loading();
+    // Le motif d'une déconnexion forcée (Lot 4) s'efface à la reconnexion.
+    ref.read(sessionEndNoticeProvider.notifier).clear();
     try {
       await ref
           .read(authRepositoryProvider)
@@ -92,11 +98,15 @@ class AuthController extends _$AuthController {
 
       await authRepository.signOut();
 
-      // Invalider les providers pour vider le cache utilisateur
-      //ref.invalidate(cartControllerProvider);
-      //ref.invalidate(notificationHistoryProvider);
-      //ref.invalidate(orderRepositoryProvider);
-      //ref.invalidate(favoritesProvider);
+      // Lot 4 (ADM-21, ADM-25) — rien du compte précédent ne survit. Les
+      // providers de données sont `autoDispose` et tombent avec les écrans ;
+      // restent les `keepAlive` qui portent un état de session : la file
+      // d'alertes (affichée au-dessus du routeur) et les sockets de suivi,
+      // ouvertes avec le jeton du compte précédent.
+      await ref.read(newOrderAlertsProvider.notifier).reset();
+      ref.read(pendingMfaSignInProvider.notifier).clear();
+      ref.invalidate(trackingSocketServiceProvider);
+      ref.invalidate(adminTrackingSocketServiceProvider);
 
       return true;
     } on Exception {

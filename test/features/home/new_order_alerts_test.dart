@@ -61,4 +61,25 @@ void main() {
 
     expect(queue(), isEmpty);
   });
+
+  // Lot 4 (ADM-21) — déconnexion.
+  test('reset : vide la file et coupe les sonneries en cours', () async {
+    notifier()
+      ..raise('o1')
+      ..raise('o2');
+
+    await notifier().reset();
+
+    expect(queue(), isEmpty);
+    expect(silenced, ['o1', 'o2']);
+  });
+
+  test('reset : le compte suivant peut être alerté pour une commande déjà fermée', () async {
+    notifier().raise('o1');
+    await notifier().dismiss('o1');
+    await notifier().reset();
+
+    notifier().raise('o1');
+    expect(queue(), ['o1']);
+  });
 }
