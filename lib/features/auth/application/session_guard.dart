@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/network/interceptors/error_interceptor.dart';
 import '../../../core/network/network_observer.dart';
 import '../controller/auth_controller.dart';
 import '../repository/firebase_auth_repository.dart';
@@ -38,7 +39,14 @@ String? sessionEndNoticeFor(Object error) {
   if (error.statusCode == 403 && error.code == 'ACCOUNT_REVOKED') {
     return kSessionRevokedNotice;
   }
-  if (error.kind == ApiErrorKind.unauthorized) return kSessionExpiredNotice;
+  // Un 401 `MFA_STEP_UP_REQUIRED` (geste financier, connexion de plus de
+  // 15 min) n'est pas une session morte : l'app affiche « faites-le depuis
+  // l'admin web ». Le déconnecter ferait perdre sa session à un ADMIN en
+  // service pour un simple refus de geste.
+  if (error.kind == ApiErrorKind.unauthorized &&
+      !mfaWebOnlyCodes.contains(error.code)) {
+    return kSessionExpiredNotice;
+  }
   return null;
 }
 

@@ -40,6 +40,32 @@ void main() {
     test('401 persistant → session expirée', () {
       expect(sessionEndNoticeFor(_expired), kSessionExpiredNotice);
     });
+    test('401 MFA_STEP_UP_REQUIRED (geste financier) → aucune déconnexion', () {
+      expect(
+        sessionEndNoticeFor(
+          const ApiException(
+            'Confirmez votre identité avec votre code pour ce geste.',
+            statusCode: 401,
+            kind: ApiErrorKind.unauthorized,
+            code: 'MFA_STEP_UP_REQUIRED',
+          ),
+        ),
+        isNull,
+      );
+    });
+    test('403 MFA_REQUIRED → aucune déconnexion', () {
+      expect(
+        sessionEndNoticeFor(
+          const ApiException(
+            'Double authentification exigée.',
+            statusCode: 403,
+            kind: ApiErrorKind.client,
+            code: 'MFA_REQUIRED',
+          ),
+        ),
+        isNull,
+      );
+    });
     test('autre 403 → aucune déconnexion', () {
       expect(sessionEndNoticeFor(_forbidden), isNull);
     });
