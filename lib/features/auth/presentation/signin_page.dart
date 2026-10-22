@@ -3,6 +3,7 @@ import 'package:lilia_admin/theme/lilia_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_admin/constants/app_size.dart';
 
+import '../application/session_guard.dart';
 import '../controller/auth_controller.dart';
 import '../controller/pending_mfa_sign_in.dart';
 
@@ -42,9 +43,40 @@ class SignInPage extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: Sizes.p24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [const _Header(), gapH32, const _SignInForm()],
+            children: [
+              const _SessionEndBanner(),
+              const _Header(),
+              gapH32,
+              const _SignInForm(),
+            ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Lot 4 (ADM-24) — pourquoi l'app vient de déconnecter (compte suspendu,
+/// session expirée). Sans lui, le vendeur se retrouvait à l'écran de connexion
+/// sans explication.
+class _SessionEndBanner extends ConsumerWidget {
+  const _SessionEndBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notice = ref.watch(sessionEndNoticeProvider);
+    if (notice == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: Sizes.p16),
+      child: MaterialBanner(
+        content: Text(notice),
+        leading: const Icon(Icons.info_outline),
+        actions: [
+          TextButton(
+            onPressed: () => ref.read(sessionEndNoticeProvider.notifier).clear(),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }

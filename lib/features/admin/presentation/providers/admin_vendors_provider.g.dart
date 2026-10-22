@@ -39,7 +39,7 @@ final class AdminVendorsListProvider
   AdminVendorsList create() => AdminVendorsList();
 }
 
-String _$adminVendorsListHash() => r'ae83779eaf67a19f813955bb80c77e624d157ee9';
+String _$adminVendorsListHash() => r'f04823b3d6e0ca6ef78ff836e7569a9d1b2c3316';
 
 /// LIL-128 : liste complète des vendeurs pour l'admin. Filtres optionnels.
 /// Le notifier expose les actions approve/suspend qui invalident la liste.

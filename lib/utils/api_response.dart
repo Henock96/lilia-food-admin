@@ -24,6 +24,26 @@ class ApiResponse {
     return <dynamic>[];
   }
 
+  /// Nombre de pages annoncé par une réponse paginée, sous ses deux formes :
+  /// `meta.totalPages` (contrat v2), ou `total` + `limit` à plat. 1 si la
+  /// réponse ne porte ni l'un ni l'autre : un client à jour face à un backend
+  /// ancien ne doit pas boucler.
+  static int totalPagesOf(dynamic decoded) {
+    if (decoded is! Map<String, dynamic>) return 1;
+    final inner = decoded['data'];
+    final body = inner is Map<String, dynamic> ? inner : decoded;
+    final meta = decoded['meta'] ?? body['meta'];
+    if (meta is Map<String, dynamic> && meta['totalPages'] is int) {
+      return meta['totalPages'] as int;
+    }
+    final total = body['total'];
+    final limit = body['limit'];
+    if (total is int && limit is int && limit > 0) {
+      return total == 0 ? 1 : (total + limit - 1) ~/ limit;
+    }
+    return 1;
+  }
+
   static Map<String, dynamic> mapOf(dynamic decoded) {
     if (decoded is Map<String, dynamic>) {
       if (decoded['data'] is Map<String, dynamic>) {

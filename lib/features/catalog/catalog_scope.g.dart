@@ -289,7 +289,7 @@ final class CatalogSelectableVendorsProvider
 }
 
 String _$catalogSelectableVendorsHash() =>
-    r'c7eda426d1930e56fd4cf184f4a3fc70ef600926';
+    r'b7034c4380a2f8173c1d8e747ade7c5d5a51067c';
 
 /// Type du vendeur sur lequel porte le catalogue — **le vendeur ciblé**, pas
 /// la boutique de l'appelant.

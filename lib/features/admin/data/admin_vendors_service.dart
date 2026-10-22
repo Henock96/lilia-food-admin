@@ -34,6 +34,29 @@ class AdminVendorsService {
     return list.map(AdminVendorItem.fromJson).toList();
   }
 
+  /// Garde-fou : la boucle est pilotée par `meta.totalPages`, venu du serveur.
+  static const int _maxPages = 20;
+
+  /// Tous les vendeurs, toutes pages (100 par page, borne serveur).
+  ///
+  /// Lot 4 (ADM-12) : la liste admin s'arrêtait à la 1ʳᵉ page de 50, et le
+  /// sélecteur du catalogue à 100, sans le dire. Les écrans filtrent et
+  /// recherchent en local : il leur faut la liste entière.
+  Future<List<AdminVendorItem>> listAllVendors() async {
+    final vendors = <AdminVendorItem>[];
+    for (var page = 1; page <= _maxPages; page++) {
+      final res = await _api.getJson('/admin/vendors', query: {
+        'page': '$page',
+        'limit': '100',
+      });
+      final batch =
+          ApiResponse.listOf(res.data).cast<Map<String, dynamic>>();
+      vendors.addAll(batch.map(AdminVendorItem.fromJson));
+      if (batch.isEmpty || page >= ApiResponse.totalPagesOf(res.data)) break;
+    }
+    return vendors;
+  }
+
   /// GET /admin/vendors/pending — raccourci badge "à valider".
   Future<List<AdminVendorItem>> listPending() async {
     final res = await _api.getJson('/admin/vendors/pending');

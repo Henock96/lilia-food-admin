@@ -41,6 +41,7 @@ import '../features/auth/repository/firebase_auth_repository.dart';
 import '../features/users/user_screen.dart';
 import 'go_router_refresh_stream.dart';
 import '../features/auth/presentation/access_denied_screen.dart';
+import '../features/auth/presentation/profile_sync_error_screen.dart';
 import '../features/admin/presentation/screens/refunds_screen.dart';
 import '../features/admin/presentation/screens/audit_log_screen.dart';
 
@@ -48,35 +49,34 @@ part 'app_router.g.dart';
 
 final _key = GlobalKey<NavigatorState>();
 
+/// Redirection selon la connexion : hors session ⇒ `/sign-in` ; connecté sur
+/// `/sign-in` ⇒ `/`.
+String? authRedirect({required bool isLoggedIn, required String location}) {
+  final isLoggingIn = location == '/sign-in';
+  if (!isLoggedIn && !isLoggingIn) return '/sign-in';
+  if (isLoggedIn && isLoggingIn) return '/';
+  return null;
+}
+
 @riverpod
 GoRouter router(Ref ref) {
-  final authState = ref.watch(authStateChangeProvider);
+  // Lot 4 (ADM-23) — le routeur ne dépend plus de l'état de connexion.
+  // Il faisait `ref.watch(authStateChangeProvider)` : chaque changement
+  // recréait un `GoRouter` neuf, et la pile de navigation était perdue.
+  // `refreshListenable` suffit à réévaluer `redirect`, qui lit l'état au
+  // moment où il s'exécute. `currentUser` est à jour avant que Firebase
+  // n'émette sur `authStateChanges`, donc avant ce rafraîchissement.
+  final auth = ref.watch(authRepositoryProvider);
+  final refresh = GoRouterRefreshStream(auth.authStateChanges());
 
-  return GoRouter(
+  final router = GoRouter(
     navigatorKey: _key,
     initialLocation: '/sign-in',
-    refreshListenable: GoRouterRefreshStream(
-      ref.watch(authRepositoryProvider).authStateChanges(),
+    refreshListenable: refresh,
+    redirect: (context, state) => authRedirect(
+      isLoggedIn: auth.currentUser != null,
+      location: state.matchedLocation,
     ),
-    redirect: (context, state) {
-      final bool isLoggedIn = authState.when(
-        data: (user) => user != null,
-        loading: () => false,
-        error: (_, _) => false,
-      );
-
-      final bool isLoggingIn = state.matchedLocation == '/sign-in';
-
-      if (!isLoggedIn && !isLoggingIn) {
-        return '/sign-in';
-      }
-
-      if (isLoggedIn && isLoggingIn) {
-        return '/';
-      }
-
-      return null;
-    },
     routes: [
       GoRoute(
         path: '/sign-in',
@@ -437,6 +437,11 @@ GoRouter router(Ref ref) {
       ),
     ],
   );
+  ref.onDispose(() {
+    router.dispose();
+    refresh.dispose();
+  });
+  return router;
 }
 
 /// Garde les routes admin-only : si l'utilisateur courant n'a pas le rôle
@@ -452,7 +457,11 @@ class _AdminOnlyGuard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final userProfile = ref.watch(currentUserProfileProvider);
     if (userProfile == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      // Lot 4 (ADM-07) : un échec de synchronisation n'est plus un spinner
+      // sans fin.
+      return const ProfileSyncFailureGate(
+        child: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
     }
     if (userProfile.role != Role.admin) {
       return _MissingRouteDataScreen(
@@ -529,6 +538,8 @@ class _RoleGuard extends ConsumerWidget {
       return const AccessDeniedScreen();
     }
 
-    return child;
+    // Lot 4 (ADM-07) : profil impossible à charger ⇒ le dire, plutôt que
+    // d'ouvrir une app vide dont chaque écran échoue.
+    return ProfileSyncFailureGate(child: child);
   }
 }
