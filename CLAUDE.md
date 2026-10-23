@@ -354,8 +354,9 @@ configs, avec `DEVELOPMENT_TEAM` sur les trois. Sans eux, `getToken()` échoue
 et **aucun push n'arrive, même sur iPhone physique**.
 `UIBackgroundModes: remote-notification` est dans `Info.plist`.
 
-⚠️ Les deux fichiers sont sur `development`. À basculer sur `production` avant
-la première distribution TestFlight / App Store.
+`Runner.entitlements` (Debug + Profile) reste sur `development` ;
+`RunnerRelease.entitlements` est sur `production` depuis le 23/10/2026 (ADM-15) :
+ne jamais recopier l'un sur l'autre.
 
 ---
 
@@ -429,9 +430,9 @@ url_launcher: ^6.3.1
    debug Android — inpubliable sur le Play Store, et cette clé étant publique,
    n'importe qui pouvait produire une mise à jour acceptée par les appareils.
    Le bloc est rétabli, mais **conditionné à la présence de
-   `android/key.properties`** : sans lui on retombe sur debug avec un
-   `logger.warn("NE PAS PUBLIER cet artefact")`, pour qu'un `flutter run
-   --release` local n'échoue pas au chargement Gradle.
+   `android/key.properties`**. Depuis le 23/10/2026 (ADM-18), plus de repli
+   sur la clé de debug : sans trousseau, `assemble*Release` / `bundle*Release`
+   échouent avec la marche à suivre, et le debug reste constructible.
    ⚠️ **Reste à faire** : créer `android/key.properties` sur la machine de
    release (il est gitignoré).
 2. ✅ **`.gitignore` durci** (C-1) : `*.jks`, `*.keystore`,

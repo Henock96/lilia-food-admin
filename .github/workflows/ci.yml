@@ -30,7 +30,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           # Même version que les postes de développement (flutter --version).
-          flutter-version: '3.47.2'
+          flutter-version: '3.47.5'
           channel: stable
           cache: true
 
@@ -48,6 +48,11 @@ jobs:
       # toléré une fois devient cinquante.
       - name: Analyse
         run: flutter analyze
+
+      # `dart analyze` voit les lints de `riverpod_lint` (plugin d'analyse)
+      # que `flutter analyze` ne remonte pas (règle 24 de la constitution).
+      - name: Analyse Dart
+        run: dart analyze
 
       - name: Tests
         run: flutter test

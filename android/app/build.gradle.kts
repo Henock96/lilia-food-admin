@@ -14,6 +14,9 @@ val keystoreProperties = Properties()
     if (keystorePropertiesFile.exists()) {
         keystoreProperties.load(FileInputStream(keystorePropertiesFile))
     }
+val hasKeystore = keystorePropertiesFile.exists() &&
+    keystoreProperties["keyAlias"] != null &&
+    keystoreProperties["storeFile"] != null
 
 // Clé Google Maps — même mécanisme que `lilia-app` et `lilia_food_delivery`.
 //
@@ -43,6 +46,19 @@ gradle.taskGraph.whenReady {
             "Clé Google Maps absente : ajoutez `MAPS_API_KEY=<clé>` dans " +
                 "android/local.properties (fichier gitignoré), ou exportez " +
                 "MAPS_API_KEY."
+        )
+    }
+
+    // Même raisonnement pour la signature (ADM-18, audit du 13/10/2026) : on
+    // casse au moment de fabriquer le binaire, pas au moment de configurer le
+    // projet. L'ancien repli signait la release avec la clé de debug, publique,
+    // sur un simple avertissement que personne ne lit dans un log Gradle.
+    if (buildingRelease && !hasKeystore) {
+        throw GradleException(
+            "Trousseau de signature absent : créez `android/key.properties` " +
+                "(fichier gitignoré) avec keyAlias, keyPassword, storeFile et " +
+                "storePassword. Sans lui, la release serait signée avec la clé " +
+                "de debug et refusée par le Play Store."
         )
     }
 }
@@ -80,10 +96,11 @@ android {
     // (la clé de debug Android est publique).
     //
     // `android/key.properties` est gitignoré et absent des machines de dev qui
-    // ne publient pas : on ne déclare la config que s'il est présent, sinon un
-    // simple `flutter run --release` local échouerait au chargement du Gradle.
+    // ne publient pas : on ne déclare la config que s'il est présent, sinon
+    // toute tâche, `flutter run` en debug compris, échouerait au chargement du
+    // Gradle. Sans trousseau, la garde `whenReady` ci-dessus refuse la release.
     signingConfigs {
-        if (keystorePropertiesFile.exists()) {
+        if (hasKeystore) {
             create("release") {
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
@@ -94,14 +111,9 @@ android {
     }
     buildTypes {
         release {
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                logger.warn(
-                    "⚠️  android/key.properties absent — build release signé avec la clé de DEBUG. " +
-                    "NE PAS PUBLIER cet artefact."
-                )
-                signingConfigs.getByName("debug")
+            // Plus aucun repli sur la clé de debug.
+            if (hasKeystore) {
+                signingConfig = signingConfigs.getByName("release")
             }
         }
     }
