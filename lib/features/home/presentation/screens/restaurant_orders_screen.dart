@@ -66,6 +66,9 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
     OrderStatus.pret,
     OrderStatus.enRoute,
     OrderStatus.livrer,
+    // Lot 5 — les échecs de livraison n'avaient pas d'onglet : on ne les
+    // retrouvait que dans « Toutes ».
+    OrderStatus.echecLivraison,
     OrderStatus.annuler,
   ];
 

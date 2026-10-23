@@ -7,8 +7,8 @@ import 'package:lilia_admin/models/role.dart';
 ///
 /// Le serveur publie `allowedActions` : l'application n'a plus à recopier la
 /// matrice de transitions, copie qui avait divergé (audit du 22/09/2026). Le
-/// repli sur l'ancienne logique ne sert que face à un serveur antérieur, qui ne
-/// publie rien — et qui ne connaît donc pas `/accept` ni `/reject`.
+/// repli sur cette copie a été retiré au Lot 5 (ADM-17) : sans gestes publiés,
+/// aucun geste.
 Order _order({
   String status = 'PAYER',
   bool isDelivery = true,
@@ -61,7 +61,7 @@ void main() {
 
     test('champ absent (serveur antérieur) : null, pas une liste vide', () {
       // Une liste vide voudrait dire « aucun geste permis » ; l'absence veut
-      // dire « le serveur ne le dit pas », et déclenche le repli.
+      // dire « le serveur ne le dit pas » (et, depuis le Lot 5, aucun geste).
       expect(_order().allowedActions, isNull);
     });
 
@@ -87,22 +87,16 @@ void main() {
       expect(resolveOrderActions(order, Role.admin), isEmpty);
     });
 
-    test('serveur antérieur : repli sur l’ancienne logique, sans Accepter ni Refuser', () {
-      // Ces deux routes n'existent pas sur un serveur qui ne publie pas les
-      // gestes : les proposer produirait un 404.
-      final actions = resolveOrderActions(_order(status: 'PAYER'), Role.restaurateur);
-      expect(actions, [OrderAction.startPreparation, OrderAction.cancel]);
-    });
-
-    test('repli : retrait au comptoir seulement pour une commande à emporter', () {
-      expect(
-        resolveOrderActions(_order(status: 'PRET', isDelivery: false), Role.restaurateur),
-        contains(OrderAction.handOver),
-      );
-      expect(
-        resolveOrderActions(_order(status: 'PRET', isDelivery: true), Role.restaurateur),
-        isNot(contains(OrderAction.handOver)),
-      );
+    // Lot 5 (ADM-17, règle 4) — plus de copie locale de la matrice : sans
+    // gestes publiés, l'app n'en invente aucun.
+    test('aucun geste publié : aucun geste proposé, quel que soit le statut', () {
+      for (final status in ['PAYER', 'PRET', 'EN_PREPARATION']) {
+        expect(
+          resolveOrderActions(_order(status: status, isDelivery: false), Role.admin),
+          isEmpty,
+          reason: status,
+        );
+      }
     });
   });
 

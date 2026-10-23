@@ -134,6 +134,34 @@ void main() {
     expect(orders.calls.where((s) => s == null).length, lessThan(3));
   });
 
+  // Lot 5 — les échecs de livraison ont leur onglet.
+  testWidgets('un onglet « Livraison non aboutie » existe', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          currentUserProfileProvider.overrideWith(_AdminProfile.new),
+          orderServiceRepositoryProvider.overrideWithValue(_FakeOrders()),
+          adminTrackingSocketServiceProvider.overrideWithValue(_FakeSocket()),
+        ],
+        child: const MaterialApp(home: RestaurantOrdersScreen()),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      find.descendant(
+        of: find.byType(TabBar),
+        matching: find.textContaining('Livraison non aboutie'),
+      ),
+      findsOneWidget,
+    );
+
+    // Relecture périodique (Lot 2) : démonter et laisser filer le temps pour
+    // qu'aucun minuteur ne survive au test.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(minutes: 1));
+  });
+
   testWidgets(
     '« Toutes » en échec : l’erreur s’affiche, pas un spinner sans fin',
     (tester) async {

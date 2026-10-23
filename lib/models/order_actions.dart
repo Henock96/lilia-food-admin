@@ -1,5 +1,4 @@
 import 'order.dart';
-import 'order_transitions.dart';
 import 'role.dart';
 
 /// Geste qu'une interface peut proposer sur une commande (Phase 3, F3-01).
@@ -42,25 +41,13 @@ enum OrderAction {
       };
 }
 
-/// Gestes à proposer : ceux du serveur, sinon l'ancienne logique locale.
+/// Gestes à proposer : ceux que publie le serveur, rien d'autre.
 ///
-/// Le repli ne sert que face à un serveur antérieur à la Phase 3, qui ne
-/// publie pas `allowedActions` — et qui n'a donc ni `/accept` ni `/reject` :
-/// il ne les propose jamais. À supprimer, avec `order_transitions.dart`, une
-/// fois ce serveur-là disparu.
-List<OrderAction> resolveOrderActions(Order order, Role role) {
-  final published = order.allowedActions;
-  if (published != null) return published;
-
-  return availableOrderTransitions(
-    current: order.status,
-    role: role,
-    isDelivery: order.isDelivery,
-  ).map((status) => switch (status) {
-        OrderStatus.enpreparation => OrderAction.startPreparation,
-        OrderStatus.pret => OrderAction.markReady,
-        OrderStatus.livrer => OrderAction.handOver,
-        OrderStatus.annuler => OrderAction.cancel,
-        _ => null,
-      }).whereType<OrderAction>().toList();
-}
+/// Lot 5 (ADM-17, règle 4) — l'ancien repli recalculait les gestes à partir
+/// d'une copie locale de la matrice de transitions (`order_transitions.dart`)
+/// quand le serveur ne publiait pas `allowedActions`. Tous les serveurs en
+/// service la publient depuis la Phase 3 ; la copie, elle, pouvait diverger.
+/// Sans `allowedActions`, aucun geste : mieux vaut ne rien proposer que
+/// deviner. [role] reste dans la signature pour les appelants.
+List<OrderAction> resolveOrderActions(Order order, Role role) =>
+    order.allowedActions ?? const [];
