@@ -51,6 +51,9 @@ dependencies:
   flutter_cache_manager: ^3.4.2
   url_launcher: ^6.3.2
   sentry_flutter: ^9.28.0
+  # Version du binaire envoyée au serveur (`X-Lilia-App-Version`) : sans elle,
+  # impossible de forcer la mise à jour du parc vendeur (audit du 28/10/2026).
+  package_info_plus: ^10.2.1
   socket_io_client: ^3.1.6
   google_maps_flutter: ^2.18.0
 

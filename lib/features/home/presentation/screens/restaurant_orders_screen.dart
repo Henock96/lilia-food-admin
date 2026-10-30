@@ -12,6 +12,8 @@ import '../../../../models/order.dart';
 import '../refresh_ticker.dart';
 import '../widgets/order_action_dispatch.dart';
 import '../widgets/order_actions_panel.dart';
+import '../widgets/notification_permission_banner.dart';
+import '../../application/notification_permission.dart';
 import '../../../../models/role.dart';
 import '../../../../services/admin_tracking_socket_service.dart';
 import '../../data/order_controller.dart';
@@ -136,6 +138,8 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
     _refresh.handleLifecycle(state);
     final socket = ref.read(adminTrackingSocketServiceProvider);
     if (state == AppLifecycleState.resumed) {
+      // Le vendeur a pu autoriser les notifications dans Réglages (F-03).
+      ref.invalidate(notificationPermissionProvider);
       // Retour foreground → reconnecter et re-watch les commandes actives.
       // `reconnect()` rafraîchit aussi le token Firebase si nécessaire.
       socket.reconnect();
@@ -333,24 +337,33 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
       // Chaque onglet a sa propre requête, filtrée par le serveur. L'écran
       // chargeait auparavant une seule liste — les vingt dernières commandes
       // de la plateforme — que les sept onglets filtraient en mémoire.
-      body: TabBarView(
-        controller: _tabController,
-        children: _filterStatuses
-            .map(
-              (status) => _OrdersTab(
-                status: status,
-                search: _search,
-                todayOnly: _todayOnly,
-                applyTodayFilter: _applyTodayFilter,
-                emptyLabel: _search.isNotEmpty
-                    ? 'Aucune commande ne correspond à « $_search »'
-                    : status == null
-                        ? 'Aucune commande'
-                        : 'Aucune commande ${_getStatusLabel(status).toLowerCase()}',
-                onOrdersLoaded: _syncSocketSubscriptions,
-              ),
-            )
-            .toList(),
+      body: Column(
+        children: [
+          // Audit du 28/10/2026 (F-03) — sans permission, aucune commande ne
+          // sonne ; le vendeur doit le voir là où il attend ses commandes.
+          const NotificationPermissionBanner(),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: _filterStatuses
+                  .map(
+                    (status) => _OrdersTab(
+                      status: status,
+                      search: _search,
+                      todayOnly: _todayOnly,
+                      applyTodayFilter: _applyTodayFilter,
+                      emptyLabel: _search.isNotEmpty
+                          ? 'Aucune commande ne correspond à « $_search »'
+                          : status == null
+                              ? 'Aucune commande'
+                              : 'Aucune commande ${_getStatusLabel(status).toLowerCase()}',
+                      onOrdersLoaded: _syncSocketSubscriptions,
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -7,6 +7,7 @@ import '../../constants/app_constants.dart';
 import '../../features/auth/application/session_guard.dart';
 import '../../features/auth/repository/firebase_auth_repository.dart';
 import 'api_exception.dart';
+import 'interceptors/app_version_interceptor.dart';
 import 'interceptors/auth_interceptor.dart';
 import 'interceptors/error_interceptor.dart';
 import 'interceptors/retry_interceptor.dart';
@@ -43,6 +44,8 @@ class ApiClient {
     dio.interceptors.addAll([
       AuthInterceptor(dio,
           tokenProvider: tokenProvider, forceRefreshToken: forceRefreshToken),
+      // Audit du 28/10/2026 — application et version annoncées au serveur.
+      AppVersionInterceptor(),
       RetryInterceptor(dio),
       ErrorInterceptor(),
     ]);
