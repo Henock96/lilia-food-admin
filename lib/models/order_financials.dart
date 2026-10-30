@@ -34,6 +34,9 @@ enum PayoutIneligibility {
   payoutAlreadyCompleted,
   payoutInProgress,
   providerDoesNotSupportPayout,
+  /// Durcissement lot 2 — écart de rapprochement ouvert et bloquant : le
+  /// motif du serveur dit lequel et où le résoudre.
+  reconciliationBlocked,
   unknown,
 }
 
@@ -57,6 +60,8 @@ PayoutIneligibility _parseIneligibility(String? code) {
       return PayoutIneligibility.payoutInProgress;
     case 'PROVIDER_DOES_NOT_SUPPORT_PAYOUT':
       return PayoutIneligibility.providerDoesNotSupportPayout;
+    case 'RECONCILIATION_BLOCKED':
+      return PayoutIneligibility.reconciliationBlocked;
     default:
       return PayoutIneligibility.unknown;
   }

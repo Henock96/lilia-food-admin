@@ -874,6 +874,12 @@ class OrderDetailScreen extends ConsumerWidget {
 
   _StatusInfo _getStatusInfo(OrderStatus status) {
     switch (status) {
+      case OrderStatus.demandeEnvoyee:
+        return _StatusInfo(
+          label: 'Demande à accepter',
+          color: Colors.purple,
+          icon: Icons.mark_email_unread_outlined,
+        );
       case OrderStatus.enattente:
         return _StatusInfo(
           label: 'En attente',
