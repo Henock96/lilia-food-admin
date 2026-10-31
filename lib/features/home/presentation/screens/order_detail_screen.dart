@@ -36,6 +36,16 @@ bool _canSeePayout(WidgetRef ref, Order order) {
       order.status == OrderStatus.livrer;
 }
 
+/// D-7 (durcissement lot 4) — affecter un livreur est un geste d'opérateur.
+///
+/// Le serveur reste l'autorité (`vendorCanAssignDriver`, sinon
+/// `403 DRIVER_ASSIGNMENT_OPERATOR_ONLY`) ; cette app ne propose plus le geste
+/// au vendeur, pour que l'interrupteur puisse être éteint sans bouton cassé.
+bool _canAssignDeliverer(WidgetRef ref, Order order) {
+  final isAdmin = ref.watch(currentUserProfileProvider)?.role == Role.admin;
+  return isAdmin && order.status == OrderStatus.pret && order.isDelivery;
+}
+
 class OrderDetailScreen extends ConsumerWidget {
   final Order order;
 
@@ -172,12 +182,11 @@ class OrderDetailScreen extends ConsumerWidget {
               const SizedBox(height: 16),
             ],
 
-            // Assignation livreur (commande PRET en livraison)
-            if (currentOrder.status == OrderStatus.pret &&
-                currentOrder.isDelivery)
+            // Assignation livreur (commande PRET en livraison). D-7
+            // (durcissement lot 4) : geste d'opérateur, réservé à l'ADMIN.
+            if (_canAssignDeliverer(ref, currentOrder))
               _buildAssignDelivererSection(context, ref, currentOrder),
-            if (currentOrder.status == OrderStatus.pret &&
-                currentOrder.isDelivery)
+            if (_canAssignDeliverer(ref, currentOrder))
               const SizedBox(height: 16),
 
             // Actions statut
