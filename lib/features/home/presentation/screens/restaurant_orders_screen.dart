@@ -51,6 +51,7 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
   /// commande dans l'un de ces états. LIVRER et ANNULER sont terminaux,
   /// pas de mise à jour à attendre.
   static const Set<OrderStatus> _activeStatuses = {
+    OrderStatus.demandeEnvoyee,
     OrderStatus.enattente,
     OrderStatus.payer,
     OrderStatus.acceptee,
@@ -61,6 +62,8 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
 
   final List<OrderStatus?> _filterStatuses = [
     null, // Toutes
+    // Lot 3 — demandes à accepter ou refuser avant paiement.
+    OrderStatus.demandeEnvoyee,
     OrderStatus.enattente,
     OrderStatus.payer,
     OrderStatus.acceptee,
@@ -172,6 +175,8 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
 
   String _getStatusLabel(OrderStatus status) {
     switch (status) {
+      case OrderStatus.demandeEnvoyee:
+        return 'Demandes';
       case OrderStatus.enattente:
         return 'En attente';
       case OrderStatus.payer:
@@ -1139,6 +1144,12 @@ class OrderCard extends ConsumerWidget {
 
   _StatusInfo _getStatusInfo(OrderStatus status) {
     switch (status) {
+      case OrderStatus.demandeEnvoyee:
+        return _StatusInfo(
+          label: 'À accepter',
+          color: Colors.purple,
+          icon: Icons.mark_email_unread_outlined,
+        );
       case OrderStatus.enattente:
         return _StatusInfo(
           label: 'En attente',

@@ -101,7 +101,12 @@ class _OrderActionsPanelState extends State<OrderActionsPanel> {
       return const SizedBox.shrink();
     }
     final actions = resolveOrderActions(order, role);
-    if (actions.isEmpty) return const SizedBox.shrink();
+    // Lot 3 — acceptée, pas encore payée : rien à faire, sauf ne pas préparer.
+    final awaitingClientPayment = order.status == OrderStatus.enattente &&
+        order.orderFlow == 'ACCEPT_FIRST';
+    if (actions.isEmpty && !awaitingClientPayment) {
+      return const SizedBox.shrink();
+    }
 
     final buttons = actions.map((action) {
       final look = orderActionLook(action);
@@ -137,6 +142,21 @@ class _OrderActionsPanelState extends State<OrderActionsPanel> {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: AcceptDeadlineBadge(deadline: order.acceptDeadlineAt!),
+          ),
+        if (awaitingClientPayment)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Acceptée — en attente du paiement du client. Ne commencez pas '
+              'la préparation avant la notification « payée ».',
+              style: TextStyle(fontSize: 13, color: Colors.black54),
+            ),
+          ),
+        // Lot 3 — une demande expire si personne ne répond.
+        if (order.isRequest && order.requestExpiresAt != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: AcceptDeadlineBadge(deadline: order.requestExpiresAt!),
           ),
         if (compact)
           Wrap(spacing: 8, runSpacing: 8, children: buttons)

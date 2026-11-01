@@ -2,6 +2,9 @@
 import 'order_actions.dart';
 
 enum OrderStatus {
+  /// Durcissement lot 3 — demande à accepter ou refuser AVANT le paiement
+  /// (parcours « accepter puis payer »). Rien n'est encore encaissé.
+  demandeEnvoyee,
   enattente,
   payer,
   /// Acceptée par le vendeur, pas encore en préparation (Phase 3, F3-01).
@@ -25,6 +28,7 @@ enum OrderStatus {
 /// (`order_service_test.dart`).
 extension OrderStatusWire on OrderStatus {
   String toWire() => switch (this) {
+    OrderStatus.demandeEnvoyee => 'DEMANDE_ENVOYEE',
     OrderStatus.enattente => 'EN_ATTENTE',
     OrderStatus.payer => 'PAYER',
     OrderStatus.acceptee => 'ACCEPTEE',
@@ -87,6 +91,15 @@ class Order {
   /// Versement automatique au vendeur prévu à cette heure ; `null` = aucun
   /// versement automatique (preuve insuffisante).
   final DateTime? payoutDueAt;
+  // Durcissement lot 3 — parcours « accepter puis payer ».
+  /// `PAY_FIRST` (historique) ou `ACCEPT_FIRST`, figé sur la commande.
+  final String orderFlow;
+  /// Demande : au-delà, elle expire sans réponse (rien encaissé).
+  final DateTime? requestExpiresAt;
+  /// Acceptée avant paiement : le client doit payer avant cette heure.
+  final DateTime? paymentDueAt;
+  /// Acceptation par le vendeur (avant ou après paiement selon le parcours).
+  final DateTime? acceptedAt;
 
   Order({
     required this.id,
@@ -116,7 +129,14 @@ class Order {
     this.deliveredAt,
     this.customerConfirmedAt,
     this.payoutDueAt,
+    this.orderFlow = 'PAY_FIRST',
+    this.requestExpiresAt,
+    this.paymentDueAt,
+    this.acceptedAt,
   });
+
+  /// Une demande attend la réponse du vendeur (lot 3).
+  bool get isRequest => status == OrderStatus.demandeEnvoyee;
 
   Order copyWith({OrderStatus? status}) {
     return Order(
@@ -147,6 +167,10 @@ class Order {
       deliveredAt: deliveredAt,
       customerConfirmedAt: customerConfirmedAt,
       payoutDueAt: payoutDueAt,
+      orderFlow: orderFlow,
+      requestExpiresAt: requestExpiresAt,
+      paymentDueAt: paymentDueAt,
+      acceptedAt: acceptedAt,
     );
   }
 
@@ -188,6 +212,11 @@ class Order {
       deliveredAt: _dateOrNull(json['deliveredAt']),
       customerConfirmedAt: _dateOrNull(json['customerConfirmedAt']),
       payoutDueAt: _dateOrNull(json['payoutDueAt']),
+      // Absents des serveurs antérieurs au lot 3 : parcours historique.
+      orderFlow: json['orderFlow'] as String? ?? 'PAY_FIRST',
+      requestExpiresAt: _dateOrNull(json['requestExpiresAt']),
+      paymentDueAt: _dateOrNull(json['paymentDueAt']),
+      acceptedAt: _dateOrNull(json['acceptedAt']),
     );
   }
 
@@ -204,6 +233,8 @@ class Order {
 
   static OrderStatus _statusFromString(String? status) {
     switch (status) {
+      case 'DEMANDE_ENVOYEE':
+        return OrderStatus.demandeEnvoyee;
       case 'EN_ATTENTE':
         return OrderStatus.enattente;
       case 'PAYER': // Corrige: c'etait 'PAYEZ' mais le backend utilise 'PAYER'

@@ -27,6 +27,13 @@ class AppVersionInterceptor extends Interceptor {
   static const versionHeader = 'X-Lilia-App-Version';
   static const appName = 'vendor';
 
+  /// Lot 3 — cette version sait afficher une demande (`DEMANDE_ENVOYEE`) et
+  /// y répondre (accepter / refuser avant paiement). Le serveur ne bascule le
+  /// parcours « accepter puis payer » que pour les applications qui
+  /// l'annoncent ; les autres reçoivent un `426` quand il est allumé.
+  static const orderFlowHeader = 'X-Lilia-Order-Flow';
+  static const orderFlowCapability = 'accept-first';
+
   final Future<String?> Function() _readVersion;
   String? _cached;
 
@@ -48,6 +55,7 @@ class AppVersionInterceptor extends Interceptor {
     RequestInterceptorHandler handler,
   ) async {
     options.headers[appHeader] = appName;
+    options.headers[orderFlowHeader] = orderFlowCapability;
     final version = _cached ??= await _readVersion();
     if (version != null) {
       options.headers[versionHeader] = version;
