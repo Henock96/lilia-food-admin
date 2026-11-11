@@ -1,4 +1,5 @@
 import 'package:lilia_admin/core/network/api_client.dart';
+import 'package:lilia_admin/core/network/api_exception.dart';
 import 'package:lilia_admin/utils/api_response.dart';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -60,10 +61,120 @@ class OrderDeliveryState {
   }
 }
 
+/// État de la recherche de livreur d'une commande — dispatch FCFS
+/// (« premier arrivé, premier servi », 10/11/2026).
+///
+/// Verdict **serveur** (`GET /deliveries/by-order/:orderId/dispatch`) : c'est
+/// lui qui dit si l'affectation manuelle existe encore
+/// (`manualAssignmentAllowed`, vrai seulement tant que `dispatchEnabled` est
+/// éteint) et si l'ADMIN peut relancer. L'app n'en déduit rien d'elle-même :
+/// le bouton suit le verdict, et disparaît à l'activation sans nouvelle
+/// version.
+class OrderDispatchView {
+  const OrderDispatchView({
+    required this.mode,
+    required this.manualAssignmentAllowed,
+    required this.redispatchAllowed,
+    required this.state,
+    this.deliveryId,
+    this.deliveryStatus,
+    this.startedAt,
+    this.endedAt,
+    this.nextRoundAt,
+    this.round = 0,
+    this.maxRounds = 5,
+    this.notifiedCount = 0,
+    this.waitingSeconds,
+    this.outcome,
+    this.delivererName,
+  });
+
+  /// `AUTOMATIC` (FCFS allumé) ou `MANUAL` (historique).
+  final String mode;
+  final bool manualAssignmentAllowed;
+  final bool redispatchAllowed;
+
+  /// `NONE` · `SEARCHING` · `ASSIGNED` · `EXHAUSTED` · `CLOSED`.
+  final String state;
+  final String? deliveryId;
+  final String? deliveryStatus;
+  final DateTime? startedAt;
+  final DateTime? endedAt;
+  final DateTime? nextRoundAt;
+  final int round;
+  final int maxRounds;
+  final int notifiedCount;
+  final int? waitingSeconds;
+  final String? outcome;
+  final String? delivererName;
+
+  bool get isAutomatic => mode == 'AUTOMATIC';
+  bool get isSearching => state == 'SEARCHING';
+  bool get isExhausted => state == 'EXHAUSTED';
+  bool get isAssigned => state == 'ASSIGNED';
+
+  String get label => switch (state) {
+    'SEARCHING' => 'Recherche d’un livreur en cours',
+    'ASSIGNED' => delivererName != null
+        ? 'Livreur attribué : $delivererName'
+        : 'Livreur attribué',
+    'EXHAUSTED' => 'Aucun livreur n’a accepté — relance requise',
+    'CLOSED' => 'Recherche terminée',
+    _ => isAutomatic
+        ? 'En attente de passage à « Prête »'
+        : 'Aucune recherche automatique',
+  };
+
+  factory OrderDispatchView.fromJson(Map<String, dynamic> json) {
+    final deliverer = json['deliverer'];
+    return OrderDispatchView(
+      mode: json['mode'] as String? ?? 'MANUAL',
+      manualAssignmentAllowed: json['manualAssignmentAllowed'] == true,
+      redispatchAllowed: json['redispatchAllowed'] == true,
+      state: json['state'] as String? ?? 'NONE',
+      deliveryId: json['deliveryId'] as String?,
+      deliveryStatus: json['deliveryStatus'] as String?,
+      startedAt: _date(json['startedAt']),
+      endedAt: _date(json['endedAt']),
+      nextRoundAt: _date(json['nextRoundAt']),
+      round: (json['round'] as num?)?.toInt() ?? 0,
+      maxRounds: (json['maxRounds'] as num?)?.toInt() ?? 5,
+      notifiedCount: (json['notifiedCount'] as num?)?.toInt() ?? 0,
+      waitingSeconds: (json['waitingSeconds'] as num?)?.toInt(),
+      outcome: json['outcome'] as String?,
+      delivererName: deliverer is Map<String, dynamic>
+          ? deliverer['nom'] as String?
+          : null,
+    );
+  }
+
+  static DateTime? _date(Object? v) =>
+      v is String ? DateTime.tryParse(v)?.toLocal() : null;
+}
+
 class DeliveryService {
   final ApiClient _api;
 
   DeliveryService(this._api);
+
+  /// FCFS — verdict serveur sur la recherche de livreur d'une commande.
+  /// `null` si le serveur ne connaît pas encore la route (backend ancien) :
+  /// l'écran retombe alors sur la règle historique.
+  Future<OrderDispatchView?> getDispatchForOrder(String orderId) async {
+    try {
+      final res = await _api.getJson('/deliveries/by-order/$orderId/dispatch');
+      return OrderDispatchView.fromJson(ApiResponse.mapOf(res.data));
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return null;
+      rethrow;
+    }
+  }
+
+  /// FCFS — l'ADMIN relance la recherche d'une commande prête (épuisée,
+  /// arrêtée, ou sans course). Ne choisit **jamais** de livreur.
+  Future<void> redispatchOrder(String orderId) async {
+    await _api.postJson('/admin/deliveries/by-order/$orderId/redispatch');
+  }
 
   Future<List<AppDeliverer>> getAvailableDeliverers() async {
     final res = await _api.getJson('/deliveries/deliverers');
@@ -117,4 +228,11 @@ class DeliveryService {
 @riverpod
 Future<OrderDeliveryState?> orderDeliveryState(Ref ref, String orderId) async {
   return DeliveryService(ref.watch(apiClientProvider)).getStateForOrder(orderId);
+}
+
+@riverpod
+Future<OrderDispatchView?> orderDispatchView(Ref ref, String orderId) async {
+  return DeliveryService(
+    ref.watch(apiClientProvider),
+  ).getDispatchForOrder(orderId);
 }

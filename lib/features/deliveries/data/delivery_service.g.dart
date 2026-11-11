@@ -94,3 +94,80 @@ final class OrderDeliveryStateFamily extends $Family
   @override
   String toString() => r'orderDeliveryStateProvider';
 }
+
+@ProviderFor(orderDispatchView)
+final orderDispatchViewProvider = OrderDispatchViewFamily._();
+
+final class OrderDispatchViewProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<OrderDispatchView?>,
+          OrderDispatchView?,
+          FutureOr<OrderDispatchView?>
+        >
+    with
+        $FutureModifier<OrderDispatchView?>,
+        $FutureProvider<OrderDispatchView?> {
+  OrderDispatchViewProvider._({
+    required OrderDispatchViewFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'orderDispatchViewProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$orderDispatchViewHash();
+
+  @override
+  String toString() {
+    return r'orderDispatchViewProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<OrderDispatchView?> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<OrderDispatchView?> create(Ref ref) {
+    final argument = this.argument as String;
+    return orderDispatchView(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is OrderDispatchViewProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$orderDispatchViewHash() => r'26f3454fc33c8ba4a4f2686273642cd4f3a648a2';
+
+final class OrderDispatchViewFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<OrderDispatchView?>, String> {
+  OrderDispatchViewFamily._()
+    : super(
+        retry: null,
+        name: r'orderDispatchViewProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  OrderDispatchViewProvider call(String orderId) =>
+      OrderDispatchViewProvider._(argument: orderId, from: this);
+
+  @override
+  String toString() => r'orderDispatchViewProvider';
+}
