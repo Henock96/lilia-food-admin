@@ -34,7 +34,7 @@ final class RestaurantSettingsProvider
 }
 
 String _$restaurantSettingsHash() =>
-    r'4a1c6ffb8bdbf21b37616e9bb63736dda2e1324b';
+    r'ebf96c263118b4108e7100edc8c0d373a02ed60a';
 
 abstract class _$RestaurantSettings extends $AsyncNotifier<Restaurant> {
   FutureOr<Restaurant> build();
