@@ -39,13 +39,20 @@ class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
     );
   }
 
+  /// Lot C (D2) — branche du shell affichée à chaque onglet. Le vendeur n'a
+  /// plus d'onglet « Clients » (branche 2) : il ne connaît pas ses clients.
+  static const _adminBranches = [0, 1, 2, 3, 4];
+  static const _vendorBranches = [0, 1, 3, 4];
+
   Widget _buildScaffold(bool isAdmin) {
+    final branches = isAdmin ? _adminBranches : _vendorBranches;
+    final selected = branches.indexOf(widget.navigationShell.currentIndex);
     return Scaffold(
       body: widget.navigationShell,
       bottomNavigationBar: NavigationBar(
         height: 70,
         elevation: 0,
-        selectedIndex: widget.navigationShell.currentIndex,
+        selectedIndex: selected < 0 ? 0 : selected,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: [
           const NavigationDestination(
@@ -58,11 +65,12 @@ class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
             icon: Icon(Icons.receipt_long_outlined),
             selectedIcon: Icon(Icons.receipt_long),
           ),
-          const NavigationDestination(
-            label: 'Clients',
-            icon: Icon(Icons.people_outline),
-            selectedIcon: Icon(Icons.people),
-          ),
+          if (isAdmin)
+            const NavigationDestination(
+              label: 'Clients',
+              icon: Icon(Icons.people_outline),
+              selectedIcon: Icon(Icons.people),
+            ),
           NavigationDestination(
             label: isAdmin ? 'Admin' : 'Paramètres',
             icon: Icon(isAdmin ? Icons.admin_panel_settings_outlined : Icons.settings_outlined),
@@ -74,7 +82,7 @@ class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
             selectedIcon: Icon(Icons.person),
           ),
         ],
-        onDestinationSelected: _goBranch,
+        onDestinationSelected: (i) => _goBranch(branches[i]),
       ),
     );
   }

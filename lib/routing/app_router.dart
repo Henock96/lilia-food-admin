@@ -33,7 +33,6 @@ import 'package:lilia_admin/features/reviews/presentation/reviews_screen.dart';
 import 'package:lilia_admin/features/reservations/presentation/reservation_settings_screen.dart';
 import 'package:lilia_admin/features/incidents/presentation/screens/incident_detail_screen.dart';
 import 'package:lilia_admin/features/photos/presentation/screens/photos_screen.dart';
-import 'package:lilia_admin/features/restaurant/presentation/providers/restaurant_provider.dart';
 import 'package:lilia_admin/features/auth/user_sync_provider.dart';
 import 'package:lilia_admin/models/role.dart';
 import 'package:lilia_admin/models/app_user.dart';
@@ -287,10 +286,15 @@ GoRouter router(Ref ref) {
                         if (isAdmin) {
                           return const ClientsScreen(restaurantId: '');
                         }
-                        final restaurantId = ref.watch(
-                          currentRestaurantIdProvider,
+                        // Lot C (D2) — le vendeur ne connaît pas ses
+                        // clients ; l'onglet ne lui est plus proposé, et un
+                        // lien direct ne doit pas mener à un 403.
+                        return const _MissingRouteDataScreen(
+                          title: 'Clients',
+                          message:
+                              'La liste des clients est réservée à l’administration Lilia. Vos commandes restent identifiées par leur numéro.',
+                          backRouteName: 'commandes',
                         );
-                        return ClientsScreen(restaurantId: restaurantId);
                       },
                     ),
                   );
