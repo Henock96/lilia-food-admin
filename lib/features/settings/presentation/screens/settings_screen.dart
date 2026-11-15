@@ -280,6 +280,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             icon: const Icon(Icons.local_offer_outlined),
             tooltip: 'Mes offres',
           ),
+          // Lot B — ce que les clients disent de la boutique.
+          IconButton(
+            onPressed: () => context.pushNamed('reviews'),
+            icon: const Icon(Icons.star_outline_rounded),
+            tooltip: 'Avis reçus',
+          ),
           // Premium Lot 3 — configuration de la réservation sur place.
           IconButton(
             onPressed: () => context.pushNamed('reservations'),
