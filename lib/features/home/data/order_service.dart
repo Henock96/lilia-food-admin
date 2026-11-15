@@ -1,6 +1,7 @@
 import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/utils/api_response.dart';
 
+import '../../../models/delivery_arbitration.dart';
 import '../../../models/order.dart';
 import '../../../models/pickup_arbitration_reason.dart';
 import '../../../models/vendor_rejection_reason.dart';
@@ -194,6 +195,28 @@ class OrderService {
         if (trimmed != null && trimmed.isNotEmpty) 'note': trimmed,
       },
     );
+  }
+
+  /// 15/11/2026 — l'ADMIN clôture une livraison sans le livreur (client qui
+  /// refuse une commande payée…). Ouvre le versement du vendeur : exige
+  /// `FINANCE_EXECUTE` (double authentification récente). Rend l'avoir émis,
+  /// s'il y en a un — son code sert à l'opérateur au téléphone.
+  Future<IssuedVoucher?> arbitrateDelivery(
+    String orderId, {
+    required DeliveryArbitrationReason reason,
+    String? note,
+    int? voucherAmountXaf,
+  }) async {
+    final trimmed = note?.trim();
+    final res = await _api.postJson(
+      '/admin/orders/$orderId/delivery/arbitrate',
+      body: {
+        'reason': reason.wire,
+        if (trimmed != null && trimmed.isNotEmpty) 'note': trimmed,
+        'voucherAmountXaf': ?voucherAmountXaf,
+      },
+    );
+    return IssuedVoucher.fromResponse(res.data);
   }
 
   /// Refuse une commande payée ou acceptée : le client est remboursé.
