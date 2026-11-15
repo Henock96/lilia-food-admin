@@ -43,7 +43,17 @@ bool _canSeePayout(WidgetRef ref, Order order) {
 /// au vendeur, pour que l'interrupteur puisse être éteint sans bouton cassé.
 bool _canAssignDeliverer(WidgetRef ref, Order order) {
   final isAdmin = ref.watch(currentUserProfileProvider)?.role == Role.admin;
-  return isAdmin && order.status == OrderStatus.pret && order.isDelivery;
+  final historic =
+      isAdmin && order.status == OrderStatus.pret && order.isDelivery;
+  if (!historic) return false;
+  // Dispatch FCFS (10/11/2026) — le serveur tranche : allumé, personne
+  // n'affecte plus (les livreurs prennent eux-mêmes les commandes), et le
+  // bouton disparaît sans nouvelle version. Fermé par défaut : rien tant que
+  // le verdict n'est pas lu, rien sur une erreur ; seul un backend ancien
+  // (route absente → `null`) garde la règle historique.
+  final verdict = ref.watch(orderDispatchViewProvider(order.id));
+  if (!verdict.hasValue) return false;
+  return verdict.value?.manualAssignmentAllowed ?? true;
 }
 
 class OrderDetailScreen extends ConsumerWidget {
@@ -178,6 +188,8 @@ class OrderDetailScreen extends ConsumerWidget {
             // verrait « assignez un livreur » alors qu'un livreur a déjà
             // accepté et arrive.
             if (currentOrder.isDelivery) ...[
+              // FCFS — la recherche automatique de livreur, si elle existe.
+              _DispatchSearchCard(order: currentOrder),
               _DeliveryStateCard(orderId: currentOrder.id),
               const SizedBox(height: 16),
             ],
@@ -1450,6 +1462,149 @@ class _DeliveryStateCard extends ConsumerWidget {
   }
 }
 
+/// Dispatch FCFS (10/11/2026) — « Recherche d'un livreur en cours ».
+///
+/// Lit le verdict serveur (`orderDispatchViewProvider`) : état, nombre de
+/// livreurs notifiés, heure de début, nombre de diffusions, livreur attribué.
+/// L'ADMIN peut **relancer** une recherche épuisée ; personne n'affecte.
+/// Invisible tant que le serveur n'a aucune recherche à montrer (mode
+/// manuel, commande pas encore prête) : la carte d'état de course et le bloc
+/// historique suffisent alors.
+class _DispatchSearchCard extends ConsumerWidget {
+  const _DispatchSearchCard({required this.order});
+
+  final Order order;
+
+  Future<void> _redispatch(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Relancer la recherche ?'),
+        content: const Text(
+          'Tous les livreurs disponibles seront de nouveau notifiés. '
+          'Le premier qui accepte prendra la commande.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Relancer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await DeliveryService(ref.read(apiClientProvider)).redispatchOrder(order.id);
+      ref.invalidate(orderDispatchViewProvider(order.id));
+      ref.invalidate(orderDeliveryStateProvider(order.id));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Recherche relancée : les livreurs sont notifiés.'),
+          ),
+        );
+      }
+    } on ApiException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final view = ref.watch(orderDispatchViewProvider(order.id)).asData?.value;
+    if (view == null) return const SizedBox.shrink();
+    final isAdmin = ref.watch(currentUserProfileProvider)?.role == Role.admin;
+    final showCard =
+        view.state != 'NONE' ||
+        (view.isAutomatic && order.status == OrderStatus.pret);
+    if (!showCard) return const SizedBox.shrink();
+
+    final (color, icon) = switch (view.state) {
+      'SEARCHING' => (LiliaColors.orange500, Icons.radar),
+      'ASSIGNED' => (Colors.green, Icons.person_pin_circle_outlined),
+      'EXHAUSTED' => (Colors.red, Icons.notifications_off_outlined),
+      'CLOSED' => (Colors.grey, Icons.block),
+      _ => (Colors.grey, Icons.hourglass_empty),
+    };
+    final time = DateFormat.Hm();
+    final lines = <String>[
+      if (view.isSearching || view.isExhausted) ...[
+        'Livreurs notifiés : ${view.notifiedCount}',
+        if (view.startedAt != null)
+          'Début : ${time.format(view.startedAt!)}'
+              '${view.waitingSeconds != null ? ' (${_minutes(view.waitingSeconds!)})' : ''}',
+        'Diffusions : ${view.round}/${view.maxRounds}',
+        if (view.isSearching && view.nextRoundAt != null)
+          'Prochaine diffusion : ${time.format(view.nextRoundAt!)}',
+      ],
+      if (view.isExhausted && !isAdmin)
+        'L’équipe Lilia a été prévenue et relance la recherche.',
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    view.label,
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  for (final line in lines) ...[
+                    const SizedBox(height: 2),
+                    Text(line, style: const TextStyle(fontSize: 13)),
+                  ],
+                  if (isAdmin && view.redispatchAllowed)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                        onPressed: () => _redispatch(context, ref),
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: const Text('Relancer la recherche'),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _minutes(int seconds) {
+    final m = seconds ~/ 60;
+    return m < 1 ? 'moins d’une minute' : '$m min';
+  }
+}
+
 /// Lot 2 (ADM-04) — relit la fiche toutes les 30 s tant qu'elle est affichée,
 /// et aussitôt au retour au premier plan. Ne dessine rien.
 class _StaffOrderRefresher extends ConsumerStatefulWidget {
@@ -1476,6 +1631,10 @@ class _StaffOrderRefresherState extends ConsumerState<_StaffOrderRefresher>
   void _refreshIfVisible() {
     if (!mounted || !TickerMode.valuesOf(context).enabled) return;
     ref.invalidate(staffOrderProvider(widget.orderId));
+    // FCFS — la recherche et la course bougent sans que la commande change
+    // de statut : on les relit au même rythme.
+    ref.invalidate(orderDispatchViewProvider(widget.orderId));
+    ref.invalidate(orderDeliveryStateProvider(widget.orderId));
   }
 
   @override
