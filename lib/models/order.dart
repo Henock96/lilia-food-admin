@@ -76,6 +76,9 @@ class Order {
   /// `null` = serveur antérieur qui ne les publie pas (repli, cf.
   /// `resolveOrderActions`) ; liste vide = aucun geste permis.
   final List<OrderAction>? allowedActions;
+  /// 15/11/2026 — verdict serveur (ADMIN) : la livraison peut être clôturée
+  /// sans le livreur. Absent sur un serveur antérieur : `false`.
+  final bool deliveryArbitrable;
   /// Au-delà, une commande payée non acceptée est annulée et remboursée.
   final DateTime? acceptDeadlineAt;
   /// Heure de fin de préparation annoncée au client à l'acceptation.
@@ -123,6 +126,7 @@ class Order {
     this.isPreorder = false,
     this.scheduledFor,
     this.allowedActions,
+    this.deliveryArbitrable = false,
     this.acceptDeadlineAt,
     this.estimatedReadyAt,
     this.deliveryProof,
@@ -161,6 +165,7 @@ class Order {
       isPreorder: isPreorder,
       scheduledFor: scheduledFor,
       allowedActions: allowedActions,
+      deliveryArbitrable: deliveryArbitrable,
       acceptDeadlineAt: acceptDeadlineAt,
       estimatedReadyAt: estimatedReadyAt,
       deliveryProof: deliveryProof,
@@ -206,6 +211,7 @@ class Order {
           ? DateTime.parse(json['scheduledFor'] as String)
           : null,
       allowedActions: OrderAction.listFromWire(json['allowedActions']),
+      deliveryArbitrable: json['deliveryArbitrable'] == true,
       acceptDeadlineAt: _dateOrNull(json['acceptDeadlineAt']),
       estimatedReadyAt: _dateOrNull(json['estimatedReadyAt']),
       deliveryProof: json['deliveryProof'] as String?,

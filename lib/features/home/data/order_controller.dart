@@ -2,6 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:lilia_admin/core/network/api_client.dart';
 import 'package:lilia_admin/features/auth/user_sync_provider.dart';
+import 'package:lilia_admin/models/delivery_arbitration.dart';
 import 'package:lilia_admin/models/order.dart';
 import 'package:lilia_admin/models/pickup_arbitration_reason.dart';
 import 'package:lilia_admin/models/role.dart';
@@ -170,6 +171,26 @@ class RestaurantOrders extends _$RestaurantOrders {
         .read(orderServiceRepositoryProvider)
         .arbitratePickup(orderId, reason: reason, note: note);
     ref.invalidateSelf();
+  }
+
+  /// 15/11/2026 — l'ADMIN clôture une livraison sans le livreur. Pas de
+  /// bascule optimiste : preuve, échéance et avoir viennent du serveur.
+  Future<IssuedVoucher?> arbitrateDelivery(
+    String orderId, {
+    required DeliveryArbitrationReason reason,
+    String? note,
+    int? voucherAmountXaf,
+  }) async {
+    final voucher = await ref
+        .read(orderServiceRepositoryProvider)
+        .arbitrateDelivery(
+          orderId,
+          reason: reason,
+          note: note,
+          voucherAmountXaf: voucherAmountXaf,
+        );
+    ref.invalidateSelf();
+    return voucher;
   }
 
   /// Refuse une commande payée ou acceptée (F3-01) : le client est remboursé.

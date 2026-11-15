@@ -16,6 +16,7 @@ import 'package:lilia_admin/features/auth/user_sync_provider.dart';
 import 'package:lilia_admin/models/role.dart';
 import '../../../../models/order.dart';
 import '../refresh_ticker.dart';
+import '../widgets/delivery_arbitration_dialog.dart';
 import '../widgets/order_action_dispatch.dart';
 import '../widgets/order_actions_panel.dart';
 import '../../../../models/app_deliverer.dart';
@@ -827,6 +828,20 @@ class OrderDetailScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            // 15/11/2026 — l'ADMIN peut clôturer une course en route que le
+            // livreur n'enregistre pas (verdict serveur).
+            if (order.deliveryArbitrable) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  key: const Key('delivery-arbitration-open'),
+                  onPressed: () => runDeliveryArbitration(context, ref, order),
+                  icon: const Icon(Icons.gavel_outlined),
+                  label: const Text('Clôturer la livraison'),
+                ),
+              ),
+            ],
           ],
         ),
       );
@@ -889,6 +904,16 @@ class OrderDetailScreen extends ConsumerWidget {
           role: ref.watch(currentUserProfileProvider)?.role ?? Role.unknown,
           onAction: (request) => performOrderAction(context, ref, order, request),
         ),
+        // 15/11/2026 — verdict serveur (ADMIN, livraison prête ou en route).
+        if (order.deliveryArbitrable) ...[
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            key: const Key('delivery-arbitration-open'),
+            onPressed: () => runDeliveryArbitration(context, ref, order),
+            icon: const Icon(Icons.gavel_outlined),
+            label: const Text('Clôturer la livraison'),
+          ),
+        ],
       ],
     );
   }
