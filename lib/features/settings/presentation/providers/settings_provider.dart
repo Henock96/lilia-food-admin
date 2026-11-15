@@ -25,15 +25,17 @@ class RestaurantSettings extends _$RestaurantSettings {
     });
   }
 
-  Future<void> updateOpenStatus(bool isOpen) async {
+  /// Renvoie la réponse du serveur, à afficher telle quelle. En cas d'échec
+  /// réseau, l'état précédent est gardé (l'exception remonte à l'écran) :
+  /// passer tout l'écran Réglages en erreur pour un interrupteur est excessif.
+  Future<OpenStatusResult?> updateOpenStatus(bool isOpen) async {
     final currentRestaurant = state.value;
-    if (currentRestaurant == null) return;
+    if (currentRestaurant == null) return null;
 
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
-      final service = ref.read(restaurantSettingsServiceProvider);
-      return await service.updateOpenStatus(currentRestaurant.id, isOpen);
-    });
+    final service = ref.read(restaurantSettingsServiceProvider);
+    final result = await service.updateOpenStatus(currentRestaurant.id, isOpen);
+    state = AsyncValue.data(result.restaurant);
+    return result;
   }
 
   Future<void> updateGeneralInfo({

@@ -710,28 +710,6 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                         fontSize: 13,
                       ),
                     ),
-                    if (widget.restaurant.manualOverride)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _AppColors.warningLight,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'Mode manuel actif',
-                            style: TextStyle(
-                              color: _AppColors.warning,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -757,8 +735,8 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                           children: [
                             Text(
                               value
-                                  ? 'Les clients pourront a nouveau passer des commandes.'
-                                  : 'Les clients ne pourront plus passer de commandes.',
+                                  ? 'Les clients pourront a nouveau passer des commandes, dans la limite de vos horaires.'
+                                  : 'Les clients ne pourront plus passer de commandes jusqu\'a la fin de votre service.',
                             ),
                             const SizedBox(height: 12),
                             Container(
@@ -777,7 +755,7 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                                   SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'Le mode manuel sera active : les horaires automatiques ne modifieront plus le statut.',
+                                      'Vos horaires restent prioritaires : le restaurant s\'ouvre et se ferme automatiquement selon eux.',
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: _AppColors.textSecondary,
@@ -806,11 +784,36 @@ class _GeneralInfoTabState extends ConsumerState<_GeneralInfoTab> {
                         ],
                       ),
                     );
-                    if (confirm == true) {
-                      await ref
+                    if (confirm != true || !context.mounted) return;
+                    final messenger = ScaffoldMessenger.of(context);
+                    String text;
+                    Color color;
+                    try {
+                      final result = await ref
                           .read(restaurantSettingsProvider.notifier)
                           .updateOpenStatus(value);
+                      if (result == null) return;
+                      text = result.message ??
+                          (result.restaurant.isOpen
+                              ? 'Restaurant ouvert'
+                              : 'Restaurant ferme');
+                      color = result.refused
+                          ? _AppColors.warning
+                          : _AppColors.successStrong;
+                    } catch (e) {
+                      text = 'Erreur: $e';
+                      color = _AppColors.danger;
                     }
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(text),
+                        backgroundColor: color,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    );
                   },
                 ),
               ),
@@ -1187,39 +1190,6 @@ class _OperatingHoursTabState extends ConsumerState<_OperatingHoursTab> {
             ],
           ),
         ),
-
-        if (widget.restaurant.manualOverride) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: _AppColors.warningLight,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: _AppColors.warning.withValues(alpha: 0.3),
-              ),
-            ),
-            child: const Row(
-              children: [
-                Icon(
-                  Icons.warning_amber_rounded,
-                  color: _AppColors.warning,
-                  size: 22,
-                ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Le mode manuel est actif. Enregistrez les horaires pour reactiver le mode automatique.',
-                    style: TextStyle(
-                      color: _AppColors.textPrimary,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
 
         const SizedBox(height: 20),
 

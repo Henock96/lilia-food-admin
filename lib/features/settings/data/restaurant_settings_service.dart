@@ -20,13 +20,24 @@ class RestaurantSettingsService {
     return Restaurant.fromJson((res.data as Map<String, dynamic>)['data']);
   }
 
-  /// Met à jour le statut ouvert/fermé du restaurant
-  Future<Restaurant> updateOpenStatus(String restaurantId, bool isOpen) async {
+  /// Bouton Ouvrir/Fermer. Les horaires priment : le serveur peut refuser
+  /// (hors horaires, congé) en répondant 200 avec `meta.refused` ; `isOpen`
+  /// du restaurant renvoyé est toujours son verdict.
+  Future<OpenStatusResult> updateOpenStatus(
+    String restaurantId,
+    bool isOpen,
+  ) async {
     final res = await _api.patchJson(
       '/restaurants/$restaurantId/open-status',
       body: {'isOpen': isOpen},
     );
-    return Restaurant.fromJson((res.data as Map<String, dynamic>)['data']);
+    final body = res.data as Map<String, dynamic>;
+    final meta = body['meta'] as Map<String, dynamic>?;
+    return OpenStatusResult(
+      restaurant: Restaurant.fromJson(body['data']),
+      message: body['message'] as String?,
+      refused: meta?['refused'] as bool? ?? false,
+    );
   }
 
   /// Met à jour les paramètres de livraison
@@ -128,4 +139,19 @@ class RestaurantSettingsService {
     );
     return OperatingHours.fromJson((res.data as Map<String, dynamic>)['data']);
   }
+}
+
+/// Réponse de `PATCH /restaurants/:id/open-status`.
+class OpenStatusResult {
+  final Restaurant restaurant;
+  final String? message;
+
+  /// Le serveur n'a pas appliqué la demande (hors horaires, congé, férié).
+  final bool refused;
+
+  const OpenStatusResult({
+    required this.restaurant,
+    required this.message,
+    required this.refused,
+  });
 }
