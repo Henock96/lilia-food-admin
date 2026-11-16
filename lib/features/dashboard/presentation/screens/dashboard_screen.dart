@@ -25,6 +25,7 @@ class DashboardScreen extends ConsumerWidget {
             onPressed: () {
               ref.invalidate(dashboardOverviewProvider);
               ref.invalidate(topProductsProvider);
+              ref.invalidate(peakHoursProvider);
               ref.invalidate(clientStatsProvider);
               if (isAdmin) ref.invalidate(restaurantRankingProvider);
             },
@@ -52,7 +53,7 @@ class DashboardScreen extends ConsumerWidget {
                   const SizedBox(height: 24),
                 ],
                 _TopProductsSection(),
-                const SizedBox(height: 24),
+                const _PeakHoursSection(),
                 _ClientStatsSection(),
               ],
             ),
@@ -363,6 +364,15 @@ class _TopProductsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final topProductsAsync = ref.watch(topProductsProvider(limit: 5));
+    // Lot D (D3) — réservé au Premium : section absente pour un vendeur
+    // Standard, sur le verdict du serveur. Rien n'est affiché tant qu'il
+    // n'est pas connu, pour ne pas montrer puis retirer la carte.
+    if (topProductsAsync.isLoading && !topProductsAsync.hasValue) {
+      return const SizedBox.shrink();
+    }
+    if (topProductsAsync.value?.premiumRequired ?? false) {
+      return const SizedBox.shrink();
+    }
 
     return Card(
       child: Padding(
@@ -376,7 +386,8 @@ class _TopProductsSection extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             topProductsAsync.when(
-              data: (products) {
+              data: (result) {
+                final products = result.products;
                 if (products.isEmpty) {
                   return const Center(
                     child: Padding(
@@ -429,8 +440,113 @@ class _TopProductsSection extends ConsumerWidget {
           ],
         ),
       ),
-    );
+    ).withSectionGap();
   }
+}
+
+extension on Widget {
+  /// Espacement porté par la section : une section absente (lot D, vendeur
+  /// Standard) ne laisse pas de trou dans le tableau de bord.
+  Widget withSectionGap() =>
+      Padding(padding: const EdgeInsets.only(bottom: 24), child: this);
+}
+
+/// Lot D (16/11/2026) — heures de pointe, réservées au Premium comme les
+/// produits phares. Absente pour un vendeur Standard (verdict serveur) et
+/// quand rien n'a encore été commandé. Une erreur, elle, se montre : la
+/// confondre avec « pas Premium » cacherait une panne.
+class _PeakHoursSection extends ConsumerWidget {
+  const _PeakHoursSection();
+
+  static const _title = Text(
+    'Heures de pointe',
+    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+  );
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(peakHoursProvider());
+    if (!async.hasValue) {
+      if (!async.hasError) return const SizedBox.shrink();
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Semantics(header: true, child: _title),
+              const SizedBox(height: 8),
+              const Text('Impossible de charger les heures de pointe.'),
+              TextButton(
+                onPressed: () => ref.invalidate(peakHoursProvider),
+                child: const Text('Réessayer'),
+              ),
+            ],
+          ),
+        ),
+      ).withSectionGap();
+    }
+    final peak = async.requireValue;
+    if (peak.premiumRequired) return const SizedBox.shrink();
+    final busy = peak.hours.where((h) => h.count > 0).toList();
+    if (busy.isEmpty) return const SizedBox.shrink();
+    final max = busy.map((h) => h.count).reduce((a, b) => a > b ? a : b);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Semantics(header: true, child: _title),
+            const SizedBox(height: 4),
+            Text(
+              'Le plus de commandes vers ${_hourLabel(peak.peakHour.hour)}',
+              style: TextStyle(color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 16),
+            for (final h in busy)
+              // Une ligne = une annonce ; largeurs minimales et non fixes,
+              // pour tenir à 1,5× sans couper l'heure ni le compteur.
+              Semantics(
+                container: true,
+                label: '${_hourLabel(h.hour)} : ${h.count} commandes',
+                child: ExcludeSemantics(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      children: [
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(minWidth: 48),
+                          child: Text(_hourLabel(h.hour)),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: h.count / max,
+                              minHeight: 10,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(minWidth: 32),
+                          child: Text('${h.count}', textAlign: TextAlign.end),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ).withSectionGap();
+  }
+
+  static String _hourLabel(int hour) => '${hour.toString().padLeft(2, '0')} h';
 }
 
 class _RestaurantRankingSection extends ConsumerWidget {

@@ -20,8 +20,12 @@ class DashboardService {
     return OrderStats.fromJson(_payloadMap(res.data));
   }
 
-  /// Récupère les produits les plus vendus
-  Future<List<TopProduct>> getTopProducts({
+  /// Récupère les produits les plus vendus.
+  ///
+  /// Lot D (16/11/2026) — réservés au Premium : pour un vendeur Standard, le
+  /// serveur répond une liste vide et `premiumRequired: true`. Le verdict
+  /// vient du serveur ; l'app ne le recalcule jamais.
+  Future<TopProductsResult> getTopProducts({
     int limit = 10,
     String? period,
   }) async {
@@ -30,7 +34,10 @@ class DashboardService {
       query: {'limit': '$limit', 'period': ?period},
     );
     final products = _payloadList(res.data);
-    return products.map((p) => TopProduct.fromJson(_asMap(p))).toList();
+    return TopProductsResult(
+      products: products.map((p) => TopProduct.fromJson(_asMap(p))).toList(),
+      premiumRequired: _premiumRequired(res.data),
+    );
   }
 
   /// Récupère l'évolution des revenus par jour
@@ -78,6 +85,11 @@ class DashboardService {
     if (data is Map<String, dynamic>) return data;
     return map;
   }
+
+  /// `premiumRequired` à la racine de la réponse ; absent (serveur ancien)
+  /// = pas de restriction.
+  bool _premiumRequired(dynamic body) =>
+      body is Map && body['premiumRequired'] == true;
 
   List<dynamic> _payloadList(dynamic body) {
     if (body is List) return body;
@@ -473,11 +485,29 @@ class ClientInfo {
   }
 }
 
+/// Produits phares + verdict Premium du serveur (lot D).
+class TopProductsResult {
+  final List<TopProduct> products;
+  final bool premiumRequired;
+
+  const TopProductsResult({
+    required this.products,
+    required this.premiumRequired,
+  });
+}
+
 class PeakHoursData {
   final List<HourStat> hours;
   final HourStat peakHour;
 
-  PeakHoursData({required this.hours, required this.peakHour});
+  /// Lot D — vrai pour un vendeur Standard : le serveur ne livre rien.
+  final bool premiumRequired;
+
+  PeakHoursData({
+    required this.hours,
+    required this.peakHour,
+    this.premiumRequired = false,
+  });
 
   factory PeakHoursData.fromJson(Map<String, dynamic> json) {
     final hours = _asList(json['data'] ?? json['hours']);
@@ -485,6 +515,7 @@ class PeakHoursData {
     return PeakHoursData(
       hours: hours.map((h) => HourStat.fromJson(_asMap(h))).toList(),
       peakHour: HourStat.fromJson(peakHour),
+      premiumRequired: json['premiumRequired'] == true,
     );
   }
 }
