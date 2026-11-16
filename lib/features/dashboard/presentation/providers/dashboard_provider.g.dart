@@ -130,11 +130,13 @@ final topProductsProvider = TopProductsFamily._();
 final class TopProductsProvider
     extends
         $FunctionalProvider<
-          AsyncValue<List<TopProduct>>,
-          List<TopProduct>,
-          FutureOr<List<TopProduct>>
+          AsyncValue<TopProductsResult>,
+          TopProductsResult,
+          FutureOr<TopProductsResult>
         >
-    with $FutureModifier<List<TopProduct>>, $FutureProvider<List<TopProduct>> {
+    with
+        $FutureModifier<TopProductsResult>,
+        $FutureProvider<TopProductsResult> {
   TopProductsProvider._({
     required TopProductsFamily super.from,
     required ({int limit, String? period}) super.argument,
@@ -158,12 +160,12 @@ final class TopProductsProvider
 
   @$internal
   @override
-  $FutureProviderElement<List<TopProduct>> $createElement(
+  $FutureProviderElement<TopProductsResult> $createElement(
     $ProviderPointer pointer,
   ) => $FutureProviderElement(pointer);
 
   @override
-  FutureOr<List<TopProduct>> create(Ref ref) {
+  FutureOr<TopProductsResult> create(Ref ref) {
     final argument = this.argument as ({int limit, String? period});
     return topProducts(ref, limit: argument.limit, period: argument.period);
   }
@@ -179,12 +181,12 @@ final class TopProductsProvider
   }
 }
 
-String _$topProductsHash() => r'b63ee2b49815eeac22ea02e35b595e83c9d27188';
+String _$topProductsHash() => r'027be0573668cceb4a8c8e68a29fec0242839021';
 
 final class TopProductsFamily extends $Family
     with
         $FunctionalFamilyOverride<
-          FutureOr<List<TopProduct>>,
+          FutureOr<TopProductsResult>,
           ({int limit, String? period})
         > {
   TopProductsFamily._()

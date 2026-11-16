@@ -21,7 +21,7 @@ Future<OrderStats> orderStats(Ref ref, {String? period}) async {
 }
 
 @riverpod
-Future<List<TopProduct>> topProducts(Ref ref, {int limit = 10, String? period}) async {
+Future<TopProductsResult> topProducts(Ref ref, {int limit = 10, String? period}) async {
   final service = ref.read(dashboardServiceProvider);
   return await service.getTopProducts(limit: limit, period: period);
 }
