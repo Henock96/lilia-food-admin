@@ -1,10 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- Aucune donnée de l'app ne part en sauvegarde ni en transfert d'appareil
+         (SEC-09, audit du 18/11) : la session Firebase d'un vendeur ou d'un
+         administrateur y partait. `allowBackup` couvre Android 11 et avant ;
+         depuis Android 12, seul `dataExtractionRules` exclut le transfert
+         d'appareil à appareil. Vérifié par `test/platform/android_backup_test.dart`. -->
     <application
         android:label="Lilia F. Admin"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/launcher_icon"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <!-- Clé injectée par Gradle depuis android/local.properties. -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
