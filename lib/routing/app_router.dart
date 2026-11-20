@@ -30,6 +30,7 @@ import 'package:lilia_admin/features/claims/presentation/claims_screens.dart';
 import 'package:lilia_admin/features/earnings/presentation/earnings_screen.dart';
 import 'package:lilia_admin/features/offers/presentation/offers_screen.dart';
 import 'package:lilia_admin/features/reviews/presentation/reviews_screen.dart';
+import 'package:lilia_admin/features/reservations/presentation/reservation_agenda_screens.dart';
 import 'package:lilia_admin/features/reservations/presentation/reservation_settings_screen.dart';
 import 'package:lilia_admin/features/incidents/presentation/screens/incident_detail_screen.dart';
 import 'package:lilia_admin/features/photos/presentation/screens/photos_screen.dart';
@@ -147,15 +148,38 @@ GoRouter router(Ref ref) {
         pageBuilder: (context, state) =>
             const MaterialPage(child: _RoleGuard(child: ReviewsScreen())),
       ),
-      // Premium Lot 3 — « Réservations sur place » : configuration du
-      // restaurant. Pas de garde : la route serveur est réservée au
-      // RESTAURATEUR, et l'écriture au Premium (vérifiée par le serveur).
+      // Lot 4 (4C) — « Réservations sur place » : l'agenda du restaurant ;
+      // la configuration (Premium Lot 3) en devient un sous-écran. Pas de
+      // garde : les routes serveur sont réservées au RESTAURATEUR, et
+      // l'écriture de la configuration au Premium (vérifiée par le serveur).
       GoRoute(
         path: '/reservations',
         name: 'reservations',
         pageBuilder: (context, state) => const MaterialPage(
-          child: _RoleGuard(child: ReservationSettingsScreen()),
+          child: _RoleGuard(child: ReservationAgendaScreen()),
         ),
+        routes: [
+          // Déclarée avant `:id`, sans quoi « configuration » serait lu
+          // comme un identifiant de réservation.
+          GoRoute(
+            path: 'configuration',
+            name: 'reservation-settings',
+            pageBuilder: (context, state) => const MaterialPage(
+              child: _RoleGuard(child: ReservationSettingsScreen()),
+            ),
+          ),
+          GoRoute(
+            path: ':id',
+            name: 'reservation-detail',
+            pageBuilder: (context, state) => MaterialPage(
+              child: _RoleGuard(
+                child: ReservationDetailScreen(
+                  reservationId: state.pathParameters['id']!,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       // F3-06 — réclamations : vendeur (sa boutique) et support. Pas de garde
       // admin : la portée est appliquée par le serveur.

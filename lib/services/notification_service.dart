@@ -12,6 +12,7 @@ import 'package:lilia_admin/features/home/application/new_order_alerts.dart';
 import 'package:lilia_admin/features/home/data/order_controller.dart';
 import 'package:lilia_admin/features/incidents/presentation/providers/incidents_provider.dart';
 import 'package:lilia_admin/firebase_options.dart';
+import 'package:lilia_admin/features/reservations/presentation/reservation_agenda_providers.dart';
 import 'package:lilia_admin/routing/app_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_admin/core/network/api_client.dart';
@@ -258,6 +259,10 @@ class NotificationService {
         // Le profil porte le restaurant et son `adminApproved`. Depuis le
         // Lot 4, la synchronisation ne repart plus d'elle-même : on la demande.
         unawaited(_ref.read(userDataSynchronizerProvider.notifier).resync());
+      case NotificationTarget.reservations:
+        _ref.invalidate(reservationAgendaProvider);
+        _ref.invalidate(pendingReservationsProvider);
+        _ref.invalidate(vendorReservationProvider);
       case null:
         break;
     }

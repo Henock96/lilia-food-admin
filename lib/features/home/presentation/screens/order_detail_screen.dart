@@ -13,6 +13,7 @@ import 'package:lilia_admin/core/utils/date_format.dart';
 import 'package:lilia_admin/features/admin/presentation/widgets/order_payout_card.dart';
 import 'package:lilia_admin/features/home/presentation/widgets/delivery_proof_card.dart';
 import 'package:lilia_admin/features/auth/user_sync_provider.dart';
+import 'package:lilia_admin/features/reservations/presentation/reservation_order_badge.dart';
 import 'package:lilia_admin/models/role.dart';
 import '../../../../models/order.dart';
 import '../refresh_ticker.dart';
@@ -122,6 +123,18 @@ class OrderDetailScreen extends ConsumerWidget {
             // Bannière statut
             _buildStatusBanner(context, currentOrder, statusInfo),
             const SizedBox(height: 16),
+
+            // Lot 4 (4C, F-6) — précommande d'une réservation : l'annulation,
+            // la table et l'absence se gèrent sur la réservation.
+            if (currentOrder.reservationId case final reservationId?) ...[
+              ReservationOrderBadge(
+                reservationId: reservationId,
+                linkToReservation:
+                    ref.watch(currentUserProfileProvider)?.role ==
+                    Role.restaurateur,
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // LIL-125 : section pré-commande (avant les infos client, pour
             // que le créneau soit la 1re info après le statut).

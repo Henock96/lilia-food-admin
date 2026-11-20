@@ -125,6 +125,52 @@ void main() {
     });
   });
 
+  // Lot 4 (4C) — `reservation-outbox-effects.service.ts` :
+  // `{type: 'reservation_update', reservationId, notice}` et
+  // `{type: 'reservation_daily_summary', date}`.
+  group('réservations (4C)', () {
+    test('au tap, une réservation ouvre sa fiche', () {
+      final action = onTap({
+        'type': 'reservation_update',
+        'reservationId': 'resa-1',
+        'notice': 'REQUESTED',
+      });
+      expect(action.refresh, NotificationTarget.reservations);
+      expect(
+        action.route,
+        const NotificationRoute(
+          'reservation-detail',
+          pathParameters: {'id': 'resa-1'},
+        ),
+      );
+    });
+
+    test('au premier plan, rafraîchit l’agenda sans naviguer', () {
+      final action = inForeground({
+        'type': 'reservation_update',
+        'reservationId': 'resa-1',
+      });
+      expect(action.refresh, NotificationTarget.reservations);
+      expect(action.route, isNull);
+      expect(action.alertOrderId, isNull);
+    });
+
+    test('sans identifiant : rafraîchit, ouvre l’agenda au tap', () {
+      final action = onTap({'type': 'reservation_update'});
+      expect(action.refresh, NotificationTarget.reservations);
+      expect(action.route, const NotificationRoute('reservations'));
+    });
+
+    test('le récapitulatif du jour ouvre l’agenda', () {
+      final action = onTap({
+        'type': 'reservation_daily_summary',
+        'date': '2026-11-21',
+      });
+      expect(action.refresh, NotificationTarget.reservations);
+      expect(action.route, const NotificationRoute('reservations'));
+    });
+  });
+
   group('réclamations (F3-06)', () {
     test('au tap, ouvre la réclamation', () {
       final action = router.resolve(

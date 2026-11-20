@@ -6,7 +6,15 @@
 enum NotificationTrigger { foreground, tap }
 
 /// Ce qu'il faut rafraîchir à réception.
-enum NotificationTarget { orders, incidents, pendingVendors, vendorProfile }
+enum NotificationTarget {
+  orders,
+  incidents,
+  pendingVendors,
+  vendorProfile,
+
+  /// Lot 4 (4C) — agenda, demandes à traiter et fiches de réservation.
+  reservations,
+}
 
 /// Destination go_router associée à une notification.
 class NotificationRoute {
@@ -147,6 +155,29 @@ class NotificationRouter {
                 )
               : null,
           alertOrderId: isTap ? null : newOrderId,
+        );
+
+      // Lot 4 (4C) — demande reçue, paiement, annulation, rappel…
+      // (`reservation-outbox-effects.service.ts`). Le titre et le corps sont
+      // rédigés par le serveur ; ici, seulement quoi relire et où aller.
+      case 'reservation_update':
+        final reservationId = data['reservationId'] as String?;
+        return NotificationAction(
+          refresh: NotificationTarget.reservations,
+          route: !isTap
+              ? null
+              : reservationId == null || reservationId.isEmpty
+              ? const NotificationRoute('reservations')
+              : NotificationRoute(
+                  'reservation-detail',
+                  pathParameters: {'id': reservationId},
+                ),
+        );
+
+      case 'reservation_daily_summary':
+        return NotificationAction(
+          refresh: NotificationTarget.reservations,
+          route: isTap ? const NotificationRoute('reservations') : null,
         );
 
       case 'preorder_reminder':
