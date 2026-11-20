@@ -103,6 +103,11 @@ class Order {
   final DateTime? paymentDueAt;
   /// Acceptation par le vendeur (avant ou après paiement selon le parcours).
   final DateTime? acceptedAt;
+  /// Lot 4 — précommande d'une réservation de table : la réservation porte
+  /// l'annulation et la table ; la commande, la préparation et le code.
+  final String? reservationId;
+
+  bool get isReservation => reservationId != null;
 
   Order({
     required this.id,
@@ -137,6 +142,7 @@ class Order {
     this.requestExpiresAt,
     this.paymentDueAt,
     this.acceptedAt,
+    this.reservationId,
   });
 
   /// Une demande attend la réponse du vendeur (lot 3).
@@ -176,6 +182,7 @@ class Order {
       requestExpiresAt: requestExpiresAt,
       paymentDueAt: paymentDueAt,
       acceptedAt: acceptedAt,
+      reservationId: reservationId,
     );
   }
 
@@ -223,6 +230,10 @@ class Order {
       requestExpiresAt: _dateOrNull(json['requestExpiresAt']),
       paymentDueAt: _dateOrNull(json['paymentDueAt']),
       acceptedAt: _dateOrNull(json['acceptedAt']),
+      reservationId: json['reservationId'] is String &&
+              (json['reservationId'] as String).isNotEmpty
+          ? json['reservationId'] as String
+          : null,
     );
   }
 

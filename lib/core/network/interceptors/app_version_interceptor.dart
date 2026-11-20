@@ -34,6 +34,13 @@ class AppVersionInterceptor extends Interceptor {
   static const orderFlowHeader = 'X-Lilia-Order-Flow';
   static const orderFlowCapability = 'accept-first';
 
+  /// Lot 4 (4C) — cette version affiche l'agenda des réservations et sait y
+  /// répondre. Sans cette annonce, le serveur refuse d'activer les
+  /// réservations (`426`) : une demande arriverait sans être vue et
+  /// expirerait au bout de 30 minutes.
+  static const reservationsHeader = 'X-Lilia-Reservations';
+  static const reservationsCapability = 'agenda';
+
   final Future<String?> Function() _readVersion;
   String? _cached;
 
@@ -56,6 +63,7 @@ class AppVersionInterceptor extends Interceptor {
   ) async {
     options.headers[appHeader] = appName;
     options.headers[orderFlowHeader] = orderFlowCapability;
+    options.headers[reservationsHeader] = reservationsCapability;
     final version = _cached ??= await _readVersion();
     if (version != null) {
       options.headers[versionHeader] = version;

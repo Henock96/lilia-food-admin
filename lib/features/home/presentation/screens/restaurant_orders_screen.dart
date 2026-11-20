@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import 'package:lilia_admin/core/utils/currency.dart';
 import 'package:lilia_admin/core/utils/date_format.dart';
+import 'package:lilia_admin/features/reservations/presentation/reservation_order_badge.dart';
 import '../../../../models/order.dart';
 import '../refresh_ticker.dart';
 import '../widgets/order_action_dispatch.dart';
@@ -852,6 +853,17 @@ class OrderCard extends ConsumerWidget {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+
+                  // Lot 4 (4C, F-6) — précommande d'une réservation de table.
+                  if (order.reservationId case final reservationId?) ...[
+                    ReservationOrderBadge(
+                      reservationId: reservationId,
+                      linkToReservation:
+                          ref.watch(currentUserProfileProvider)?.role ==
+                          Role.restaurateur,
                     ),
                     const SizedBox(height: 8),
                   ],

@@ -35,6 +35,13 @@ void main() {
     expect(headers['X-Lilia-Order-Flow'], 'accept-first');
   });
 
+  test('4C — annonce l’agenda des réservations (sans quoi le serveur refuse de les activer)', () async {
+    final headers = await sentHeaders(
+      AppVersionInterceptor(readVersion: () async => null),
+    );
+    expect(headers['X-Lilia-Reservations'], 'agenda');
+  });
+
   test('version illisible : la requête part, sans en-tête de version', () async {
     final headers = await sentHeaders(
       AppVersionInterceptor(readVersion: () async => null),
