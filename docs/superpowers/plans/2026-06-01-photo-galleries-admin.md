@@ -225,7 +225,7 @@
     }
   }
 
-  //CLOUDINARY_URL=cloudinary://779627169413964:zhYvHdrvy5xh64DG6DbCiw9JplE@dun9ev7pw
+  // CLOUDINARY_URL : fourni par l’environnement du backend (Render), jamais écrit dans le dépôt.
   ```
 
 - [ ] Vérifier qu'aucun autre fichier ne casse :
