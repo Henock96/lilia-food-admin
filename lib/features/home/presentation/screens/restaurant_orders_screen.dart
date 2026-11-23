@@ -196,7 +196,7 @@ class _RestaurantOrdersScreenState extends ConsumerState<RestaurantOrdersScreen>
         return 'Livrée';
       case OrderStatus.annuler:
         return 'Annulée';
-      default:
+      case OrderStatus.unknown:
         return 'Inconnu';
     }
   }
@@ -1198,6 +1198,15 @@ class OrderCard extends ConsumerWidget {
           color: Colors.green,
           icon: Icons.check_circle,
         );
+      // `EN_ROUTE` manquait : une commande en livraison s'affichait
+      // « Inconnu » dans la liste (constaté le 22/11/2026). Plus de `default`
+      // dans cet aiguillage : un statut oublié ne compile plus.
+      case OrderStatus.enRoute:
+        return _StatusInfo(
+          label: 'En livraison',
+          color: Colors.deepPurple,
+          icon: Icons.delivery_dining,
+        );
       case OrderStatus.livrer:
         return _StatusInfo(
           label: 'Livrée',
@@ -1210,7 +1219,7 @@ class OrderCard extends ConsumerWidget {
           color: Colors.red,
           icon: Icons.cancel,
         );
-      default:
+      case OrderStatus.unknown:
         return _StatusInfo(
           label: 'Inconnu',
           color: Colors.grey,

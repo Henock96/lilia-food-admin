@@ -6,6 +6,7 @@ import 'package:lilia_admin/features/auth/presentation/signin_page.dart';
 import 'package:lilia_admin/features/clients/presentation/screens/client_detail_screen.dart';
 import 'package:lilia_admin/features/clients/presentation/screens/clients_screen.dart';
 import 'package:lilia_admin/features/home/presentation/screens/restaurant_orders_screen.dart';
+import 'package:lilia_admin/features/home/presentation/screens/order_by_id_screen.dart';
 import 'package:lilia_admin/features/home/presentation/screens/order_detail_screen.dart';
 import 'package:lilia_admin/models/order.dart' as order_model;
 import 'package:lilia_admin/features/home/presentation/bottom_navigation_bar.dart';
@@ -274,18 +275,19 @@ GoRouter router(Ref ref) {
                     name: 'order-detail',
                     pageBuilder: (context, state) {
                       final extra = state.extra;
-                      if (extra is! order_model.Order) {
+                      if (extra is order_model.Order) {
                         return MaterialPage(
-                          child: _MissingRouteDataScreen(
-                            title: 'Commande indisponible',
-                            message:
-                                'Rechargez la liste des commandes puis ouvrez le détail à nouveau.',
-                            backRouteName: 'commandes',
-                          ),
+                          child: OrderDetailScreen(order: extra),
                         );
                       }
+                      // Sans l'objet (alerte « Nouvelle commande », lien
+                      // direct) : la commande est relue par son identifiant.
+                      // L'alerte n'envoyait que l'id et tombait sur
+                      // « Commande indisponible » (constaté le 22/11/2026).
                       return MaterialPage(
-                        child: OrderDetailScreen(order: extra),
+                        child: OrderByIdScreen(
+                          orderId: state.pathParameters['id']!,
+                        ),
                       );
                     },
                   ),
