@@ -134,6 +134,33 @@ void main() {
     expect(orders.calls.where((s) => s == null).length, lessThan(3));
   });
 
+  // Constaté le 22/11/2026 : une commande EN_ROUTE s'affichait « Inconnu »,
+  // l'aiguillage de la pastille l'ayant oubliée derrière un `default`.
+  testWidgets('aucune pastille « Inconnu » : EN_ROUTE est « En livraison »', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 16000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          currentUserProfileProvider.overrideWith(_AdminProfile.new),
+          orderServiceRepositoryProvider.overrideWithValue(_FakeOrders()),
+          adminTrackingSocketServiceProvider.overrideWithValue(_FakeSocket()),
+        ],
+        child: const MaterialApp(home: RestaurantOrdersScreen()),
+      ),
+    );
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(find.text('En livraison'), findsWidgets);
+    expect(find.text('Inconnu'), findsNothing);
+  });
+
   // Lot 5 — les échecs de livraison ont leur onglet.
   testWidgets('un onglet « Livraison non aboutie » existe', (tester) async {
     await tester.pumpWidget(

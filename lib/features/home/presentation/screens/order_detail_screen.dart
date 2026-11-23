@@ -993,7 +993,9 @@ class OrderDetailScreen extends ConsumerWidget {
           color: Colors.red,
           icon: Icons.cancel,
         );
-      default:
+      // Pas de `default` : un statut oublié ne compile plus (la liste avait
+      // perdu `EN_ROUTE` derrière le sien, affiché « Inconnu »).
+      case OrderStatus.unknown:
         return _StatusInfo(
           label: 'Inconnu',
           color: Colors.grey,
