@@ -415,8 +415,8 @@ class _ReservationDetailScreenState
       final order = await ref.read(staffOrderProvider(orderId).future);
       if (!mounted) return;
       await context.pushNamed(
-        'order-detail',
-        pathParameters: {'id': orderId},
+        'reservation-order',
+        pathParameters: {'id': widget.reservationId, 'orderId': orderId},
         extra: order,
       );
     } catch (e) {

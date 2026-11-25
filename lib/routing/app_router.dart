@@ -179,6 +179,28 @@ GoRouter router(Ref ref) {
                 ),
               ),
             ),
+            routes: [
+              // La commande liée s'ouvre **sous** la réservation, hors des
+              // onglets. Empiler `order-detail` (route des onglets) depuis
+              // ici reconstruisait une seconde coquille d'onglets de même
+              // clé : `!keyReservation.contains(key)` (23/11/2026).
+              GoRoute(
+                path: 'commande/:orderId',
+                name: 'reservation-order',
+                pageBuilder: (context, state) {
+                  final extra = state.extra;
+                  return MaterialPage(
+                    child: _RoleGuard(
+                      child: extra is order_model.Order
+                          ? OrderDetailScreen(order: extra)
+                          : OrderByIdScreen(
+                              orderId: state.pathParameters['orderId']!,
+                            ),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
         ],
       ),
