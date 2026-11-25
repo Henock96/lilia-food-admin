@@ -71,7 +71,11 @@ class NewOrderAlertHost extends ConsumerWidget {
                           ),
                           onPressed: () async {
                             await alerts.dismiss(orderId);
-                            ref.read(routerProvider).pushNamed(
+                            // `goNamed` : l'alerte peut s'ouvrir sur un écran
+                            // hors onglets (fiche réservation, gains…), d'où
+                            // empiler `order-detail` (route des onglets) fait
+                            // planter le Navigator (23/11/2026).
+                            ref.read(routerProvider).goNamed(
                               'order-detail',
                               pathParameters: {'id': orderId},
                             );

@@ -84,9 +84,15 @@ void main() {
     test('nouvelle commande touchée depuis la barre : ouvre son détail', () {
       final action = onTap({'type': 'new_order', 'orderId': 'ord-1'});
 
+      // `inTabs` : la commande se rejoint par `goNamed`. Empilée depuis un
+      // écran hors onglets (fiche réservation…), elle plantait le Navigator.
       expect(
         action.route,
-        const NotificationRoute('order-detail', pathParameters: {'id': 'ord-1'}),
+        const NotificationRoute(
+          'order-detail',
+          pathParameters: {'id': 'ord-1'},
+          inTabs: true,
+        ),
       );
       // Le vendeur l'a déjà vue en touchant la notification : pas d'alerte.
       expect(action.alertOrderId, isNull);
