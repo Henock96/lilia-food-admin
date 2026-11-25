@@ -276,11 +276,15 @@ class NotificationService {
     if (route == null) return;
 
     // `pushNamed` empile par dessus l'écran courant : le vendeur peut revenir
-    // en arrière sur ce qu'il faisait.
+    // en arrière sur ce qu'il faisait. Une route des onglets se rejoint avec
+    // `goNamed` : l'empiler depuis un écran hors onglets plante le Navigator.
     try {
-      _ref
-          .read(routerProvider)
-          .pushNamed(route.name, pathParameters: route.pathParameters);
+      final router = _ref.read(routerProvider);
+      if (route.inTabs) {
+        router.goNamed(route.name, pathParameters: route.pathParameters);
+      } else {
+        router.pushNamed(route.name, pathParameters: route.pathParameters);
+      }
     } catch (e) {
       debugPrint('[ADMIN NOTIF] Erreur navigation ${route.name}: $e');
     }

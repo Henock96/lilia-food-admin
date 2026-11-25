@@ -18,15 +18,27 @@ enum NotificationTarget {
 
 /// Destination go_router associée à une notification.
 class NotificationRoute {
-  const NotificationRoute(this.name, {this.pathParameters = const {}});
+  const NotificationRoute(
+    this.name, {
+    this.pathParameters = const {},
+    this.inTabs = false,
+  });
 
   final String name;
   final Map<String, String> pathParameters;
+
+  /// La route vit **dans** les onglets (`StatefulShellRoute`). L'empiler
+  /// depuis un écran hors onglets (fiche réservation, gains, offres…)
+  /// reconstruit une seconde coquille de même clé et fait planter le
+  /// Navigator (`!keyReservation.contains(key)`, 23/11/2026) : on y va avec
+  /// `goNamed`, jamais `pushNamed`.
+  final bool inTabs;
 
   @override
   bool operator ==(Object other) =>
       other is NotificationRoute &&
       other.name == name &&
+      other.inTabs == inTabs &&
       _sameParams(other.pathParameters, pathParameters);
 
   static bool _sameParams(Map<String, String> a, Map<String, String> b) =>
@@ -35,6 +47,7 @@ class NotificationRoute {
   @override
   int get hashCode => Object.hash(
         name,
+        inTabs,
         Object.hashAllUnordered(
           pathParameters.entries.map((e) => Object.hash(e.key, e.value)),
         ),
@@ -152,6 +165,7 @@ class NotificationRouter {
               ? NotificationRoute(
                   'order-detail',
                   pathParameters: {'id': newOrderId},
+                  inTabs: true,
                 )
               : null,
           alertOrderId: isTap ? null : newOrderId,
