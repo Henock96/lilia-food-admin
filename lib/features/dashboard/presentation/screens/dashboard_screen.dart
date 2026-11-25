@@ -6,6 +6,7 @@ import '../../../auth/user_sync_provider.dart';
 import '../../../../models/role.dart';
 import '../providers/dashboard_provider.dart';
 import '../../data/dashboard_service.dart';
+import '../../../premium/presentation/premium_upsell.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -371,7 +372,9 @@ class _TopProductsSection extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     if (topProductsAsync.value?.premiumRequired ?? false) {
-      return const SizedBox.shrink();
+      // Premium S1 — au lieu d'un vide, dire où souscrire (espace web). Une
+      // seule carte : les heures de pointe restent masquées.
+      return const PremiumStatsUpsellCard();
     }
 
     return Card(
