@@ -5,6 +5,7 @@ import 'package:lilia_admin/core/network/api_exception.dart';
 import 'package:lilia_admin/features/reservations/data/reservation_settings_repository.dart';
 import 'package:lilia_admin/features/reservations/presentation/arrival_times.dart';
 import 'package:lilia_admin/features/reservations/presentation/reservation_settings_providers.dart';
+import 'package:lilia_admin/features/premium/presentation/premium_upsell.dart';
 
 /// « Réservations sur place » (Premium Lot 3) — le restaurant prépare son
 /// service : activation, jours et heures, tables, places, règles.
@@ -664,6 +665,8 @@ class _StatusBanner extends StatelessWidget {
                 : 'Réservé aux restaurants Premium. Vous pouvez préparer et '
                       'vérifier votre configuration ; l’enregistrer demande un '
                       'abonnement Premium actif.',
+            // Premium S1 — la souscription se fait sur l'espace web.
+            action: const PremiumSubscribeButton(),
           ),
         if (!state.platformEnabled)
           const _Notice(
@@ -1172,10 +1175,14 @@ class _Notice extends StatelessWidget {
     super.key,
     required this.text,
     this.icon = Icons.info_outline,
+    this.action,
   });
 
   final String text;
   final IconData icon;
+
+  /// Geste proposé sous le texte (Premium S1 : où souscrire).
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -1188,7 +1195,14 @@ class _Notice extends StatelessWidget {
           children: [
             Icon(icon, size: 20),
             const SizedBox(width: 10),
-            Expanded(child: Text(text)),
+            Expanded(
+              child: action == null
+                  ? Text(text)
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [Text(text), action!],
+                    ),
+            ),
           ],
         ),
       ),
